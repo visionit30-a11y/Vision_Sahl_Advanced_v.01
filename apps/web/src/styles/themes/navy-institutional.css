@@ -1,0 +1,89 @@
+/*
+  كحلي مؤسسي بتنقل داكن — تنقل جانبي داكن يفصل الملاحة عن المحتوى بوضوح.
+
+  ملف هوية: قيم ألوان فقط. لا مسافات ولا أحجام ولا خطوط ولا أنصاف ولا نقاط كسر —
+  وحارس آلي يرفض أي إعلان هنا لا يبدأ بـ--color-، فلا تستطيع هوية أن تزيح تخطيطًا.
+*/
+[data-theme='navy-institutional'] {
+  /* الأسطح والخلفيات */
+  --color-bg-page: #f4f6f8;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #edf1f5;
+  --color-bg-hover: #e4eaf0;
+
+  /* الحدود */
+  --color-border: #d8dfe7;
+  --color-border-strong: #8b949d;
+
+  /* النصوص */
+  --color-text-primary: #16202b;
+  --color-text-secondary: #44515f;
+  --color-text-muted: #5d6976;
+  --color-text-inverse: #ffffff;
+
+  /* لون الهوية الأساسي */
+  --color-brand: #1b4b7a;
+  --color-brand-hover: #163d64;
+  --color-brand-active: #112f4e;
+  --color-brand-subtle: #e9f0f7;
+  --color-brand-border: #bcd1e6;
+  --color-on-brand: #ffffff;
+
+  /* اللون الثانوي */
+  --color-secondary: #3c4d5e;
+  --color-secondary-hover: #31404e;
+  --color-secondary-subtle: #eceff3;
+  --color-on-secondary: #ffffff;
+
+  /* لون التمييز */
+  --color-accent: #8a5230;
+  --color-accent-subtle: #f4ece6;
+
+  /* التركيز والروابط */
+  --color-focus-ring: #1b4b7a;
+  --color-link: #17456f;
+
+  /* الحالات */
+  --color-success: #1f7a4d;
+  --color-success-fg: #145c39;
+  --color-success-bg: #e9f4ee;
+  --color-success-border: #bfe0cd;
+  --color-warning: #9a6b00;
+  --color-warning-fg: #7a5500;
+  --color-warning-bg: #fbf3e2;
+  --color-warning-border: #ebd9ae;
+  --color-danger: #a32020;
+  --color-danger-fg: #8a1b1b;
+  --color-danger-bg: #fbecec;
+  --color-danger-border: #efc4c4;
+  --color-info: #1f5f8b;
+  --color-info-fg: #17496b;
+  --color-info-bg: #eaf2f8;
+  --color-info-border: #c3d9e9;
+
+  /* المعطّل */
+  --color-disabled-bg: #edf1f5;
+  --color-disabled-fg: #667381;
+  --color-disabled-border: #cfd8e1;
+
+  /* المحدَّد */
+  --color-selected-bg: #e9f0f7;
+  --color-selected-fg: #163d64;
+  --color-selected-border: #bcd1e6;
+
+  /* طبقة التعتيم */
+  --color-overlay-scrim: rgb(16 24 32 / 45%);
+
+  /* الرأس */
+  --color-header-bg: #ffffff;
+  --color-header-fg: #16202b;
+  --color-header-border: #d8dfe7;
+
+  /* التنقل الجانبي */
+  --color-nav-bg: #13314f;
+  --color-nav-fg: #cddbe8;
+  --color-nav-fg-muted: #a8bccf;
+  --color-nav-active-bg: #1e4570;
+  --color-nav-active-fg: #ffffff;
+  --color-nav-border: #1b3c60;
+}
