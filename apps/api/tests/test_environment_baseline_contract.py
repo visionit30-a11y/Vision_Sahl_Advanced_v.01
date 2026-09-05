@@ -107,4 +107,3 @@ def test_no_script_still_reads_pyvenv_cfg_with_the_narrow_pattern() -> None:
     ]
 
     assert offenders == []
-
