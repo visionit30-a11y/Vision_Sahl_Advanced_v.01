@@ -1,0 +1,18 @@
+{
+  "title": "Home",
+  "welcome": "Sahl Developer Platform",
+  "description": "The platform shell and design system. Modules appear in the navigation when their phase begins.",
+  "platformStatus": "Platform status",
+  "services": {
+    "application": "Application",
+    "database": "Database",
+    "cache": "Cache"
+  },
+  "serviceState": {
+    "up": "Running",
+    "down": "Unavailable",
+    "disabled": "Not enabled in this phase",
+    "loading": "Checking…",
+    "error": "Unreachable"
+  }
+}
