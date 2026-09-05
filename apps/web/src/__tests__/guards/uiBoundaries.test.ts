@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { PRESET_FAMILIES } from '../../ui-customization/contract/presets';
 import { SEMANTIC_COLOR_TOKENS } from '../../ui-customization/contract/semanticTokens';
 import { THEME_IDS } from '../../ui-customization/contract/settings';
 import { SRC_ROOT, collectFiles, isTestFile, readFile, toRelative } from './walk';
@@ -17,6 +18,15 @@ const ICON_MODULE = 'design-system/components/Icon/Icon.tsx';
 /** The only files allowed to touch browser storage directly. */
 const STORAGE_OWNERS = ['ui-customization/adapters/browserUiSettingsSource.ts', 'i18n/index.ts'];
 
+/** The only file allowed to write a customisation decision onto the document. */
+const DOCUMENT_WRITER = 'ui-customization/applyUiSettings.ts';
+
+/** Every identifier a component must never contain: identities and presets. */
+const CUSTOMISATION_IDS = [
+  ...THEME_IDS,
+  ...new Set(PRESET_FAMILIES.flatMap((family) => [...family.ids])),
+];
+
 function consumerSources(): string[] {
   return CONSUMER_DIRECTORIES.flatMap((directory) =>
     collectFiles(`${SRC_ROOT}/${directory}`, ['.ts', '.tsx', '.css']),
@@ -28,12 +38,12 @@ function consumerSources(): string[] {
  * check below is a rule that would otherwise depend on everyone remembering it.
  */
 describe('ui customisation boundaries', () => {
-  it('names no identity inside a component or a screen', () => {
+  it('names no identity or preset inside a component or a screen', () => {
     const offenders: string[] = [];
 
     for (const path of consumerSources()) {
       const source = readFile(path);
-      for (const id of THEME_IDS) {
+      for (const id of CUSTOMISATION_IDS) {
         if (source.includes(id)) {
           offenders.push(`${toRelative(path)}: ${id}`);
         }
@@ -57,6 +67,16 @@ describe('ui customisation boundaries', () => {
       .filter((path) => !isTestFile(path))
       .filter((path) => !STORAGE_OWNERS.includes(toRelative(path)))
       .filter((path) => /\b(localStorage|sessionStorage)\b/.test(readFile(path)))
+      .map(toRelative);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('writes the customisation decision onto the document in one place', () => {
+    const offenders = collectFiles(SRC_ROOT, ['.ts', '.tsx'])
+      .filter((path) => !isTestFile(path))
+      .filter((path) => toRelative(path) !== DOCUMENT_WRITER)
+      .filter((path) => /\.dataset\b/.test(readFile(path)))
       .map(toRelative);
 
     expect(offenders).toEqual([]);

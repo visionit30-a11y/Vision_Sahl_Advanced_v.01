@@ -1,0 +1,23 @@
+/*
+  المصبوغ المعياري — النمط الافتراضي المدمج للتنبيهات وشريط الحالة.
+  قيمه هي الشكل القائم حرفيًا: خلفية خفيفة بلون النبرة وحد ونص بلون النبرة.
+
+  ملف نمط: قيم متغيرات فقط، وبادئة --alert- وحدها.
+  ولا يعرّف --size-statusbar-height إطلاقًا: الشريط المحجوز رمز تخطيط لا يملكه نمط.
+*/
+:root,
+[data-alert-preset='tinted-standard'] {
+  --alert-padding-block: var(--space-3);
+  --alert-padding-inline: var(--space-3);
+  --alert-radius: var(--radius-md);
+  --alert-border-width: 1px;
+  --alert-accent-inline-start-width: 1px;
+  --alert-accent-mix: 0%;
+  --alert-solid-mix: 0%;
+  --alert-surface-mix: 0%;
+  --alert-bg-alpha: 100%;
+  --alert-icon-size: var(--size-icon-sm);
+  --alert-icon-opacity: 1;
+  --alert-font-size: var(--font-size-body);
+  --alert-link-decoration: underline;
+}

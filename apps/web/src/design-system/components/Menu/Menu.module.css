@@ -1,3 +1,7 @@
+/*
+  الشكل من عقد --overlay-*: القائمة والنافذة عائلة واحدة، فتبدّل النمط يطالهما معًا.
+  التنقل بلوحة المفاتيح والأدوار في المكوّن، خارج متناول أي نمط.
+*/
 .menu {
   position: relative;
   display: inline-flex;
@@ -24,10 +28,10 @@
   inset-block-start: calc(100% + var(--space-1));
   z-index: var(--layer-dropdown);
   min-inline-size: 200px;
-  padding: var(--space-1);
+  padding: var(--overlay-menu-gap);
   background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: var(--overlay-menu-border-width) solid var(--color-border);
+  border-radius: var(--overlay-menu-radius);
   box-shadow: var(--shadow-overlay);
 }
 
@@ -44,7 +48,8 @@
   align-items: center;
   gap: var(--space-2);
   inline-size: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding-block: var(--overlay-menu-padding-block);
+  padding-inline: var(--overlay-menu-padding-inline);
   border: 0;
   border-radius: var(--radius-sm);
   background-color: transparent;
@@ -64,8 +69,9 @@
 }
 
 .selected {
+  background-color: var(--overlay-selected-bg);
   color: var(--color-brand-hover);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--overlay-selected-weight);
 }
 
 .itemLabel {

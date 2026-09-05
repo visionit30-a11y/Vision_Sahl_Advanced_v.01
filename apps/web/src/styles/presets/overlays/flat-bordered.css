@@ -1,0 +1,23 @@
+/*
+  مسطّح محدَّد — بلا ظل، وحد واضح حول النافذة، وحجاب أخف.
+  طابع هادئ لجهة لا تحب الارتفاعات البصرية.
+*/
+[data-overlay-preset='flat-bordered'] {
+  --overlay-radius: var(--radius-md);
+  --overlay-shadow: none;
+  --overlay-border-width: 1px;
+  --overlay-border-color: var(--color-border-strong);
+  --overlay-padding-block: var(--space-4);
+  --overlay-padding-inline: var(--space-4);
+  --overlay-header-padding-block: var(--space-3);
+  --overlay-footer-padding-block: var(--space-3);
+  --overlay-scrim-strength: 60%;
+  --overlay-scrim-boost: 0%;
+  --overlay-menu-border-width: 1px;
+  --overlay-menu-radius: var(--radius-md);
+  --overlay-menu-padding-block: var(--space-2);
+  --overlay-menu-padding-inline: var(--space-3);
+  --overlay-menu-gap: var(--space-1);
+  --overlay-selected-bg: transparent;
+  --overlay-selected-weight: var(--font-weight-medium);
+}

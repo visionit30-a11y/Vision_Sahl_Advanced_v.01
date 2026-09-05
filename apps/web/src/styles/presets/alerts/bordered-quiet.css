@@ -1,0 +1,19 @@
+/*
+  محدَّد هادئ — خلفية السطح وشريط لوني عريض على الحافة البادئة.
+  أهدأ ما يمكن دون أن تختفي الرسالة، والنبرة تُقرأ من الحافة لا من مساحة ملوّنة.
+*/
+[data-alert-preset='bordered-quiet'] {
+  --alert-padding-block: var(--space-3);
+  --alert-padding-inline: var(--space-3);
+  --alert-radius: var(--radius-md);
+  --alert-border-width: 1px;
+  --alert-accent-inline-start-width: 3px;
+  --alert-accent-mix: 100%;
+  --alert-solid-mix: 0%;
+  --alert-surface-mix: 100%;
+  --alert-bg-alpha: 100%;
+  --alert-icon-size: var(--size-icon-sm);
+  --alert-icon-opacity: 0.9;
+  --alert-font-size: var(--font-size-body);
+  --alert-link-decoration: underline;
+}

@@ -1,0 +1,22 @@
+/*
+  ليّن مرتفع — نصف قطر أكبر وحشو أوسع وصف قائمة مريح، مع خلفية واضحة للعنصر المحدَّد.
+*/
+[data-overlay-preset='soft-elevated'] {
+  --overlay-radius: var(--radius-xl);
+  --overlay-shadow: var(--shadow-overlay);
+  --overlay-border-width: 0;
+  --overlay-border-color: var(--color-border);
+  --overlay-padding-block: var(--space-6);
+  --overlay-padding-inline: var(--space-6);
+  --overlay-header-padding-block: var(--space-4);
+  --overlay-footer-padding-block: var(--space-4);
+  --overlay-scrim-strength: 85%;
+  --overlay-scrim-boost: 0%;
+  --overlay-menu-border-width: 1px;
+  --overlay-menu-radius: var(--radius-lg);
+  --overlay-menu-padding-block: var(--space-3);
+  --overlay-menu-padding-inline: var(--space-4);
+  --overlay-menu-gap: var(--space-2);
+  --overlay-selected-bg: var(--color-selected-bg);
+  --overlay-selected-weight: var(--font-weight-semibold);
+}

@@ -1,0 +1,8 @@
+/*
+  أنماط التنبيهات وشريط الحالة. الافتراضي المدمج أولًا ومعرَّف على :root أيضًا.
+*/
+@import './tinted-standard.css';
+@import './bordered-quiet.css';
+@import './solid-emphatic.css';
+@import './minimal-inline.css';
+@import './dense-compact.css';

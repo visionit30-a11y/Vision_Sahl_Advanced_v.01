@@ -1,0 +1,64 @@
+/*
+  مفردات النبرة مشتركة بين التنبيهات وشريط الحالة.
+
+  كل صنف نبرة يعرّف رموزها الأربعة على العنصر نفسه — وهذا شرط لا اختيار: قيمة أي
+  متغيّر مخصص تُستبدل على العنصر الذي يعرّفها، فلو حاول نمط في :root أن يحيل إلى
+  --tone-bg لما وجد شيئًا. لذلك يقرر النمط النِّسب، ويقرر العنصر الألوان.
+
+  والمزج بنسبة 0% أو 100% يعيد طرفه حرفيًا، فقيم النبرات المضبوطة يدويًا والمفحوصة
+  للتباين تبقى كما هي تمامًا في النمط الافتراضي.
+*/
+.surface {
+  background-color: color-mix(
+    in srgb,
+    color-mix(
+        in srgb,
+        var(--tone-solid) var(--alert-solid-mix),
+        color-mix(in srgb, var(--color-bg-surface) var(--alert-surface-mix), var(--tone-bg))
+      )
+      var(--alert-bg-alpha),
+    transparent
+  );
+  border-color: color-mix(in srgb, var(--tone-solid) var(--alert-solid-mix), var(--tone-border));
+  border-inline-start-color: color-mix(
+    in srgb,
+    var(--tone-solid) var(--alert-accent-mix),
+    color-mix(in srgb, var(--tone-solid) var(--alert-solid-mix), var(--tone-border))
+  );
+  color: color-mix(in srgb, var(--color-text-inverse) var(--alert-solid-mix), var(--tone-fg));
+}
+
+.success {
+  --tone-solid: var(--color-success);
+  --tone-fg: var(--color-success-fg);
+  --tone-bg: var(--color-success-bg);
+  --tone-border: var(--color-success-border);
+}
+
+.warning {
+  --tone-solid: var(--color-warning);
+  --tone-fg: var(--color-warning-fg);
+  --tone-bg: var(--color-warning-bg);
+  --tone-border: var(--color-warning-border);
+}
+
+.danger {
+  --tone-solid: var(--color-danger);
+  --tone-fg: var(--color-danger-fg);
+  --tone-bg: var(--color-danger-bg);
+  --tone-border: var(--color-danger-border);
+}
+
+.info {
+  --tone-solid: var(--color-info);
+  --tone-fg: var(--color-info-fg);
+  --tone-bg: var(--color-info-bg);
+  --tone-border: var(--color-info-border);
+}
+
+.neutral {
+  --tone-solid: var(--color-neutral);
+  --tone-fg: var(--color-neutral-fg);
+  --tone-bg: var(--color-neutral-bg);
+  --tone-border: var(--color-neutral-border);
+}

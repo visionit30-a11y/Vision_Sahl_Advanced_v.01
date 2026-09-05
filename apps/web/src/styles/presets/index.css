@@ -1,0 +1,7 @@
+/*
+  أنماط العرض. عائلة لكل مجموعة مكونات، وكل عائلة تملك بادئة متغيرات واحدة
+  لا تتقاطع مع غيرها ولا مع ألوان الهوية.
+*/
+@import './buttons/index.css';
+@import './alerts/index.css';
+@import './overlays/index.css';

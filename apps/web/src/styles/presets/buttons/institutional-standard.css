@@ -1,0 +1,26 @@
+/*
+  المعياري المؤسسي — النمط الافتراضي المدمج للأزرار.
+  قيمه هي شكل الزر القائم حرفيًا، فإدخال أنماط العرض وحده لا يغيّر واجهة المنصة.
+
+  ملف نمط: قيم متغيرات فقط. لا قاعدة تخطيط ولا قيمة لونية صريحة —
+  إما رقم من السلالم المشتركة أو إحالة إلى رمز هوية.
+*/
+:root,
+[data-button-preset='institutional-standard'] {
+  --button-radius: var(--radius-md);
+  --button-height-md: var(--size-control-height-md);
+  --button-height-sm: var(--size-control-height-sm);
+  --button-padding-inline-md: var(--space-4);
+  --button-padding-inline-sm: var(--space-3);
+  --button-icon-gap: var(--space-2);
+  --button-font-weight: var(--font-weight-medium);
+  --button-border-width: 1px;
+  --button-primary-bg: var(--color-brand);
+  --button-primary-bg-hover: var(--color-brand-hover);
+  --button-primary-bg-active: var(--color-brand-active);
+  --button-primary-fg: var(--color-on-brand);
+  --button-primary-border: transparent;
+  --button-hover-elevation: none;
+  --button-pressed-translate-block: 0;
+  --button-disabled-opacity: 0.55;
+}
