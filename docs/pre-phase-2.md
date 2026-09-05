@@ -66,14 +66,53 @@
 
 **النتيجة: PASS محليًا.**
 
-## 4. حدود هذا القبول
+## 4. مستويات القبول الثلاثة
 
-نجاح `03-test` محليًا **لا يثبت** نجاح GitHub Actions. القبول ينقسم ثلاثة مستويات:
+نجاح `03-test` محليًا **لا يثبت** نجاح GitHub Actions، فالأول يعمل على ويندوز والثاني على
+Ubuntu. لذلك فُصل القبول ثلاثة مستويات، **وكلها متحققة الآن**:
 
-| المستوى | الحالة |
+| المستوى | الحالة | الدليل |
+|---|---|---|
+| **A — خط الأساس المحلي** | ✅ VERIFIED | `_logs/03-test-20260906-002357.log` — ١١ بوابة PASS |
+| **B — إعداد CI** | ✅ VERIFIED | قراءة `.github/workflows/ci.yml` و`.github/ci/setup-database.sql` |
+| **C — تنفيذ CI** | ✅ VERIFIED | **PR #6** على GitHub Actions — الوظائف الثلاث خضراء |
+
+## 5. تنفيذ CI — ما أثبتته المنصة فعليًا
+
+المصدر: تشغيل GitHub Actions على **PR #6** (`chore/pre-phase-2-engineering-baseline → develop`)،
+مراجَع بصريًا من مالك المشروع.
+
+| الوظيفة | النتيجة |
 |---|---|
-| **A — خط الأساس المحلي** | متحقق تشغيليًا من السجلات |
-| **B — إعداد CI** | متحقق **قراءةً فقط** من `.github/workflows/ci.yml` و`.github/ci/setup-database.sql` |
-| **C — تنفيذ CI** | **معلّق** حتى أول Push إلى GitHub |
+| `API (lint, types, tests, database)` | ✅ PASS |
+| `Web (lint, types, tests, build)` | ✅ PASS |
+| `No committed secrets` | ✅ PASS |
 
-لا يُعتبر الأساس الهندسي مغلقًا نهائيًا قبل أن يخضرّ المستوى C.
+وخطوات وظيفة API كلها خضراء بالترتيب:
+
+| الخطوة | ما أثبتته |
+|---|---|
+| Set up job | حُلّت كل الـActions، ومنها `astral-sh/setup-uv` **بالـSHA المثبت** |
+| Initialize containers | **PostgreSQL 17 حقيقي شُغِّل فعلًا** داخل GitHub Actions واجتاز فحص الصحة — لم يعد افتراضًا مقروءًا من ملف |
+| `actions/checkout` · `actions/setup-python` | Python **3.14** من `apps/api/.python-version` |
+| `astral-sh/setup-uv` | مثبَّت على `c771a70e…` ‏(v9.0.0)، وأداة uv على `0.12.10` |
+| Dependency lock is consistent | `uv lock --check` — **`uv.lock` استُعمل فعليًا داخل CI** ولم يُتخطَّ |
+| Install from the lock | `uv sync --frozen` — التثبيت من القفل حصرًا، بلا حلّ جديد |
+| Ruff · Mypy | بوابتا الجودة على الشجرة نفسها التي يركّبها القفل |
+| Create the migration and application roles | `sahl_migrator` مالك المخطط · `sahl_app` لا يملك شيئًا |
+| **The application role cannot bypass isolation** | ✅ `sahl_app` ليس `SUPERUSER` ولا `BYPASSRLS` — **البوابة الأمنية الحاكمة لـPhase 2A نجحت على قاعدة حقيقية** |
+| **Alembic migration round trip** | ✅ `upgrade → downgrade base → upgrade → current` مع تأكيد `(head)` على PostgreSQL 17 الحقيقي |
+| Pytest | مجموعة الخلفية تحت `APP_ENV=test` مقابل قاعدة حقيقية |
+| Stop containers · Complete job | إنهاء نظيف |
+
+**لا SKIP ولا `continue-on-error` في أي خطوة.**
+
+## 6. الأثر على Phase 2A
+
+أهم ما أثبته هذا التشغيل ليس اخضرار الوظائف، بل أن **بوابة العزل صارت قابلة للإثبات آليًا**.
+سياسات RLS التي تُكتب في Phase 2A لا يمكن التحقق منها إلا على PostgreSQL حقيقي وبدور
+لا يستطيع تجاوزها؛ ولو كانت الهجرات والتطبيق يتقاسمان دورًا واحدًا لمرّت كل سياسة عزل
+**خاملة** ونجحت اختباراتها للسبب الخطأ. هذا الخطر أُغلق قبل كتابة أول سطر من Phase 2A،
+وهو سبب وجود هذه المرحلة كلها.
+
+**الأساس الهندسي مغلق: PRE-PHASE-2-BASELINE-GATE = PASS.**
