@@ -108,7 +108,14 @@ export const ALERT_PRESET_VARIABLES = [
   '--alert-link-decoration',
 ] as const;
 
-/** The overlay family, shared by Modal and Menu. */
+/**
+ * The overlay family, shared by Modal and Menu.
+ *
+ * The identity owns the scrim's colour and the preset owns its depth: strength
+ * scales the identity token down, and boost adds opaque darkness on top of it.
+ * At strength 100% and boost 0% the result is the identity token exactly, so
+ * the built-in preset reproduces the current dialog without approximating it.
+ */
 export const OVERLAY_PRESET_VARIABLES = [
   '--overlay-radius',
   '--overlay-shadow',
@@ -119,6 +126,8 @@ export const OVERLAY_PRESET_VARIABLES = [
   '--overlay-header-padding-block',
   '--overlay-footer-padding-block',
   '--overlay-scrim-strength',
+  '--overlay-scrim-boost',
+  '--overlay-menu-border-width',
   '--overlay-menu-radius',
   '--overlay-menu-padding-block',
   '--overlay-menu-padding-inline',

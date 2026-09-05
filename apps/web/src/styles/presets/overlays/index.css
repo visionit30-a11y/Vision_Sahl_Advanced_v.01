@@ -1,0 +1,8 @@
+/*
+  أنماط النوافذ والقوائم. الافتراضي المدمج أولًا ومعرَّف على :root أيضًا.
+*/
+@import './institutional-standard.css';
+@import './compact-dense.css';
+@import './soft-elevated.css';
+@import './flat-bordered.css';
+@import './dim-focused.css';
