@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { errorId, hintId } from './fieldIds';
 import styles from './FormField.module.css';
 
 export interface FormFieldProps {
@@ -9,19 +10,6 @@ export interface FormFieldProps {
   error?: string;
   required?: boolean;
   children: ReactNode;
-}
-
-export function hintId(id: string): string {
-  return `${id}-hint`;
-}
-
-export function errorId(id: string): string {
-  return `${id}-error`;
-}
-
-export function describedBy(id: string, hint?: string, error?: string): string | undefined {
-  const ids = [hint ? hintId(id) : null, error ? errorId(id) : null].filter(Boolean);
-  return ids.length > 0 ? ids.join(' ') : undefined;
 }
 
 /**

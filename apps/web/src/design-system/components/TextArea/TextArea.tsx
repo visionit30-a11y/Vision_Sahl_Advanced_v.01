@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import type { TextareaHTMLAttributes } from 'react';
 
-import { FormField, describedBy } from '../Field/FormField';
+import { FormField } from '../Field/FormField';
+import { describedBy } from '../Field/fieldIds';
 import control from '../Field/control.module.css';
 import styles from './TextArea.module.css';
 

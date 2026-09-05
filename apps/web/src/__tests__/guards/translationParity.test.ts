@@ -1,3 +1,8 @@
+/**
+ * @vitest-environment node
+ *
+ * A filesystem guard: it inspects sources, never the DOM.
+ */
 import { describe, expect, it } from 'vitest';
 
 import { SRC_ROOT, collectFiles, readFile, toRelative } from './walk';

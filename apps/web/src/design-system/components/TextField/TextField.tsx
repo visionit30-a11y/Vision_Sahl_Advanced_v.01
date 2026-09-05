@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import type { InputHTMLAttributes } from 'react';
 
-import { FormField, describedBy } from '../Field/FormField';
+import { FormField } from '../Field/FormField';
+import { describedBy } from '../Field/fieldIds';
 import control from '../Field/control.module.css';
 
 export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {

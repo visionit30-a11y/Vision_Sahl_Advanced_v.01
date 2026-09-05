@@ -1,11 +1,37 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 
-/** src/ — resolved from this file so the guards work on any machine. */
-export const SRC_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const IGNORED_DIRECTORIES = new Set(['node_modules', 'dist', 'coverage', '.vite']);
 
-const IGNORED_DIRECTORIES = new Set(['node_modules', 'dist', 'coverage']);
+/**
+ * Locates the web source directory without depending on import.meta.url, which
+ * is not a file URL under every test environment, and without any absolute path
+ * tied to one machine. Works from apps/web (npm scripts, CI) and from the
+ * repository root, on Windows and on Linux alike.
+ */
+function findSourceRoot(): string {
+  const candidates = ['src', join('apps', 'web', 'src')];
+  let current = process.cwd();
+
+  for (let depth = 0; depth < 6; depth += 1) {
+    for (const candidate of candidates) {
+      const sourceRoot = resolve(current, candidate);
+      if (existsSync(join(sourceRoot, 'i18n', 'locales'))) {
+        return sourceRoot;
+      }
+    }
+
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  throw new Error(`Could not locate the web source directory from ${process.cwd()}`);
+}
+
+export const SRC_ROOT = findSourceRoot();
 
 export function collectFiles(directory: string, extensions: string[]): string[] {
   const found: string[] = [];
