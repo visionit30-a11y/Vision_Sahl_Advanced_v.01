@@ -5,8 +5,9 @@
 ## الطبقات
 
 ```
-styles/tokens/palettes/*.css   رموز دلالية (لوحة الهوية)
+styles/themes/*.css            قيم الرموز اللونية لكل هوية — ألوان فقط
 styles/tokens/*.css            مسافات · طباعة · أنصاف · ظلال · طبقات · حركة · نقاط كسر
+ui-customization/*             محرك تخصيص الواجهة: العقد والسجلات والحسم والمحوّلات
 styles/base.css                إعادة ضبط وعناصر HTML الأساسية
 design-system/components/*     مكوّن + وحدة CSS خاصة به
 design-system/layout/*         القشرة والتنقل وفتات الخبز
@@ -24,6 +25,9 @@ design-system/index.ts         المدخل الوحيد للمكتبة
 | لا قيمة لونية صريحة داخل وحدة مكوّن | `designTokens.test.ts` |
 | نقاط الكسر أربع فقط: 640 · 1024 · 1440 | `designTokens.test.ts` |
 | الشاشات تستورد المكتبة من مدخلها الوحيد | `importBoundaries.test.ts` |
+| كل هوية تعرّف عقد الرموز حرفيًا، وألوانًا فقط | `themeContract.test.ts` |
+| تباين WCAG AA في كل الهويات | `contrast.test.ts` |
+| لا مكوّن يعرف اسم هوية، ولا يستورد مكتبة الأيقونات، ولا يلمس تخزين المتصفح | `uiBoundaries.test.ts` |
 
 ## الاتجاه
 

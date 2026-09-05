@@ -1,7 +1,7 @@
-/* The default theme first, then the alternatives: equal specificity, so order decides. */
-@import './palettes/palette-c.css';
-@import './palettes/palette-a.css';
-@import './palettes/palette-b.css';
+/*
+  الرموز غير اللونية. قيم الألوان تأتي من ملف الهوية النشطة في styles/themes/،
+  ويختارها محرك تخصيص الواجهة بكتابة data-theme على <html>.
+*/
 @import './space.css';
 @import './typography.css';
 @import './radius.css';

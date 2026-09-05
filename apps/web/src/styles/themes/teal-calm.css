@@ -1,0 +1,92 @@
+/*
+  تيل هادئ برأس ملوّن — الهوية الافتراضية المعتمدة للمنصة. رأس بلون الهوية يمنح العلامة حضورًا أوضح مع محتوى محايد.
+  الهوية الافتراضية للمنصة (Built-in Default) بقرار مالك المشروع،
+  ولذلك تُعرَّف على :root أيضًا حتى تعمل قبل أن يحسم المحرك أي شيء.
+
+  ملف هوية: قيم ألوان فقط. لا مسافات ولا أحجام ولا خطوط ولا أنصاف ولا نقاط كسر —
+  وحارس آلي يرفض أي إعلان هنا لا يبدأ بـ--color-، فلا تستطيع هوية أن تزيح تخطيطًا.
+*/
+:root,
+[data-theme='teal-calm'] {
+  /* الأسطح والخلفيات */
+  --color-bg-page: #f6f6f4;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #efefec;
+  --color-bg-hover: #e8e8e4;
+
+  /* الحدود */
+  --color-border: #deded8;
+  --color-border-strong: #93938b;
+
+  /* النصوص */
+  --color-text-primary: #1e211f;
+  --color-text-secondary: #4b4f4c;
+  --color-text-muted: #63665f;
+  --color-text-inverse: #ffffff;
+
+  /* لون الهوية الأساسي */
+  --color-brand: #0f6e70;
+  --color-brand-hover: #0b585a;
+  --color-brand-active: #084446;
+  --color-brand-subtle: #e6f1f1;
+  --color-brand-border: #b7d8d8;
+  --color-on-brand: #ffffff;
+
+  /* اللون الثانوي */
+  --color-secondary: #3f5c5c;
+  --color-secondary-hover: #344d4d;
+  --color-secondary-subtle: #eaefee;
+  --color-on-secondary: #ffffff;
+
+  /* لون التمييز */
+  --color-accent: #45508c;
+  --color-accent-subtle: #ecedf6;
+
+  /* التركيز والروابط */
+  --color-focus-ring: #0f6e70;
+  --color-link: #0d5f61;
+
+  /* الحالات */
+  --color-success: #1f7a4d;
+  --color-success-fg: #145c39;
+  --color-success-bg: #e9f4ee;
+  --color-success-border: #bfe0cd;
+  --color-warning: #9a6b00;
+  --color-warning-fg: #7a5500;
+  --color-warning-bg: #fbf3e2;
+  --color-warning-border: #ebd9ae;
+  --color-danger: #a32020;
+  --color-danger-fg: #8a1b1b;
+  --color-danger-bg: #fbecec;
+  --color-danger-border: #efc4c4;
+  --color-info: #1f5f8b;
+  --color-info-fg: #17496b;
+  --color-info-bg: #eaf2f8;
+  --color-info-border: #c3d9e9;
+
+  /* المعطّل */
+  --color-disabled-bg: #efefec;
+  --color-disabled-fg: #6b6e68;
+  --color-disabled-border: #d3d3cc;
+
+  /* المحدَّد */
+  --color-selected-bg: #e6f1f1;
+  --color-selected-fg: #0b585a;
+  --color-selected-border: #b7d8d8;
+
+  /* طبقة التعتيم */
+  --color-overlay-scrim: rgb(20 24 22 / 45%);
+
+  /* الرأس */
+  --color-header-bg: #0f6e70;
+  --color-header-fg: #ffffff;
+  --color-header-border: #0b585a;
+
+  /* التنقل الجانبي */
+  --color-nav-bg: #f6f6f4;
+  --color-nav-fg: #4b4f4c;
+  --color-nav-fg-muted: #63665f;
+  --color-nav-active-bg: #e6f1f1;
+  --color-nav-active-fg: #0b585a;
+  --color-nav-border: #deded8;
+}

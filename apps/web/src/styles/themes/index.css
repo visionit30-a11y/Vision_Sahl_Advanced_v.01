@@ -1,0 +1,9 @@
+/*
+  الهويات المتاحة. الافتراضية أولًا: تعريفها على :root يجعلها تعمل قبل أن يحسم
+  المحرك أي شيء، والهويات الأخرى تعلو عليها بتساوي الأولوية وترتيب المصدر.
+*/
+@import './teal-calm.css';
+@import './green-institutional.css';
+@import './navy-institutional.css';
+@import './slate-neutral.css';
+@import './sand-warm.css';

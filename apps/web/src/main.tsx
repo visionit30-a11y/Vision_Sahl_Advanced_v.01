@@ -8,13 +8,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app/router';
-import { applyPalette, readStoredPalette } from './app/palette';
 import i18n, { directionOf } from './i18n';
+import { bootstrapUiSettings } from './ui-customization';
 
-// Set language, direction and palette before the first paint.
+// Language, direction and identity are settled before the first paint.
 document.documentElement.lang = i18n.language;
 document.documentElement.dir = directionOf(i18n.language);
-applyPalette(readStoredPalette());
+bootstrapUiSettings();
 
 const container = document.getElementById('root');
 
