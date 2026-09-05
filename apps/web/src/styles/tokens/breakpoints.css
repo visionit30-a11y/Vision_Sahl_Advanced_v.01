@@ -1,0 +1,17 @@
+/*
+  نقاط الكسر المعتمدة — أربع قيم فقط، ولا يجوز اختراع غيرها.
+
+    mobile   < 640px
+    tablet   >= 640px
+    laptop   >= 1024px
+    desktop  >= 1440px
+
+  استعلامات الوسائط في CSS لا تقبل المتغيرات، لذلك تُكتب القيم صراحة
+  في ملفات المكونات، ويوجد اختبار حارس يرفض أي قيمة خارج هذه الأربع.
+  نفس القيم متاحة لـTypeScript في src/styles/breakpoints.ts
+*/
+:root {
+  --breakpoint-tablet: 640px;
+  --breakpoint-laptop: 1024px;
+  --breakpoint-desktop: 1440px;
+}

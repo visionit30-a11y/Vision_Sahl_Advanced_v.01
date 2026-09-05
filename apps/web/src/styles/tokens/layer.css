@@ -1,0 +1,9 @@
+/* ترتيب الطبقات في مكان واحد لمنع تضارب z-index بين المكونات. */
+:root {
+  --layer-base: 0;
+  --layer-nav: 100;
+  --layer-header: 200;
+  --layer-statusbar: 300;
+  --layer-dropdown: 400;
+  --layer-overlay: 500;
+}

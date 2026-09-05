@@ -1,0 +1,6 @@
+/* ظلال وظيفية خفيفة فقط: للعناصر الطافية، لا للزينة. */
+:root {
+  --shadow-sm: 0 1px 2px rgb(16 24 32 / 6%);
+  --shadow-raised: 0 2px 6px rgb(16 24 32 / 8%);
+  --shadow-overlay: 0 8px 24px rgb(16 24 32 / 14%);
+}
