@@ -1,0 +1,38 @@
+.spinner {
+  flex: none;
+  animation: rotate 900ms linear infinite;
+}
+
+.sm {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.md {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+.track {
+  stroke: currentColor;
+  opacity: 0.25;
+}
+
+.head {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 56;
+  stroke-dashoffset: 42;
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2400ms;
+  }
+}

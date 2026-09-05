@@ -1,0 +1,12 @@
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-block: var(--space-7);
+  color: var(--color-text-secondary);
+}
+
+.label {
+  font-size: var(--font-size-body);
+}

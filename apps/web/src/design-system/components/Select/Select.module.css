@@ -1,0 +1,6 @@
+.select {
+  appearance: none;
+  padding-inline-end: var(--space-7);
+  background-image: linear-gradient(transparent, transparent);
+  cursor: pointer;
+}
