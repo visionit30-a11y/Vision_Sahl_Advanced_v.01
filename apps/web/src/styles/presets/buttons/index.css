@@ -1,0 +1,9 @@
+/*
+  أنماط الأزرار. الافتراضي المدمج أولًا: تعريفه على :root أيضًا يجعله يعمل قبل
+  أن يحسم المحرك شيئًا، والبقية تعلو عليه بتساوي الأولوية وترتيب المصدر.
+*/
+@import './institutional-standard.css';
+@import './compact-sharp.css';
+@import './balanced-roomy.css';
+@import './soft-rounded.css';
+@import './outlined-calm.css';

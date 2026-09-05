@@ -1,0 +1,22 @@
+/*
+  ليّن مستدير — أوسع حشو وأكبر نصف قطر ووزن أثقل، مع ارتفاع خفيف عند المرور
+  وإزاحة كتلية عند الضغط تعطي إحساسًا ملموسًا بالاستجابة.
+*/
+[data-button-preset='soft-rounded'] {
+  --button-radius: var(--radius-xl);
+  --button-height-md: var(--size-control-height-lg);
+  --button-height-sm: var(--size-control-height-md);
+  --button-padding-inline-md: var(--space-6);
+  --button-padding-inline-sm: var(--space-4);
+  --button-icon-gap: var(--space-2);
+  --button-font-weight: var(--font-weight-semibold);
+  --button-border-width: 1px;
+  --button-primary-bg: var(--color-brand);
+  --button-primary-bg-hover: var(--color-brand-hover);
+  --button-primary-bg-active: var(--color-brand-active);
+  --button-primary-fg: var(--color-on-brand);
+  --button-primary-border: transparent;
+  --button-hover-elevation: var(--shadow-sm);
+  --button-pressed-translate-block: 1px;
+  --button-disabled-opacity: 0.5;
+}

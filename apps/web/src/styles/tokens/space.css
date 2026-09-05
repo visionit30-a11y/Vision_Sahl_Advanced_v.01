@@ -17,6 +17,8 @@
   --size-nav-width: 248px;
   --size-nav-width-collapsed: 60px;
   --size-content-max: 1280px;
+  --size-control-height-xs: 28px;
   --size-control-height-sm: 30px;
   --size-control-height-md: 36px;
+  --size-control-height-lg: 40px;
 }
