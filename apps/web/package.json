@@ -16,6 +16,7 @@
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.1.0",
     "i18next": "^23.16.0",
+    "lucide-react": "^1.41.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^15.1.0",
