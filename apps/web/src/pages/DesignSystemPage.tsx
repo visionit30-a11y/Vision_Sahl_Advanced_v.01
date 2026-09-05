@@ -162,7 +162,7 @@ export function DesignSystemPage() {
             onClick={() => {
               show({
                 tone: 'success',
-                message: t('designSystem:samples.recordCreated'),
+                messageKey: 'designSystem:samples.recordCreated',
                 link: { label: t('designSystem:samples.recordNumber'), href: '/design-system' },
               });
             }}
@@ -173,7 +173,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'warning', message: t('designSystem:samples.warningMessage') });
+              show({ tone: 'warning', messageKey: 'designSystem:samples.warningMessage' });
             }}
           >
             {t('designSystem:showStatus.warning')}
@@ -182,7 +182,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'danger', message: t('designSystem:samples.dangerMessage') });
+              show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
             }}
           >
             {t('designSystem:showStatus.danger')}
@@ -191,7 +191,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'info', message: t('designSystem:samples.infoMessage') });
+              show({ tone: 'info', messageKey: 'designSystem:samples.infoMessage' });
             }}
           >
             {t('designSystem:showStatus.info')}
@@ -261,7 +261,7 @@ export function DesignSystemPage() {
                 variant="danger"
                 onClick={() => {
                   setModalOpen(false);
-                  show({ tone: 'danger', message: t('designSystem:samples.dangerMessage') });
+                  show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
                 }}
               >
                 {t('common:actions.delete')}

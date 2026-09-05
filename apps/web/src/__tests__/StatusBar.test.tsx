@@ -15,7 +15,7 @@ function Harness() {
         onClick={() => {
           show({
             tone: 'success',
-            message: 'Journal entry created:',
+            messageKey: 'designSystem:samples.recordCreated',
             link: { label: 'JE-000123', href: '/entries/123' },
             durationMs: null,
           });
@@ -43,7 +43,7 @@ describe('status bar engine', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'show' }));
 
-    expect(screen.getByText(/Journal entry created:/)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('designSystem:samples.recordCreated'))).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'JE-000123' });
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -55,7 +55,9 @@ describe('status bar engine', () => {
     fireEvent.click(screen.getByRole('button', { name: 'show' }));
     fireEvent.click(screen.getByRole('button', { name: 'clear' }));
 
-    expect(screen.queryByText(/Journal entry created:/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(i18n.t('designSystem:samples.recordCreated')),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText(i18n.t('status:region'))).toBeInTheDocument();
   });
 

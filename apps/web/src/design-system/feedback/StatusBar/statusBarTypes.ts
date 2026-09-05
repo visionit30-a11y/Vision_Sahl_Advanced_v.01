@@ -14,7 +14,12 @@ export interface StatusUndo {
 
 export interface StatusMessage {
   tone: StatusTone;
-  message: string;
+  /**
+   * A translation key, never a rendered string. A message that is resolved at
+   * call time freezes into one language and stops following the switcher.
+   */
+  messageKey: string;
+  messageValues?: Record<string, string | number>;
   link?: StatusLink;
   /**
    * Only supply this when the backend can genuinely reverse the operation.

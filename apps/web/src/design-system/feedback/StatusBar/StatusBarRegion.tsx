@@ -30,8 +30,8 @@ export function StatusBarRegion() {
       {message ? (
         <div className={[styles.bar, styles[message.tone]].join(' ')}>
           <Icon name={TONE_ICON[message.tone]} size="sm" className={styles.icon} />
-          <p className={styles.text}>
-            {message.message}
+          <p className={styles.text} title={t(message.messageKey, message.messageValues)}>
+            {t(message.messageKey, message.messageValues)}
             {message.link ? (
               <a
                 className={styles.link}
