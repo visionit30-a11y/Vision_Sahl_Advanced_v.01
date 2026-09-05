@@ -57,9 +57,17 @@ jobs:
         with:
           python-version-file: apps/api/.python-version
 
-      - uses: astral-sh/setup-uv@v8
+      # astral-sh publishes no moving major tag for this action - there is no v8
+      # or v9 ref to resolve, which is exactly why @v8 failed to resolve before
+      # any step ran. The official documentation pins the commit a release points
+      # at and names the release in the comment, so that is what this does.
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
+          # The version of the uv tool, which is a different thing from the
+          # version of the action above. Held equal to the local baseline so CI
+          # installs from uv.lock with the same uv that produced it.
+          version: '0.12.10'
 
       # Blocking on its own: a lock that drifted from pyproject would mean CI
       # installs a tree nobody reviewed.
