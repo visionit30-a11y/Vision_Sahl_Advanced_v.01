@@ -27,6 +27,82 @@ try {
         }
     }
 
+    Write-Section 'Baseline versions'
+    # The baseline lives in one file per runtime, and this compares the machine
+    # against it. A silent drift between the local machine and CI is how a build
+    # passes in one place and fails in the other.
+    $nvmrc = Join-Path $root 'apps\web\.nvmrc'
+    if (Test-Path $nvmrc) {
+        $nodeBaseline = (Get-Content $nvmrc -Raw).Trim()
+        $nodeActual = Get-ToolVersion -File 'node'
+        $nodeMajor = if ($nodeActual -match 'v?(\d+)\.') { $Matches[1] } else { $null }
+        if ($nodeMajor -eq $nodeBaseline) {
+            Write-Ok ("Node baseline {0} matches installed {1}" -f $nodeBaseline, $nodeActual)
+        }
+        else {
+            Write-Fail ("Node baseline is {0} (apps\web\.nvmrc) but {1} is installed" -f $nodeBaseline, $nodeActual)
+        }
+    }
+    else {
+        Write-Warn 'apps\web\.nvmrc is missing; the Node baseline cannot be checked.'
+    }
+
+    $pythonVersionFile = Join-Path $root 'apps\api\.python-version'
+    if (Test-Path $pythonVersionFile) {
+        $pythonBaseline = (Get-Content $pythonVersionFile -Raw).Trim()
+        $baselineVersion = Get-ToolVersion -File 'py' -Arguments @(('-' + $pythonBaseline), '--version')
+        if ($baselineVersion) {
+            Write-Ok ("Python baseline {0} available: {1}" -f $pythonBaseline, $baselineVersion)
+        }
+        else {
+            Write-Fail ("Python baseline is {0} (apps\api\.python-version) but 'py -{0}' did not answer" -f $pythonBaseline)
+        }
+
+        $venvDir = Join-Path $root 'apps\api\.venv'
+        if (Test-Path $venvDir) {
+            # Both sources are reported, because a report that shows only one of
+            # them cannot tell a matching environment from a half-rebuilt one.
+            $venvState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+            if ($venvState.ExecutableVersion) {
+                Write-Info ('Project virtualenv interpreter: Python ' + $venvState.ExecutableVersion)
+            }
+            else {
+                Write-Fail ('Project virtualenv interpreter: ' + $venvState.ExecutableError)
+            }
+            if ($venvState.ConfigVersion) {
+                Write-Info ('Project virtualenv pyvenv.cfg: ' + $venvState.ConfigKey + ' = ' + $venvState.ConfigVersion)
+            }
+            else {
+                Write-Fail ('Project virtualenv pyvenv.cfg: ' + $venvState.ConfigError)
+            }
+
+            if ($venvState.Status -eq 'matches') {
+                Write-Ok ('Project virtualenv matches the baseline ' + $pythonBaseline)
+            }
+            else {
+                Write-Fail ('Project virtualenv does not match the baseline: ' + $venvState.Reason)
+                if ($venvState.Status -ne 'inconsistent') {
+                    Write-Info 'Run scripts\01-setup.ps1 to rebuild it.'
+                }
+            }
+        }
+        else {
+            Write-Info 'Project virtualenv not created yet'
+        }
+    }
+    else {
+        Write-Warn 'apps\api\.python-version is missing; the Python baseline cannot be checked.'
+    }
+
+    $uvPresent = Test-CommandExists 'uv'
+    if ($uvPresent) {
+        $uvVersion = Get-ToolVersion -File 'uv'
+        Write-Ok ('uv found: ' + $uvVersion)
+    }
+    else {
+        Write-Fail 'uv was not found in PATH; the backend dependency lock cannot be used.'
+    }
+
     Write-Section 'Python interpreters'
     if (Test-CommandExists 'py') {
         $interpreters = Invoke-NativeCapture -File 'py' -Arguments @('-0p')

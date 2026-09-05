@@ -2,7 +2,7 @@
 name = "sahl-api"
 version = "0.1.0"
 description = "Sahl Developer Platform - API (Modular Monolith, FastAPI)"
-requires-python = ">=3.12"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -14,7 +14,9 @@ dependencies = [
     "structlog>=24.4",
 ]
 
-[project.optional-dependencies]
+# PEP 735 groups: development tools are not an installable extra of the
+# product, and uv installs this group by default when syncing the project.
+[dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
@@ -22,6 +24,12 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
 ]
+
+[tool.uv]
+# uv must use the interpreter installed on the machine rather than fetching one
+# of its own: the Python baseline is a decision recorded in .python-version and
+# installed deliberately, not something a sync step should change.
+python-preference = "only-system"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -32,7 +40,7 @@ include = ["app*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 src = ["app", "tests"]
 
 [tool.ruff.lint]
@@ -43,7 +51,7 @@ ignore = ["B008"]
 known-first-party = ["app"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 files = ["app", "tests"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

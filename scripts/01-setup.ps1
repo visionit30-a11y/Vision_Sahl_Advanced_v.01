@@ -14,7 +14,7 @@ param(
 #    1. tool check (psql is located without touching PATH)
 #    2. detect the independent PostgreSQL port (never 5432 - that is Odoo)
 #    3. .env file and the generated application database password
-#    4. Python virtual environment and API packages   (skipped if present)
+#    4. Python virtual environment and API packages   (uv, from uv.lock)
 #    5. frontend packages                             (skipped if present)
 #    6. verify the server identity through data_directory BEFORE any change
 #    7. create the sahl_app role and the sahl_dev database
@@ -75,29 +75,32 @@ $apiDir = Join-Path $root 'apps\api'
 $webDir = Join-Path $root 'apps\web'
 $databaseReady = $false
 
-function Resolve-PythonLauncher {
-    $candidates = @()
-    if (Test-CommandExists 'py') {
-        $candidates += , @{ File = 'py'; Args = @('-3.13') }
-        $candidates += , @{ File = 'py'; Args = @('-3.12') }
-        $candidates += , @{ File = 'py'; Args = @('-3') }
-    }
-    if (Test-CommandExists 'python') {
-        $candidates += , @{ File = 'python'; Args = @() }
-    }
+function Get-PythonBaseline {
+    # One source for the version: the same file uv reads and CI reads.
+    $file = Join-Path (Get-ProjectRoot) 'apps\api\.python-version'
+    if (-not (Test-Path $file)) { throw 'apps\api\.python-version is missing; the Python baseline is unknown.' }
+    return (Get-Content $file -Raw).Trim()
+}
 
-    foreach ($candidate in $candidates) {
-        $label = ($candidate.File + ' ' + ($candidate.Args -join ' ')).Trim()
-        $version = Get-ToolVersion -File $candidate.File -Arguments ($candidate.Args + @('--version'))
-        if (-not $version) { continue }
-        if ($version -match 'Python\s+(\d+)\.(\d+)') {
-            if ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -ge 12) {
-                Write-Ok ('Using ' + $version + ' via: ' + $label)
-                return $candidate
-            }
+function Resolve-PythonLauncher {
+    param([string] $Baseline)
+
+    if (Test-CommandExists 'py') {
+        $version = Get-ToolVersion -File 'py' -Arguments @(('-' + $Baseline), '--version')
+        if ($version) {
+            Write-Ok ('Using ' + $version + ' via: py -' + $Baseline)
+            return @{ File = 'py'; Args = @('-' + $Baseline) }
         }
     }
-    throw 'Python 3.12 or newer was not found. Install it, then run scripts\00-check.ps1 again.'
+
+    $version = Get-ToolVersion -File 'python'
+    if ($version -and $version -match ('Python\s+' + [regex]::Escape($Baseline) + '\.')) {
+        Write-Ok ('Using ' + $version + ' via: python')
+        return @{ File = 'python'; Args = @() }
+    }
+
+    throw ("Python $Baseline was not found. Install it from python.org, then run scripts\00-check.ps1 again. " +
+        'Nothing is installed automatically.')
 }
 
 function New-DatabasePassword {
@@ -130,7 +133,13 @@ try {
         Write-Ok ($tool + ' found')
     }
     $npmExe = if (Test-CommandExists 'npm.cmd') { 'npm.cmd' } elseif (Test-CommandExists 'npm') { 'npm' } else { throw 'npm was not found in PATH.' }
-    $python = Resolve-PythonLauncher
+    $pythonBaseline = Get-PythonBaseline
+    $python = Resolve-PythonLauncher -Baseline $pythonBaseline
+    if (-not (Test-CommandExists 'uv')) {
+        throw ('uv was not found in PATH. Install it from https://docs.astral.sh/uv/ , then run this script again. ' +
+            'Nothing is installed automatically.')
+    }
+    Write-Ok ('uv found: ' + (Get-ToolVersion -File 'uv'))
 
     $psqlExe = Resolve-PsqlPath
     if ($psqlExe) { Write-Ok ('psql: ' + $psqlExe) } else { Write-Warn 'psql.exe was not found; the database steps will be skipped.' }
@@ -193,29 +202,90 @@ try {
     Write-Section '4. Python virtual environment and API packages'
     $venvDir = Join-Path $apiDir '.venv'
     $venvPython = Join-Path $venvDir 'Scripts\python.exe'
-    if (-not (Test-Path $venvPython)) {
-        Invoke-Native -File $python.File -Arguments ($python.Args + @('-m', 'venv', $venvDir)) | Out-Null
-        Write-Ok 'Virtual environment created'
-    }
-    else {
-        Write-Info 'Virtual environment already present'
+
+    # An environment built on another Python is rebuilt rather than patched.
+    # Only apps\api\.venv is ever removed, and the path is asserted twice - here
+    # and again inside Remove-ProjectDirectory - so a future edit cannot widen
+    # what this deletes.
+    $expectedVenvDir = Join-Path $apiDir '.venv'
+    $rebuildReason = $null
+
+    # Two independent sources decide this: the interpreter that actually runs,
+    # and pyvenv.cfg. They are only allowed to send us down the destructive path
+    # when they agree; a disagreement stops the script instead of deleting on a
+    # reading nobody can explain.
+    $venvState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+    switch ($venvState.Status) {
+        'matches' { Write-Ok ('old venv already matches the baseline: ' + $venvState.Reason) }
+        'mismatch' { $rebuildReason = 'old venv = Python ' + $venvState.ExecutableVersion + ' but the baseline is ' + $pythonBaseline }
+        'incomplete' {
+            if (Test-Path $venvDir) {
+                # Wreckage of an interrupted rebuild. Installing into it would
+                # hide the damage, so it is replaced.
+                $rebuildReason = 'old venv is unusable (' + $venvState.Reason + ') and is replaced'
+            }
+        }
+        'inconsistent' {
+            throw ('The existing virtual environment cannot be classified: ' + $venvState.Reason +
+                ' Nothing was deleted. Inspect apps\api\.venv yourself, then run this script again.')
+        }
     }
 
-    $apiPackagesPresent = $false
-    if (Test-Path $venvPython) {
-        $importProbe = Invoke-NativeCapture -File $venvPython -Arguments @(
-            '-c', 'import fastapi, sqlalchemy, alembic, psycopg, redis, structlog, pytest, httpx'
-        )
-        $apiPackagesPresent = ($importProbe.ExitCode -eq 0)
+    if ($rebuildReason) {
+        if ($venvDir -ne $expectedVenvDir) {
+            throw 'Refusing to remove a directory that is not apps\api\.venv'
+        }
+        Write-Info $rebuildReason
+
+        # Deleting a virtual environment while something runs from it fails on
+        # Windows: a loaded .pyd stays locked, and a uvicorn reloader answers the
+        # half-deleted directory by respawning its worker. So the processes are
+        # stopped first - the ones an earlier 02-run recorded, then any orphan
+        # still running from this exact environment - and only then is it removed.
+        Stop-SahlServices
+        if (-not (Stop-ProcessesUsingPath -Path $venvDir)) {
+            throw ('The old virtual environment is still in use. Close the processes listed above, ' +
+                'then run this script again. Nothing was deleted.')
+        }
+        Write-Ok 'project-owned processes stopped safely'
+
+        if (-not (Remove-ProjectDirectory -Path $venvDir -ExpectedPath $expectedVenvDir)) {
+            throw ('The old virtual environment could not be removed. The file named above is still locked. ' +
+                'Close whatever holds it, then run this script again. Nothing outside apps\api\.venv was touched.')
+        }
+        Write-Ok 'old venv removed - nothing outside apps\api\.venv was touched'
     }
 
-    if ($apiPackagesPresent -and -not $ReinstallPackages) {
-        Write-Info 'API packages already installed - skipped'
+    $lockFile = Join-Path $apiDir 'uv.lock'
+    if (Test-Path $lockFile) {
+        Invoke-Native -File 'uv' -Arguments @('sync', '--frozen') -WorkingDirectory $apiDir | Out-Null
+        Write-Ok 'API packages installed from uv.lock (frozen)'
     }
     else {
-        Invoke-Native -File $venvPython -Arguments @('-m', 'pip', 'install', '--upgrade', 'pip') | Out-Null
-        Invoke-Native -File $venvPython -Arguments @('-m', 'pip', 'install', '-e', '.[dev]') -WorkingDirectory $apiDir | Out-Null
-        Write-Ok 'API packages installed'
+        # The only path that resolves versions. Every later run is frozen.
+        Write-Info 'uv.lock is missing - generating it once from pyproject.toml'
+        Invoke-Native -File 'uv' -Arguments @('lock') -WorkingDirectory $apiDir | Out-Null
+        Write-Ok 'uv.lock generated'
+        Invoke-Native -File 'uv' -Arguments @('sync', '--frozen') -WorkingDirectory $apiDir | Out-Null
+        Write-Ok 'uv sync --frozen succeeded'
+    }
+
+    # uv builds the environment, so what it produced is read back from disk
+    # rather than assumed from the baseline file - and from both sources, since
+    # an interpreter and the file that describes it can drift apart.
+    $builtState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+    if ($builtState.Status -ne 'matches') {
+        if ($builtState.ExecutableError) { Write-Fail ('interpreter: ' + $builtState.ExecutableError) }
+        if ($builtState.ConfigError) { Write-Fail ('pyvenv.cfg: ' + $builtState.ConfigError) }
+        throw ('The virtual environment does not match the baseline ' + $pythonBaseline + ': ' + $builtState.Reason)
+    }
+    Write-Info ('interpreter reports Python ' + $builtState.ExecutableVersion)
+    Write-Info ('pyvenv.cfg records ' + $builtState.ConfigKey + ' = ' + $builtState.ConfigVersion)
+    if ($rebuildReason) {
+        Write-Ok ('new venv created with Python ' + $builtState.ExecutableVersion)
+    }
+    else {
+        Write-Ok ('virtual environment runs Python ' + $builtState.ExecutableVersion + ' - matches the baseline')
     }
 
     Write-Section '5. Frontend packages'
