@@ -47,6 +47,24 @@ function Test-CommandExists {
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function ConvertTo-NativeLine {
+    <#
+        Many command line tools write progress and INFO messages to stderr.
+        PowerShell 5.1 turns those into ErrorRecord objects and renders them
+        with a NativeCommandError banner, which makes successful runs look like
+        failures in the log. This flattens such a record back to its plain
+        message. Tool behaviour is untouched; only the rendering changes -
+        success or failure is decided by the exit code alone.
+    #>
+    param($Item)
+
+    if ($null -eq $Item) { return '' }
+    if ($Item -is [System.Management.Automation.ErrorRecord]) {
+        return $Item.Exception.Message
+    }
+    return [string]$Item
+}
+
 function Invoke-Native {
     <#
         Runs an external program, echoes stdout and stderr into the transcript
@@ -70,9 +88,14 @@ function Invoke-Native {
     $code = 0
     try {
         Write-Host ('  $ ' + $File + ' ' + ($Arguments -join ' '))
-        & $File @Arguments 2>&1 | ForEach-Object { Write-Host ('    ' + (($_ | Out-String).TrimEnd())) }
+        # Captured, not streamed, so stderr records are not rendered as errors.
+        $raw = & $File @Arguments 2>&1
         $code = $LASTEXITCODE
         if ($null -eq $code) { $code = 0 }
+        foreach ($item in @($raw)) {
+            $line = (ConvertTo-NativeLine $item).TrimEnd()
+            if ($line -ne '') { Write-Host ('    ' + $line) }
+        }
     }
     finally {
         $ErrorActionPreference = $previousEap
@@ -88,7 +111,7 @@ function Invoke-Native {
 function Invoke-NativeCapture {
     <#
         Runs an external program and returns its output plus exit code without
-        letting native stderr become a terminating error.
+        letting native stderr become a terminating error or an error banner.
     #>
     param(
         [Parameter(Mandatory = $true)][string] $File,
@@ -100,9 +123,10 @@ function Invoke-NativeCapture {
     $lines = @()
     $code = 0
     try {
-        $lines = @(& $File @Arguments 2>&1 | ForEach-Object { ($_ | Out-String).TrimEnd() })
+        $raw = & $File @Arguments 2>&1
         $code = $LASTEXITCODE
         if ($null -eq $code) { $code = 0 }
+        $lines = @(foreach ($item in @($raw)) { (ConvertTo-NativeLine $item).TrimEnd() })
     }
     catch {
         $lines = @($_.Exception.Message)
@@ -111,6 +135,8 @@ function Invoke-NativeCapture {
     finally {
         $ErrorActionPreference = $previousEap
     }
+
+    $lines = @($lines | Where-Object { $_ -ne '' })
 
     return [pscustomobject]@{
         Output   = $lines

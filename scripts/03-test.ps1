@@ -14,6 +14,7 @@ $webDir = Join-Path $root 'apps\web'
 $results = New-Object System.Collections.ArrayList
 
 function Add-Result {
+    # ExitCode -1 means the gate was skipped because a precondition was missing.
     param([string] $Name, [int] $Code, [bool] $Blocking)
     [void]$results.Add([pscustomobject]@{ Gate = $Name; ExitCode = $Code; Blocking = $Blocking })
 }
@@ -46,12 +47,32 @@ try {
     Write-Section 'Frontend - production build'
     Add-Result 'vite build' (Invoke-Native -File $npmExe -Arguments @('run', 'build') -WorkingDirectory $webDir -AllowFailure) $true
 
+    Write-Section 'Database - migration round trip'
+    $databasePort = $null
+    $databaseUrl = Get-EnvValue 'DATABASE_URL'
+    if ($databaseUrl -match '@[^:/]+:(\d+)/') { $databasePort = [int]$Matches[1] }
+    if ($databasePort -and (Test-TcpPort -Port $databasePort)) {
+        $down = Invoke-Native -File $venvPython -Arguments @('-m', 'alembic', 'downgrade', 'base') -WorkingDirectory $apiDir -AllowFailure
+        $up = Invoke-Native -File $venvPython -Arguments @('-m', 'alembic', 'upgrade', 'head') -WorkingDirectory $apiDir -AllowFailure
+        Invoke-Native -File $venvPython -Arguments @('-m', 'alembic', 'current') -WorkingDirectory $apiDir -AllowFailure | Out-Null
+        $roundTrip = if ($down -ne 0) { $down } else { $up }
+        Add-Result 'alembic down/up' $roundTrip $true
+    }
+    else {
+        Write-Warn 'PostgreSQL is not reachable; the migration round trip was skipped.'
+        Add-Result 'alembic down/up' -1 $false
+    }
+
     Write-Section 'Frontend - prettier (advisory)'
     Add-Result 'prettier --check' (Invoke-Native -File $npmExe -Arguments @('run', 'format:check') -WorkingDirectory $webDir -AllowFailure) $false
 
     Write-Section 'Summary'
     foreach ($result in $results) {
-        $label = if ($result.ExitCode -eq 0) { 'PASS' } elseif ($result.Blocking) { 'FAIL' } else { 'WARN' }
+        $label =
+        if ($result.ExitCode -eq -1) { 'SKIP' }
+        elseif ($result.ExitCode -eq 0) { 'PASS' }
+        elseif ($result.Blocking) { 'FAIL' }
+        else { 'WARN' }
         Write-Host ("  {0,-6} {1,-22} exit={2}" -f $label, $result.Gate, $result.ExitCode)
     }
 
