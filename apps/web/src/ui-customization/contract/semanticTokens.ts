@@ -120,6 +120,11 @@ export const CONTRAST_TEXT_PAIRS: readonly (readonly [SemanticColorToken, Semant
   ['info-fg', 'bg-page'],
   ['neutral-fg', 'bg-surface'],
   ['neutral-fg', 'bg-page'],
+  // The table presets tint a header, a striped row, a hovered row and a
+  // selected row, and text has to stay readable on every one of them:
+  ['text-primary', 'bg-hover'],
+  ['text-primary', 'selected-bg'],
+  ['text-secondary', 'bg-subtle'],
 ];
 
 export const CONTRAST_INTERFACE_PAIRS: readonly (readonly [

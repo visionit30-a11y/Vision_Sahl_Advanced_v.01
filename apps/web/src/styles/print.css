@@ -1,0 +1,37 @@
+/*
+  ورقة الطباعة.
+
+  @page واحدة محايدة هنا — خارج ملفات الأنماط — لأن المتغيّر المخصص لا يُقرأ داخل @page:
+  سياق الصفحة لا يرث من :root. الهوامش المتغيرة حشوٌ على حاوية الطباعة، فتبقى في العقد.
+
+  والعزل مشروط بوجود سطح طباعة في الصفحة، فصفحة لا تحمل واحدًا تُطبع كما هي ولا تتحول
+  هذه القواعد إلى مفاجأة في شاشة أعمال قادمة.
+*/
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body:has([data-print-surface]) * {
+    visibility: hidden;
+  }
+
+  body:has([data-print-surface]) [data-print-surface],
+  body:has([data-print-surface]) [data-print-surface] * {
+    visibility: visible;
+  }
+
+  body:has([data-print-surface]) [data-print-surface] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* الخلفيات المختارة في النمط يجب أن تُطبع فعلًا لا أن يحذفها المتصفح. */
+  [data-print-surface] {
+    print-color-adjust: exact;
+  }
+}

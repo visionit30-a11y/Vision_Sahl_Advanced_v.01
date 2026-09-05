@@ -1,0 +1,21 @@
+/*
+  تباين عالٍ — حدود أثقل وخط فاصل أوضح ونص بأقصى قتامة.
+  للنسخ الضوئية وأجهزة الطباعة الضعيفة حيث تبهت الخطوط الرفيعة وتختفي.
+*/
+[data-print-preset='high-contrast-print'] {
+  --print-page-padding-block-start: var(--space-7);
+  --print-page-padding-block-end: var(--space-7);
+  --print-page-padding-inline: var(--space-7);
+  --print-font-size: var(--font-size-body);
+  --print-line-height: var(--line-height-base);
+  --print-title-font-size: var(--font-size-xl);
+  --print-title-spacing: var(--space-4);
+  --print-meta-font-size: var(--font-size-sm);
+  --print-rule-width: 3px;
+  --print-surface-bg: var(--color-bg-surface);
+  --print-text-color: var(--color-text-primary);
+  --print-border-width: 2px;
+  --print-border-color: var(--color-text-primary);
+  --print-header-bg: var(--color-bg-subtle);
+  --print-header-fg: var(--color-text-primary);
+}

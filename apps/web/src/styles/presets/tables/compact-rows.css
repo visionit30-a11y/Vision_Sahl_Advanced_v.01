@@ -1,0 +1,22 @@
+/*
+  صفوف مضغوطة — أقصر ارتفاع صف وأضيق حشو وخط أصغر.
+  أكبر عدد سجلات في الشاشة، لمن يقرأ قوائم طويلة أكثر مما يقرأ سجلًا واحدًا.
+*/
+[data-table-preset='compact-rows'] {
+  --table-row-padding-block: var(--space-1);
+  --table-cell-padding-inline: var(--space-2);
+  --table-font-size: var(--font-size-sm);
+  --table-radius: var(--radius-sm);
+  --table-header-bg: var(--color-bg-subtle);
+  --table-header-fg: var(--color-text-primary);
+  --table-header-font-weight: var(--font-weight-semibold);
+  --table-header-border-width: 1px;
+  --table-row-border-width: 1px;
+  --table-column-border-width: 0;
+  --table-border-color: var(--color-border);
+  --table-stripe-bg: transparent;
+  --table-hover-bg: var(--color-bg-hover);
+  --table-selected-bg: var(--color-selected-bg);
+  --table-total-row-bg: var(--color-bg-subtle);
+  --table-total-row-font-weight: var(--font-weight-semibold);
+}

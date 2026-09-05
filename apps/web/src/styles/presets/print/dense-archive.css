@@ -1,0 +1,21 @@
+/*
+  أرشيفي كثيف — أصغر خط وأضيق هوامش وأقصر أسطر.
+  أكبر عدد صفوف في الورقة، للحفظ الورقي لا للقراءة المريحة.
+*/
+[data-print-preset='dense-archive'] {
+  --print-page-padding-block-start: var(--space-5);
+  --print-page-padding-block-end: var(--space-5);
+  --print-page-padding-inline: var(--space-5);
+  --print-font-size: var(--font-size-xs);
+  --print-line-height: var(--line-height-tight);
+  --print-title-font-size: var(--font-size-md);
+  --print-title-spacing: var(--space-2);
+  --print-meta-font-size: var(--font-size-xs);
+  --print-rule-width: 1px;
+  --print-surface-bg: var(--color-bg-surface);
+  --print-text-color: var(--color-text-primary);
+  --print-border-width: 1px;
+  --print-border-color: var(--color-border);
+  --print-header-bg: var(--color-bg-subtle);
+  --print-header-fg: var(--color-text-primary);
+}

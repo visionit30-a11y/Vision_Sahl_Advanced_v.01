@@ -11,6 +11,8 @@ export type { ThemeDefinition } from './registries/themeRegistry';
 export { buttonPresetRegistry } from './registries/buttonPresetRegistry';
 export { alertPresetRegistry } from './registries/alertPresetRegistry';
 export { overlayPresetRegistry } from './registries/overlayPresetRegistry';
+export { tablePresetRegistry } from './registries/tablePresetRegistry';
+export { printPresetRegistry } from './registries/printPresetRegistry';
 export type { PresetDefinition } from './registries/createPresetRegistry';
 export { PRESET_FAMILIES } from './contract/presets';
 export type {
@@ -18,6 +20,8 @@ export type {
   ButtonPresetId,
   OverlayPresetId,
   PresetSettingKey,
+  PrintPresetId,
+  TablePresetId,
 } from './contract/presets';
 export { UI_SCOPES, UI_SETTING_KEYS } from './contract/settings';
 export type {

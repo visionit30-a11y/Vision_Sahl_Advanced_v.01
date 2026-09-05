@@ -1,0 +1,25 @@
+/*
+  شبكة كاملة — خطوط أفقية ورأسية قوية، لجداول الأرقام التي تُقرأ عموديًا.
+
+  ولذلك لا سطح مصبوغ فيه إطلاقًا: قياس التباين على الهويات الخمس يعطي 2.61 للحد القوي
+  فوق الخلفية الخافتة مقابل حد 3 للعناصر غير النصية. الخطوط القوية تعيش على السطح العادي
+  وحده، وتمييز الرأس وصف المجموع بوزن الخط وسماكة الحد لا بالتصبيغ. وحارس يفرض ذلك.
+*/
+[data-table-preset='full-grid'] {
+  --table-row-padding-block: var(--space-2);
+  --table-cell-padding-inline: var(--space-3);
+  --table-font-size: var(--font-size-body);
+  --table-radius: var(--radius-sm);
+  --table-header-bg: transparent;
+  --table-header-fg: var(--color-text-primary);
+  --table-header-font-weight: var(--font-weight-bold);
+  --table-header-border-width: 2px;
+  --table-row-border-width: 1px;
+  --table-column-border-width: 1px;
+  --table-border-color: var(--color-border-strong);
+  --table-stripe-bg: transparent;
+  --table-hover-bg: var(--color-bg-hover);
+  --table-selected-bg: var(--color-selected-bg);
+  --table-total-row-bg: transparent;
+  --table-total-row-font-weight: var(--font-weight-bold);
+}

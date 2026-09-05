@@ -31,7 +31,9 @@
       "theme": "Identity",
       "buttonPreset": "Button style",
       "alertPreset": "Alert style",
-      "overlayPreset": "Dialog and menu style"
+      "overlayPreset": "Dialog and menu style",
+      "tablePreset": "Table style",
+      "printPreset": "Print style"
     }
   },
   "themes": {
@@ -122,6 +124,50 @@
         "label": "Dim focused",
         "description": "A darker scrim that isolates the dialog firmly. For critical confirmations."
       }
+    },
+    "table": {
+      "institutional-standard": {
+        "label": "Institutional standard",
+        "description": "Moderate density, a lightly tinted header and horizontal rules. The default."
+      },
+      "compact-rows": {
+        "label": "Compact rows",
+        "description": "The shortest row, the tightest padding and smaller type. The most records on screen."
+      },
+      "zebra-scan": {
+        "label": "Zebra scan",
+        "description": "Alternating tinted rows with no horizontal rules. For wide tables the eye scans across."
+      },
+      "full-grid": {
+        "label": "Full grid",
+        "description": "Strong horizontal and vertical lines on an untinted surface. For figures read down a column."
+      },
+      "airy-report": {
+        "label": "Airy report",
+        "description": "Roomy rows, light rules and an untinted header. For reading from a distance."
+      }
+    },
+    "print": {
+      "institutional-standard": {
+        "label": "Institutional standard",
+        "description": "Moderate margins, conservative colour and a light separator. The default."
+      },
+      "ink-saving": {
+        "label": "Ink saving",
+        "description": "No coloured fill at all. Borders and spacing do the separating."
+      },
+      "dense-archive": {
+        "label": "Dense archive",
+        "description": "The smallest type and the tightest margins. The most rows per sheet, for filing rather than reading."
+      },
+      "formal-letterhead": {
+        "label": "Formal letterhead",
+        "description": "A wider top margin leaving room for a letterhead, with larger type and roomier spacing."
+      },
+      "high-contrast-print": {
+        "label": "High contrast",
+        "description": "Heavier borders and a clearer separator. For photocopies and weak printers."
+      }
     }
   },
   "intents": {
@@ -163,6 +209,59 @@
       "message": "Another user updated this organisation's details."
     }
   },
+  "table": {
+    "description": "A static specimen that proves the table contract on screen. Not a table engine: no sorting, no paging, no data - and the rows below are invented placeholders.",
+    "caption": "Table specimen - placeholder data, for display only",
+    "columns": {
+      "item": "Item",
+      "status": "Status",
+      "date": "Date",
+      "amount": "Amount"
+    },
+    "total": "Total",
+    "totalAmount": "12450",
+    "rows": {
+      "one": {
+        "item": "Item 1",
+        "status": "Approved",
+        "date": "2026-01-14",
+        "amount": "1200"
+      },
+      "two": {
+        "item": "Item 2",
+        "status": "Pending approval",
+        "date": "2026-02-03",
+        "amount": "3450"
+      },
+      "three": {
+        "item": "Item 3",
+        "status": "Approved",
+        "date": "2026-02-19",
+        "amount": "2100"
+      },
+      "four": {
+        "item": "Item 4",
+        "status": "Suspended",
+        "date": "2026-03-08",
+        "amount": "980"
+      },
+      "five": {
+        "item": "Item 5",
+        "status": "Approved",
+        "date": "2026-03-27",
+        "amount": "4720"
+      }
+    }
+  },
+  "print": {
+    "simulationTitle": "Print simulation",
+    "simulation": "This box is a simulation on screen, not the paper itself. It reads the same print contract variables the @media print stylesheet reads, so what you see here is what prints. The reference check is still the browser's own print preview, with Ctrl+P.",
+    "organisationSlot": "Organisation name slot - placement and measurement only",
+    "titleSlot": "Report title slot",
+    "metaSlot": "Metadata line slot: period, issue date, reference",
+    "signatureSlot": "Signature and approval slot",
+    "pageNumberSlot": "Page number slot"
+  },
   "sections": {
     "foundations": "Foundations",
     "colors": "Semantic colours",
@@ -172,7 +271,9 @@
     "inputs": "Form fields",
     "display": "Display",
     "feedback": "States and alerts",
-    "overlay": "Dialogs and menus"
+    "overlay": "Dialogs and menus",
+    "tables": "Tables",
+    "print": "Print and reports"
   },
   "samples": {
     "buttonPrimary": "Save",

@@ -7,6 +7,8 @@
 ```
 styles/themes/*.css            قيم الرموز اللونية لكل هوية — ألوان فقط
 styles/presets/*/*.css         قيم شكل كل نمط عرض — متغيرات عائلته فقط
+styles/print.css               قاعدة الصفحة المحايدة وعزل سطح الطباعة
+pages/design-system/specimens  عيّنتان ساكنتان تُثبتان عقدي الجداول والطباعة
 design-system/tones.*          مفردات النبرة الخمس ومزيج عرضها
 styles/tokens/*.css            مسافات · طباعة · أنصاف · ظلال · طبقات · حركة · نقاط كسر
 ui-customization/*             محرك تخصيص الواجهة: العقد والسجلات والحسم والمحوّلات
@@ -34,6 +36,9 @@ design-system/index.ts         المدخل الوحيد للمكتبة
 | ملف نمط لا يحمل قاعدة تخطيط ولا رمزًا مشتركًا ولا كودًا | `presetScope.test.ts` |
 | لا متغيّر عائلة مجهول ولا متغيّر في العقد بلا قارئ | `presetVariableUsage.test.ts` |
 | السلوك وإمكانية الوصول لا يتغيران بتغير النمط | `buttonPresets` · `alertPresets` · `overlayPresets` |
+| العيّنات بلا حالة ولا معاملات ولا بيانات، وغير مصدَّرة | `specimenPurity.test.ts` |
+| قاعدة الصفحة مرة واحدة خارج الأنماط، والعزل مشروط | `printStylesheet.test.ts` |
+| الحد القوي لا يقع فوق سطح مصبوغ | `contrast.test.ts` |
 
 ## الاتجاه
 
