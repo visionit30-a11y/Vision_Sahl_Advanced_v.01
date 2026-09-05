@@ -70,6 +70,14 @@ Active LTS** حتى أبريل 2028، وهو المثبت على الجهاز أ
 `sahl_app` لا يملك شيئًا)، وتحقق ملزم أن `sahl_app` ليس `SUPERUSER` ولا `BYPASSRLS`، ودورة
 مهاجرات كاملة ذهابًا وإيابًا. **والتخطّي المحلي صار فشلًا** كي يبقى الخطان متطابقين.
 
+### دورة حياة البيئة الافتراضية وقراءة إصدارها — مغلقان
+
+ظهر أثناء إعادة البناء عيبان في السكربتات لا في المنتج: حذف `.venv` كان يجري **بلا إيقاف
+العمليات التي تعمل منها**، فيفشل على وحدة `.pyd` محمَّلة؛ وقارئ `pyvenv.cfg` كان يعرف
+المفتاح `version` وحده بينما **uv تكتب `version_info`**، فيقرأ فراغًا صامتًا. التفاصيل
+والإصلاح في **`docs/pre-phase-2.md` §2**، والانحدار مغطّى في
+`apps/api/tests/test_environment_baseline_contract.py`.
+
 ## 2. دين تقني مسجَّل
 
 | البند | التفصيل | الاستحقاق المقترح |
@@ -97,4 +105,6 @@ Active LTS** حتى أبريل 2028، وهو المثبت على الجهاز أ
 | الأداة | المسار |
 |---|---|
 | psql | `C:\Program Files\PostgreSQL\17\bin\psql.exe` |
-| Python | `C:\Users\...\AppData\Local\Programs\Python\Python313\python.exe` عبر `py -3.13` |
+| Python (خط الأساس) | `C:\Users\...\AppData\Local\Programs\Python\Python314\python.exe` عبر `py -3.14` |
+| Python 3.13 | `...\Python313\python.exe` — **يبقى مثبتًا ولم يُمس**، ولا يستعمله المشروع |
+| بيئة المشروع | `apps\api\.venv` — أنشأتها uv على 3.14.7 (`version_info = 3.14.7`) |
