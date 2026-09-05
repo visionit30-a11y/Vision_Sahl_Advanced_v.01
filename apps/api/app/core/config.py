@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    database_url: str = "postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5432/sahl_dev"
+    database_url: str = "postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5433/sahl_dev"
 
     redis_enabled: bool = False
     redis_url: str = "redis://127.0.0.1:6379/0"

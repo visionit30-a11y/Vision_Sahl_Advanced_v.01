@@ -88,12 +88,20 @@ try {
     if ($psqlExe) { Write-Ok ('psql: ' + $psqlExe) } else { Write-Warn 'psql.exe was not found; the database step will be skipped.' }
 
     Write-Section '2. PostgreSQL port'
+    # Port 5432 belongs to the Odoo installation and is never used (ADR-0006).
     $detectedPort = $null
-    foreach ($port in @(5432, 5433, 5434)) {
+    foreach ($port in @(5433, 5434, 5435)) {
         if (Test-TcpPort -Port $port) { $detectedPort = $port; break }
     }
-    if ($detectedPort) { Write-Ok ('PostgreSQL is listening on 127.0.0.1:' + $detectedPort) }
-    else { Write-Warn 'No PostgreSQL server answered on 5432, 5433 or 5434.' }
+    if ($detectedPort) {
+        Write-Ok ('An independent PostgreSQL server is listening on 127.0.0.1:' + $detectedPort)
+    }
+    else {
+        Write-Warn 'No independent PostgreSQL server answered on 5433, 5434 or 5435.'
+        if (Test-TcpPort -Port 5432) {
+            Write-Warn 'Port 5432 is in use by the Odoo installation and is deliberately ignored.'
+        }
+    }
 
     Write-Section '3. Environment file'
     $envFile = Join-Path $root '.env'
@@ -108,7 +116,7 @@ try {
     $databaseUrl = Get-EnvValue 'DATABASE_URL'
     if (-not $databaseUrl -or $databaseUrl -match 'CHANGE_ME') {
         $generated = New-DatabasePassword
-        $port = if ($detectedPort) { $detectedPort } else { 5432 }
+        $port = if ($detectedPort) { $detectedPort } else { 5433 }
         $databaseUrl = 'postgresql+psycopg://sahl_app:' + $generated + '@127.0.0.1:' + $port + '/sahl_dev'
         Set-EnvLine -Key 'DATABASE_URL' -Value $databaseUrl
         Write-Ok 'Generated a local database password and stored it in .env (never logged, never committed)'
@@ -122,6 +130,10 @@ try {
     $dbHost = $Matches[3]
     $dbPort = $Matches[4]
     $dbName = $Matches[5]
+
+    if ([int]$dbPort -eq 5432) {
+        throw 'DATABASE_URL points at port 5432, which belongs to the Odoo PostgreSQL instance. Sahl must use its own server (ADR-0006).'
+    }
 
     if ($detectedPort -and [int]$dbPort -ne [int]$detectedPort) {
         $databaseUrl = 'postgresql+psycopg://' + $dbUser + ':' + $dbPassword + '@' + $dbHost + ':' + $detectedPort + '/' + $dbName
@@ -175,6 +187,20 @@ try {
                 throw 'Superuser connection failed.'
             }
             Write-Ok ('Connected. Server: ' + $probe.Text)
+
+            $dataDir = Invoke-NativeCapture -File $psqlExe -Arguments @(
+                '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres', '-tAc', 'SHOW data_directory'
+            )
+            if ($dataDir.ExitCode -eq 0) {
+                Write-Info ('Server data directory: ' + $dataDir.Text)
+                if ($dataDir.Text -match 'Odoo') {
+                    throw 'This server belongs to the Odoo installation. Nothing was changed. Sahl requires its own PostgreSQL instance (ADR-0006).'
+                }
+            }
+            else {
+                Write-Warn 'Could not read the server data directory; continuing is not safe.'
+                throw 'Unable to confirm that this server is independent from Odoo. Nothing was changed.'
+            }
 
             $sql = @"
 DO `$`$

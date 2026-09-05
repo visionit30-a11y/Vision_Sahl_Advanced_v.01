@@ -133,24 +133,37 @@ function Get-ToolVersion {
 function Resolve-PsqlPath {
     <#
         Finds psql.exe without changing the machine PATH.
+        A standalone PostgreSQL installation is always preferred; a psql that
+        ships inside an Odoo installation is only a last resort client and is
+        reported as such (ADR-0006).
     #>
-    $command = Get-Command 'psql' -ErrorAction SilentlyContinue
-    if ($command) { return $command.Source }
-
-    $patterns = @(
-        'C:\Program Files\PostgreSQL\*\bin\psql.exe',
-        'C:\Program Files (x86)\PostgreSQL\*\bin\psql.exe',
-        'C:\Program Files\Odoo*\PostgreSQL\bin\psql.exe',
-        'C:\Program Files (x86)\Odoo*\PostgreSQL\bin\psql.exe'
-    )
-
-    $found = @()
-    foreach ($pattern in $patterns) {
-        $found += @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue |
+    $standalone = @()
+    foreach ($pattern in @(
+            'C:\Program Files\PostgreSQL\*\bin\psql.exe',
+            'C:\Program Files (x86)\PostgreSQL\*\bin\psql.exe')) {
+        $standalone += @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue |
             Select-Object -ExpandProperty FullName)
     }
-    if ($found.Count -eq 0) { return $null }
-    return (@($found) | Sort-Object -Descending)[0]
+    if ($standalone.Count -gt 0) {
+        return (@($standalone) | Sort-Object -Descending)[0]
+    }
+
+    $command = Get-Command 'psql' -ErrorAction SilentlyContinue
+    if ($command -and $command.Source -notmatch 'Odoo') { return $command.Source }
+
+    $bundled = @()
+    foreach ($pattern in @(
+            'C:\Program Files\Odoo*\PostgreSQL\bin\psql.exe',
+            'C:\Program Files (x86)\Odoo*\PostgreSQL\bin\psql.exe')) {
+        $bundled += @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName)
+    }
+    if ($bundled.Count -gt 0) {
+        Write-Warn 'Only an Odoo bundled psql client was found. It is used as a client only; the Sahl server must still be an independent instance.'
+        return (@($bundled) | Sort-Object -Descending)[0]
+    }
+
+    return $null
 }
 
 function Test-TcpPort {
