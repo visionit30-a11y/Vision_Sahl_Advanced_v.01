@@ -13,7 +13,12 @@
   --up: #1f7a4d;
   --down: #a32020;
   --disabled: #8a6d1f;
-  font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Tahoma,
+    sans-serif;
 }
 
 body {

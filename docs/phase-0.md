@@ -30,29 +30,30 @@ Notifications · أي جدول أعمال · أي شاشة أعمال · نظا�
 
 ## معايير القبول (بعد تعديل بند Redis)
 
-| # | المعيار | الحالة |
+| # | المعيار | الدليل | الحالة |
+|---|---|---|---|
+| 1 | فروع `main` / `develop` / `feature/phase-0-foundation` والمستودع الرسمي مربوط | `git branch` · `origin` مضبوط | ✅ |
+| 2 | لا أسرار ولا `.env` في تاريخ Git | فحص `git ls-files` وبحث أنماط الأسرار | ✅ |
+| 3 | الخلفية تعمل و`/health` يستجيب | `200 {"status":"ok","name":"Sahl Developer Platform","version":"0.1.0","environment":"development"}` | ✅ |
+| 4 | `/health/db` يستجيب `up` | `200 {"dependency":"postgresql","status":"up","detail":null}` | ✅ |
+| 5 | `/health/redis` يعلن `disabled` دون ادعاء نجاح | `200 {"dependency":"redis","status":"disabled","detail":"Redis is not enabled in this environment (see ADR-0003)."}` | ✅ |
+| 6 | الواجهة تعمل وتقرأ حالة الخلفية | `http://localhost:5173` — مراجعة مالك المشروع في المتصفح | ✅ |
+| 7 | Alembic يطبّق مهاجرة الأساس **ويتراجع عنها** | `downgrade 0001_baseline -> ` ثم `upgrade -> 0001_baseline` ثم `0001_baseline (head)` | ✅ |
+| 8 | دور التطبيق بلا `SUPERUSER` وبلا `BYPASSRLS` | `sahl_app · is_superuser = f · bypasses_rls = f` | ✅ |
+| 9 | `ruff` + `mypy` + `pytest` بلا أخطاء | ruff PASS · mypy PASS · pytest **13 passed** | ✅ |
+| 10 | `eslint` + `tsc --noEmit` + `vitest` + `build` بلا أخطاء | eslint PASS · tsc PASS · vitest **3 passed** · build PASS | ✅ |
+| 11 | لا منطق أعمال ولا جدول مجال ولا شاشة أعمال | مراجعة شجرة الملفات | ✅ |
+| 12 | Commits ذرّية وتقرير تغيير واضح | تاريخ الفرع | ✅ |
+
+### معايير إضافية أُثبتت في هذه المرحلة
+
+| المعيار | الدليل | الحالة |
 |---|---|---|
-| 1 | فروع `main` / `develop` / `feature/phase-0-foundation` قائمة والمستودع الرسمي مربوط | ✅ محليًا |
-| 2 | لا أسرار ولا `.env` في تاريخ Git | ✅ متحقَّق منه |
-| 3 | الخلفية تعمل و`/health` يستجيب | ⏳ |
-| 4 | `/health/db` يستجيب `up` مقابل PostgreSQL محلي | ⏳ |
-| 5 | `/health/redis` يستجيب `disabled` بوضوح دون ادعاء نجاح | ⏳ |
-| 6 | الواجهة تعمل وتقرأ حالة الخلفية | ⏳ |
-| 7 | Alembic يطبّق مهاجرة الأساس ويتراجع عنها | 🔶 التطبيق ناجح (`0001_baseline (head)`)؛ التراجع يُختبر في `03-test.ps1` |
-| 8 | دور التطبيق بلا `SUPERUSER` وبلا `BYPASSRLS` | ✅ متحقَّق منه: `is_superuser = f` · `bypasses_rls = f` |
-| 9 | `ruff` + `mypy` + `pytest` بلا أخطاء | ⏳ |
-| 10 | `eslint` + `tsc --noEmit` + `vitest` + `build` بلا أخطاء | ⏳ |
-| 11 | لا منطق أعمال ولا جدول مجال ولا شاشة أعمال | ✅ |
-| 12 | Commits ذرّية وتقرير تغيير واضح | ✅ |
+| خادم PostgreSQL مستقل عن Odoo، متحقَّق منه بـ `data_directory` لا بالافتراض | `C:/Program Files/PostgreSQL/17/data` — PostgreSQL 17.11 على المنفذ 5433 | ✅ |
+| فحوص التنسيق | `ruff format --check` PASS · `prettier --check` PASS | ✅ |
 
-### معيار إضافي مثبت في هذه المرحلة
-
-| المعيار | الحالة |
-|---|---|
-| خادم PostgreSQL مستقل عن Odoo، متحقَّق منه بـ `data_directory` لا بالافتراض | ✅ `C:/Program Files/PostgreSQL/17/data` — PostgreSQL 17.11 على المنفذ 5433 |
-
-**معيار مُستثنى بقرار موثق:** تشغيل Redis محليًا (ADR-0003) — مؤجل إلى Phase 3،
-ولا يمنع إغلاق Phase 0.
+**معيار مُستثنى بقرار موثق:** تشغيل Redis محليًا (ADR-0003) — مؤجل إلى Phase 3، ولا يمنع
+إغلاق Phase 0. ونقطة `/health/redis` تعلن الحالة `disabled` صراحة بدل ادعاء النجاح.
 
 ## قيود بيئة موثقة
 
