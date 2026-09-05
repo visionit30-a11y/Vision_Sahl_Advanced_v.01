@@ -1,0 +1,10 @@
+{
+  "region": "Operation status bar",
+  "dismiss": "Dismiss message",
+  "types": {
+    "success": "Completed",
+    "warning": "Warning",
+    "danger": "Error",
+    "info": "Information"
+  }
+}

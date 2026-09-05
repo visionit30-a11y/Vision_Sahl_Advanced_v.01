@@ -1,0 +1,92 @@
+/*
+  الأساس العام. كل ما عدا هذا الملف محصور داخل وحدات CSS Modules.
+  ممنوع إضافة أنماط عامة جديدة هنا لخدمة شاشة بعينها.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  block-size: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-semibold);
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+img,
+svg {
+  display: block;
+  max-inline-size: 100%;
+}
+
+/*
+  حلقة تركيز واحدة لكل عنصر قابل للتركيز في المنصة.
+  تظهر للوحة المفاتيح ولا تظهر لنقرة الفأرة.
+*/
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* الأرقام اللاتينية قرار رسمي للمشروع حتى داخل الواجهة العربية. */
+:root {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+::selection {
+  background-color: var(--color-brand-subtle);
+}

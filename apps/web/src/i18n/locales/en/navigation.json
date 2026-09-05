@@ -1,0 +1,13 @@
+{
+  "mainNav": "Main navigation",
+  "breadcrumb": "Breadcrumb",
+  "openNav": "Open navigation",
+  "closeNav": "Close navigation",
+  "sections": {
+    "workspace": "Workspace"
+  },
+  "items": {
+    "home": "Home",
+    "designSystem": "Design system"
+  }
+}

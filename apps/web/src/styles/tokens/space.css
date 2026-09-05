@@ -1,0 +1,22 @@
+/* سلم المسافات — أساس 4px. ممنوع اختراع قياس خارج هذا السلم. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* أبعاد تخطيط ثابتة */
+  --size-header-height: 56px;
+  --size-statusbar-height: 44px;
+  --size-nav-width: 248px;
+  --size-nav-width-collapsed: 60px;
+  --size-content-max: 1280px;
+  --size-control-height-sm: 30px;
+  --size-control-height-md: 36px;
+}

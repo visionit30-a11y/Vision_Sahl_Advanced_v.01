@@ -1,0 +1,72 @@
+{
+  "title": "Design system",
+  "description": "A living reference for every component and state, in both directions. Not a business screen.",
+  "palette": {
+    "title": "Choose the visual identity",
+    "description": "Switch between the three proposals and see their effect on the header, navigation, buttons, fields, cards and status bar. Your choice becomes the approved identity.",
+    "label": "Proposal",
+    "options": {
+      "a": "Calm institutional green",
+      "b": "Institutional navy with a dark sidebar",
+      "c": "Muted teal with a coloured header"
+    },
+    "hints": {
+      "a": "Light header and navigation. The quietest option and the best fit for dense data screens.",
+      "b": "A dark sidebar that separates navigation from content clearly.",
+      "c": "A branded header gives the identity a stronger presence over neutral content."
+    }
+  },
+  "sections": {
+    "foundations": "Foundations",
+    "colors": "Semantic colours",
+    "typography": "Typography",
+    "spacing": "Spacing",
+    "actions": "Buttons and actions",
+    "inputs": "Form fields",
+    "display": "Display",
+    "feedback": "States and alerts",
+    "overlay": "Dialogs and menus"
+  },
+  "samples": {
+    "buttonPrimary": "Save",
+    "buttonSecondary": "Cancel",
+    "buttonGhost": "Edit",
+    "buttonDanger": "Delete",
+    "loading": "Saving",
+    "fieldLabel": "Organisation name",
+    "fieldHint": "The name as written on the licence",
+    "fieldError": "This field is required",
+    "fieldPlaceholder": "Enter the name",
+    "textareaLabel": "Notes",
+    "selectLabel": "City",
+    "checkboxLabel": "Enable notifications",
+    "radioLabel": "Organisation type",
+    "radioAssociation": "Association",
+    "radioFoundation": "Foundation",
+    "cardTitle": "Information card",
+    "cardBody": "Short content inside a card with a sensible information density.",
+    "badgeActive": "Active",
+    "badgePending": "Pending approval",
+    "badgeStopped": "Suspended",
+    "modalTitle": "Confirm deletion",
+    "modalBody": "The selected record will be deleted. This action cannot be undone.",
+    "menuLabel": "Actions",
+    "recordCreated": "Journal entry created:",
+    "recordNumber": "JE-000123",
+    "warningMessage": "The available budget is lower than the requested amount.",
+    "dangerMessage": "The record could not be saved. Review the highlighted fields.",
+    "infoMessage": "The organisation data was updated by another user.",
+    "cities": {
+      "riyadh": "Riyadh",
+      "jeddah": "Jeddah",
+      "dammam": "Dammam"
+    }
+  },
+  "showStatus": {
+    "success": "Show a success message",
+    "warning": "Show a warning",
+    "danger": "Show an error",
+    "info": "Show information",
+    "clear": "Dismiss"
+  }
+}

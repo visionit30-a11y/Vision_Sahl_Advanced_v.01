@@ -1,0 +1,43 @@
+{
+  "app": {
+    "name": "سهل المطور",
+    "short": "سهل",
+    "tagline": "منصة إدارة الجهات غير الربحية"
+  },
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "close": "إغلاق",
+    "retry": "إعادة المحاولة",
+    "undo": "تراجع",
+    "back": "رجوع"
+  },
+  "states": {
+    "loading": "جارٍ التحميل…",
+    "emptyTitle": "لا توجد بيانات",
+    "emptyDescription": "لا توجد عناصر لعرضها حتى الآن.",
+    "errorTitle": "تعذّر إكمال العملية",
+    "errorDescription": "حدث خطأ أثناء جلب البيانات. حاول مرة أخرى."
+  },
+  "form": {
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "selectPlaceholder": "اختر…"
+  },
+  "language": {
+    "label": "اللغة",
+    "arabic": "العربية",
+    "english": "English",
+    "change": "تغيير اللغة"
+  },
+  "skipToContent": "تخطي إلى المحتوى",
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "الرابط الذي فتحته غير صحيح أو لم يعد متاحًا."
+  }
+}

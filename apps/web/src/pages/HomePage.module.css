@@ -1,0 +1,28 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.row + .row {
+  border-block-start: 1px solid var(--color-border);
+}
+
+.name {
+  font-weight: var(--font-weight-medium);
+  min-inline-size: 12ch;
+}
+
+.detail {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

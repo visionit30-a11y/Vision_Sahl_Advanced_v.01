@@ -1,0 +1,42 @@
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sm {
+  inline-size: var(--size-control-height-sm);
+  block-size: var(--size-control-height-sm);
+}
+
+.md {
+  inline-size: var(--size-control-height-md);
+  block-size: var(--size-control-height-md);
+}
+
+.default {
+  color: var(--color-text-secondary);
+}
+
+.default:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.onHeader {
+  color: var(--color-header-fg);
+}
+
+.onHeader:hover:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 16%, transparent);
+}
