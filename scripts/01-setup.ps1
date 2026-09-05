@@ -153,12 +153,12 @@ BEGIN
 END
 `$`$;
 
-SELECT 'CREATE DATABASE $dbName OWNER $dbUser ENCODING ''UTF8'''
+SELECT 'CREATE DATABASE $dbName OWNER $dbUser'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
 \gexec
 "@
             $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-            [System.IO.File]::WriteAllText($sqlPath, $sql, $utf8NoBom)
+            [System.IO.File]::WriteAllText($sqlPath, ($sql -replace "`r`n", "`n"), $utf8NoBom)
 
             Invoke-Native -File 'psql' -Arguments @(
                 '-v', 'ON_ERROR_STOP=1', '-q',
