@@ -120,3 +120,41 @@ apps/web/src/design-system/tones.ts + tones.module.css   مفردات النبر
 | 10 | الشريط المحجوز ثابت مهما تغير النمط | `presetScope` + فحص بصري |
 | 11 | WCAG AA يمر لكل الأزواج في الهويات الخمس | `contrast` |
 | 12 | Phase 1A و1B-1 لم تُكسرا | `03-test.ps1` + `02-run.ps1` |
+
+## القبول والإغلاق
+
+**اعتمد مالك المشروع Phase 1B-2 صراحةً بعد مراجعة بصرية كاملة في المتصفح** على
+`/design-system`.
+
+**بوابات الجودة النهائية — `_logs/03-test-20260905-212352.log`:** العشر كلها PASS مع
+`All blocking quality gates passed.`
+
+| البوابة | النتيجة |
+|---|---|
+| ruff check · ruff format --check | PASS |
+| mypy | PASS — 26 ملفًا |
+| pytest | PASS — **13 اختبارًا** |
+| alembic downgrade/upgrade/current | PASS — `0001_baseline (head)` |
+| eslint · tsc --noEmit | PASS |
+| vitest | PASS — **25 ملفًا · 158 اختبارًا · صفر فشل** |
+| vite build | PASS — 1979 وحدة · JS ‏347.90 kB (‏110.78 gzip) · CSS ‏62.37 kB (‏17.70 gzip) |
+| prettier --check | PASS |
+
+**الحُرّاس تحديدًا:** `presetContract` 15 · `presetScope` 6 · `presetVariableUsage` 2 ·
+`uiBoundaries` 5 · `contrast` 2 · `themeContract` 6 · وحُرّاس Phase 1A الأربعة كما هي.
+
+**البرهان السلوكي:** `buttonPresets` 20 اختبارًا · `overlayPresets` 25 · `alertPresets` 25 —
+أي السلوك نفسه معادًا تحت الأنماط الخمسة لكل عائلة. و`statusIntent` 5 للحالات التسع.
+
+**الانحدار:** اختبارات Phase 1A و1B-1 كلها تمر بلا تعديل في أي منها عدا حقل `intent`
+مكان `tone` في اختبار شريط الحالة.
+
+**التشغيل — `_logs/02-run-20260905-212636.log`:** الخدمتان حيّتان (API ‏38420 · Web ‏23140)،
+والمنفذان حُرِّرا قبل البدء، ونقاط `/health` و`/health/db` و`/health/redis` تجيب 200
+**مباشرة من الـAPI وعبر أصل المتصفح كليهما**، و`web…err.log` **فارغ تمامًا**.
+
+**النمو في الحزمة:** ‏+9.4 kB في JS و‏+12 kB في CSS مقابل خمسة عشر نمطًا ونبرة سادسة —
+كلفة متوقعة وملفات الأنماط قيم متغيرات لا قواعد مكررة.
+
+**الدين التقني الناتج عن هذه المرحلة مسجَّل في `environment-baseline.md`** — كله مقصود
+ومحدَّد الاستحقاق، ولا شيء منه مفاجأة.
