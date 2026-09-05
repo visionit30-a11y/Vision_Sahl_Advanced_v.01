@@ -85,6 +85,99 @@ function Invoke-Native {
     return $code
 }
 
+function Invoke-NativeCapture {
+    <#
+        Runs an external program and returns its output plus exit code without
+        letting native stderr become a terminating error.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string] $File,
+        [string[]] $Arguments = @()
+    )
+
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $lines = @()
+    $code = 0
+    try {
+        $lines = @(& $File @Arguments 2>&1 | ForEach-Object { ($_ | Out-String).TrimEnd() })
+        $code = $LASTEXITCODE
+        if ($null -eq $code) { $code = 0 }
+    }
+    catch {
+        $lines = @($_.Exception.Message)
+        $code = -1
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+
+    return [pscustomobject]@{
+        Output   = $lines
+        ExitCode = $code
+        Text     = ($lines -join [Environment]::NewLine)
+    }
+}
+
+function Get-ToolVersion {
+    param(
+        [Parameter(Mandatory = $true)][string] $File,
+        [string[]] $Arguments = @('--version')
+    )
+
+    $result = Invoke-NativeCapture -File $File -Arguments $Arguments
+    if ($result.ExitCode -ne 0 -or -not $result.Text) { return $null }
+    return (($result.Text -split "`n")[0]).Trim()
+}
+
+function Resolve-PsqlPath {
+    <#
+        Finds psql.exe without changing the machine PATH.
+    #>
+    $command = Get-Command 'psql' -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+
+    $patterns = @(
+        'C:\Program Files\PostgreSQL\*\bin\psql.exe',
+        'C:\Program Files (x86)\PostgreSQL\*\bin\psql.exe',
+        'C:\Program Files\Odoo*\PostgreSQL\bin\psql.exe',
+        'C:\Program Files (x86)\Odoo*\PostgreSQL\bin\psql.exe'
+    )
+
+    $found = @()
+    foreach ($pattern in $patterns) {
+        $found += @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName)
+    }
+    if ($found.Count -eq 0) { return $null }
+    return (@($found) | Sort-Object -Descending)[0]
+}
+
+function Test-TcpPort {
+    param(
+        [string] $ComputerName = '127.0.0.1',
+        [Parameter(Mandatory = $true)][int] $Port,
+        [int] $TimeoutMs = 1500
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $async = $client.BeginConnect($ComputerName, $Port, $null, $null)
+        $completed = $async.AsyncWaitHandle.WaitOne($TimeoutMs)
+        if ($completed -and $client.Connected) {
+            $client.EndConnect($async)
+            return $true
+        }
+        return $false
+    }
+    catch {
+        return $false
+    }
+    finally {
+        $client.Close()
+    }
+}
+
 function Get-VenvPython {
     $python = Join-Path (Get-ProjectRoot) 'apps\api\.venv\Scripts\python.exe'
     if (-not (Test-Path $python)) {

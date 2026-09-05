@@ -16,10 +16,10 @@ try {
     Write-Info ('Date          : ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
 
     Write-Section 'Required tools'
-    foreach ($tool in @('git', 'node', 'npm', 'python', 'py', 'psql')) {
+    foreach ($tool in @('git', 'node', 'npm', 'py', 'python')) {
         if (Test-CommandExists $tool) {
-            $version = ''
-            try { $version = (& $tool --version 2>&1 | Select-Object -First 1) } catch { $version = '(version unavailable)' }
+            $version = Get-ToolVersion -File $tool
+            if (-not $version) { $version = '(version unavailable)' }
             Write-Ok ("{0,-8} {1}" -f $tool, $version)
         }
         else {
@@ -27,31 +27,52 @@ try {
         }
     }
 
-    Write-Section 'Optional tools (not required for Phase 0)'
-    foreach ($tool in @('docker', 'redis-cli')) {
-        if (Test-CommandExists $tool) { Write-Ok ($tool + ' present') } else { Write-Info ($tool + ' not present - expected in Phase 0') }
-    }
-
     Write-Section 'Python interpreters'
     if (Test-CommandExists 'py') {
-        Invoke-Native -File 'py' -Arguments @('-0p') -AllowFailure | Out-Null
+        $interpreters = Invoke-NativeCapture -File 'py' -Arguments @('-0p')
+        foreach ($line in $interpreters.Output) { Write-Host ('    ' + $line) }
+    }
+    foreach ($candidate in @(@('py', @('-3.13')), @('py', @('-3.12')), @('python', @()))) {
+        $version = Get-ToolVersion -File $candidate[0] -Arguments ($candidate[1] + @('--version'))
+        if ($version) { Write-Info (($candidate[0] + ' ' + ($candidate[1] -join ' ')).Trim() + ' -> ' + $version) }
     }
 
-    Write-Section 'PostgreSQL service'
-    $services = Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue
-    if ($services) {
-        foreach ($service in $services) { Write-Info ($service.Name + ' : ' + $service.Status) }
+    Write-Section 'PostgreSQL'
+    $psql = Resolve-PsqlPath
+    if ($psql) {
+        Write-Ok ('psql found: ' + $psql)
+        $psqlVersion = Get-ToolVersion -File $psql
+        if ($psqlVersion) { Write-Info ('psql version: ' + $psqlVersion) }
     }
     else {
-        Write-Warn 'No service named postgresql* found. PostgreSQL may be installed under another service name.'
+        Write-Fail 'psql.exe was not found (searched PATH, Program Files\PostgreSQL and bundled Odoo installations)'
+    }
+
+    $services = Get-Service -Name 'postgres*' -ErrorAction SilentlyContinue
+    if ($services) {
+        foreach ($service in $services) { Write-Info ('service ' + $service.Name + ' : ' + $service.Status) }
+    }
+    else {
+        Write-Warn 'No PostgreSQL service found by name.'
+    }
+
+    foreach ($port in @(5432, 5433, 5434)) {
+        if (Test-TcpPort -Port $port) { Write-Ok ('a server is listening on 127.0.0.1:' + $port) }
+        else { Write-Info ('nothing listening on 127.0.0.1:' + $port) }
+    }
+
+    Write-Section 'Optional tools (not required for Phase 0)'
+    foreach ($tool in @('docker', 'redis-cli')) {
+        if (Test-CommandExists $tool) { Write-Ok ($tool + ' present') }
+        else { Write-Info ($tool + ' not present - expected in Phase 0') }
     }
 
     Write-Section 'Project state'
-    $items = @{
-        '.env file'            = (Join-Path $root '.env')
-        'API virtualenv'       = (Join-Path $root 'apps\api\.venv')
-        'Web node_modules'     = (Join-Path $root 'apps\web\node_modules')
-        'Git repository'       = (Join-Path $root '.git')
+    $items = [ordered]@{
+        'Git repository'   = (Join-Path $root '.git')
+        '.env file'        = (Join-Path $root '.env')
+        'API virtualenv'   = (Join-Path $root 'apps\api\.venv')
+        'Web node_modules' = (Join-Path $root 'apps\web\node_modules')
     }
     foreach ($key in $items.Keys) {
         if (Test-Path $items[$key]) { Write-Ok ($key + ' present') } else { Write-Info ($key + ' missing') }
