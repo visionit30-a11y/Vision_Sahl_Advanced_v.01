@@ -205,19 +205,49 @@ try {
     $venvConfig = Join-Path $venvDir 'pyvenv.cfg'
 
     # An environment built on another Python is rebuilt rather than patched.
-    # Only apps\api\.venv is ever removed, and the path is asserted first so a
-    # future edit cannot widen what this deletes.
+    # Only apps\api\.venv is ever removed, and the path is asserted twice - here
+    # and again inside Remove-ProjectDirectory - so a future edit cannot widen
+    # what this deletes.
+    $expectedVenvDir = Join-Path $apiDir '.venv'
+    $venvVersion = $null
+    $rebuildReason = $null
+
     if (Test-Path $venvConfig) {
         $venvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
         if ($venvVersion) { $venvVersion = $venvVersion.Trim() }
         if (-not ($venvVersion -and $venvVersion.StartsWith($pythonBaseline + '.'))) {
-            if ($venvDir -ne (Join-Path $apiDir '.venv')) {
-                throw 'Refusing to remove a directory that is not apps\api\.venv'
-            }
-            Write-Info ('Virtual environment runs ' + $venvVersion + ' but the baseline is ' + $pythonBaseline)
-            Remove-Item -LiteralPath $venvDir -Recurse -Force
-            Write-Ok 'Old virtual environment removed - nothing outside apps\api\.venv was touched'
+            $rebuildReason = 'old venv = Python ' + $venvVersion + ' but the baseline is ' + $pythonBaseline
         }
+    }
+    elseif (Test-Path $venvDir) {
+        # A directory with no pyvenv.cfg is the wreckage of an interrupted
+        # rebuild. Installing into it would hide the damage, so it is replaced.
+        $rebuildReason = 'old venv is incomplete (pyvenv.cfg is missing) and is replaced'
+    }
+
+    if ($rebuildReason) {
+        if ($venvDir -ne $expectedVenvDir) {
+            throw 'Refusing to remove a directory that is not apps\api\.venv'
+        }
+        Write-Info $rebuildReason
+
+        # Deleting a virtual environment while something runs from it fails on
+        # Windows: a loaded .pyd stays locked, and a uvicorn reloader answers the
+        # half-deleted directory by respawning its worker. So the processes are
+        # stopped first - the ones an earlier 02-run recorded, then any orphan
+        # still running from this exact environment - and only then is it removed.
+        Stop-SahlServices
+        if (-not (Stop-ProcessesUsingPath -Path $venvDir)) {
+            throw ('The old virtual environment is still in use. Close the processes listed above, ' +
+                'then run this script again. Nothing was deleted.')
+        }
+        Write-Ok 'project-owned processes stopped safely'
+
+        if (-not (Remove-ProjectDirectory -Path $venvDir -ExpectedPath $expectedVenvDir)) {
+            throw ('The old virtual environment could not be removed. The file named above is still locked. ' +
+                'Close whatever holds it, then run this script again. Nothing outside apps\api\.venv was touched.')
+        }
+        Write-Ok 'old venv removed - nothing outside apps\api\.venv was touched'
     }
 
     $lockFile = Join-Path $apiDir 'uv.lock'
@@ -229,8 +259,26 @@ try {
         # The only path that resolves versions. Every later run is frozen.
         Write-Info 'uv.lock is missing - generating it once from pyproject.toml'
         Invoke-Native -File 'uv' -Arguments @('lock') -WorkingDirectory $apiDir | Out-Null
+        Write-Ok 'uv.lock generated'
         Invoke-Native -File 'uv' -Arguments @('sync', '--frozen') -WorkingDirectory $apiDir | Out-Null
-        Write-Ok 'uv.lock created and API packages installed from it'
+        Write-Ok 'uv sync --frozen succeeded'
+    }
+
+    # uv builds the environment, so the version it chose is read back from disk
+    # rather than assumed from the baseline file.
+    if (-not (Test-Path $venvConfig)) {
+        throw 'The virtual environment was not created. Nothing further was installed.'
+    }
+    $newVenvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
+    if ($newVenvVersion) { $newVenvVersion = $newVenvVersion.Trim() }
+    if (-not ($newVenvVersion -and $newVenvVersion.StartsWith($pythonBaseline + '.'))) {
+        throw ('The rebuilt virtual environment runs ' + $newVenvVersion + ' but the baseline is ' + $pythonBaseline + '.')
+    }
+    if ($rebuildReason) {
+        Write-Ok ('new venv created with Python ' + $newVenvVersion)
+    }
+    else {
+        Write-Ok ('virtual environment runs Python ' + $newVenvVersion + ' - matches the baseline')
     }
 
     Write-Section '5. Frontend packages'

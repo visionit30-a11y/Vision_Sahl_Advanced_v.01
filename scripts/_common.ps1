@@ -225,6 +225,12 @@ function Stop-SahlServices {
     <#
         Stops only the processes a previous 02-run recorded. Safe to call when
         nothing is running.
+
+        Windows reuses process ids, so a recorded id can point at a stranger by
+        the time this runs. Before anything is stopped the id is checked against
+        the run it was recorded in: a process that started before that run, or
+        that is not one of the runtimes 02-run starts, is reported and left
+        alone rather than killed on the strength of a stale number.
     #>
     $pidFile = Get-RunPidFile
     if (-not (Test-Path $pidFile)) {
@@ -232,10 +238,40 @@ function Stop-SahlServices {
     }
 
     $recorded = Get-Content $pidFile -Raw | ConvertFrom-Json
+    $runStart = [datetime]::MinValue
+    if ($recorded.started) {
+        $parsed = [datetime]::MinValue
+        $invariant = [System.Globalization.CultureInfo]::InvariantCulture
+        $noStyle = [System.Globalization.DateTimeStyles]::None
+        if ([datetime]::TryParseExact([string]$recorded.started, 'yyyyMMdd-HHmmss', $invariant, $noStyle, [ref]$parsed)) {
+            # One minute of slack: the stamp is taken before the processes start.
+            $runStart = $parsed.AddMinutes(-1)
+        }
+    }
+
     foreach ($name in @('api', 'web')) {
         $processId = $recorded.$name
         if (-not $processId) { continue }
-        if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { continue }
+
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($null -eq $process) { continue }
+
+        if (@('python', 'cmd', 'node') -notcontains $process.ProcessName) {
+            Write-Warn ('Recorded ' + $name + ' pid ' + $processId + ' is now ' + $process.ProcessName +
+                ', which this project does not start. Left running.')
+            continue
+        }
+        $startedAt = $null
+        try { $startedAt = $process.StartTime } catch { $startedAt = $null }
+        if ($null -eq $startedAt) {
+            Write-Warn ('Recorded ' + $name + ' pid ' + $processId + ' does not disclose its start time, so ownership cannot be proven. Left running.')
+            continue
+        }
+        if ($startedAt -lt $runStart) {
+            Write-Warn ('Recorded ' + $name + ' pid ' + $processId + ' started before the run that recorded it. Left running.')
+            continue
+        }
+
         Invoke-Native -File 'taskkill' -Arguments @('/PID', "$processId", '/T', '/F') -AllowFailure | Out-Null
         Write-Info ($name + ' from an earlier run stopped (pid ' + $processId + ')')
     }
@@ -319,6 +355,126 @@ function Clear-DevelopmentPort {
     }
 
     Write-Fail ("Port {0} is still held by {1} (pid {2}) after {3} attempts." -f $Port, $remaining.ProcessName, $remaining.Id, $Attempts)
+    return $false
+}
+
+function Get-ProcessesUsingPath {
+    <#
+        Returns every process that this project provably owns because it runs
+        from $Path or was started with $Path on its command line. Nothing is
+        matched by process name: a python.exe belonging to another project has
+        neither its executable nor its command line inside this directory, so
+        it can never appear here.
+    #>
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    $full = [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $prefix = $full + '\'
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $found = @()
+
+    foreach ($info in (Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)) {
+        $executable = $info.ExecutablePath
+        $commandLine = $info.CommandLine
+        $runsFromPath = $executable -and $executable.StartsWith($prefix, $comparison)
+        $namesPath = $commandLine -and ($commandLine.IndexOf($full, $comparison) -ge 0)
+        if (-not ($runsFromPath -or $namesPath)) { continue }
+        if ([int]$info.ProcessId -eq $PID) { continue }
+
+        $found += [pscustomobject]@{
+            Id             = [int]$info.ProcessId
+            Name           = $info.Name
+            ExecutablePath = $executable
+            CommandLine    = $commandLine
+            RunsFromPath   = [bool]$runsFromPath
+        }
+    }
+
+    return , $found
+}
+
+function Stop-ProcessesUsingPath {
+    <#
+        Stops the processes that hold files inside $Path open, and only those.
+        Each pid handed to taskkill is individually proven to belong to this
+        project by Get-ProcessesUsingPath; /T then takes the descendants a
+        reloader would otherwise respawn. Returns $true when nothing owned by
+        this project is left running under $Path.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string] $Path,
+        [int] $Attempts = 5
+    )
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt += 1) {
+        $holders = Get-ProcessesUsingPath -Path $Path
+        if ($holders.Count -eq 0) {
+            return $true
+        }
+
+        foreach ($holder in $holders) {
+            Write-Info ('Stopping {0} (pid {1}) started from this environment: {2}' -f $holder.Name, $holder.Id, $holder.ExecutablePath)
+            Invoke-Native -File 'taskkill' -Arguments @('/PID', "$($holder.Id)", '/T', '/F') -AllowFailure | Out-Null
+        }
+
+        # A uvicorn reloader can be mid-respawn, so the result is re-checked
+        # rather than assumed from the exit code of taskkill.
+        Start-Sleep -Seconds 2
+    }
+
+    $remaining = Get-ProcessesUsingPath -Path $Path
+    if ($remaining.Count -eq 0) {
+        return $true
+    }
+
+    Write-Fail ('{0} process(es) are still running from {1} after {2} attempts:' -f $remaining.Count, $Path, $Attempts)
+    foreach ($holder in $remaining) {
+        Write-Host ('    pid ' + $holder.Id + '  ' + $holder.ExecutablePath)
+        if ($holder.CommandLine) { Write-Host ('      command: ' + $holder.CommandLine) }
+    }
+    return $false
+}
+
+function Remove-ProjectDirectory {
+    <#
+        Deletes a directory that must sit at an exact, expected location, after
+        the processes running from it have been stopped. Windows keeps a loaded
+        .pyd locked for a moment after its process dies, so the delete is
+        retried a bounded number of times. It never falls back to a rename, a
+        scheduled delete or a kill by process name: if the directory cannot be
+        removed cleanly the caller is told which file is locked and stops.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string] $Path,
+        [Parameter(Mandatory = $true)][string] $ExpectedPath,
+        [int] $Attempts = 5
+    )
+
+    $full = [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $expected = [System.IO.Path]::GetFullPath($ExpectedPath).TrimEnd('\')
+    if ($full -ne $expected) {
+        throw ('Refusing to delete ' + $full + ' because it is not ' + $expected)
+    }
+    if (-not (Test-Path -LiteralPath $full)) {
+        return $true
+    }
+
+    $lastError = $null
+    for ($attempt = 1; $attempt -le $Attempts; $attempt += 1) {
+        try {
+            Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction Stop
+            return $true
+        }
+        catch {
+            $lastError = $_.Exception.Message
+            if (-not (Test-Path -LiteralPath $full)) { return $true }
+            Write-Info ('Delete attempt {0} of {1} did not finish: {2}' -f $attempt, $Attempts, $lastError)
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    Write-Fail ('Could not remove ' + $full)
+    if ($lastError) { Write-Fail $lastError }
     return $false
 }
 
