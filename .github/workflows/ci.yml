@@ -12,32 +12,118 @@ concurrency:
 
 jobs:
   api:
-    name: API (lint, types, tests)
+    name: API (lint, types, tests, database)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/api
+
+    # A real PostgreSQL, matching the local baseline. Row level security is a
+    # database behaviour: it cannot be proven against SQLite and it cannot be
+    # mocked, so from here on the pipeline runs against the real thing.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sahl_ci
+        # 5433 on the runner, so the connection string has the same shape as the
+        # local one, where 5432 belongs to an unrelated installation (ADR-0006).
+        ports:
+          - 5433:5432
+        # Without this the migration step can start before the server accepts
+        # connections, and the failure becomes intermittent - the worst kind.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sahl_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # CI is not a fifth deployment environment, it is where the test
+      # environment's suite runs. "ci" is not a value the Settings contract
+      # declares and no code branches on it, so the job runs as "test" - the
+      # same environment a developer's pytest run reports.
+      APP_ENV: test
+      LOG_FORMAT: json
+      REDIS_ENABLED: 'false'
+      # Tests run as the application role, which owns nothing.
+      DATABASE_URL: postgresql+psycopg://sahl_app:ci_app_password@127.0.0.1:5433/sahl_ci
+      MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
+
     steps:
       - uses: actions/checkout@v4
 
+      # The version comes from apps/api/.python-version, the same file uv reads,
+      # so the machine, CI and the future production image read one source.
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: pip
+          python-version-file: apps/api/.python-version
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+      # astral-sh publishes no moving major tag for this action - there is no v8
+      # or v9 ref to resolve, which is exactly why @v8 failed to resolve before
+      # any step ran. The official documentation pins the commit a release points
+      # at and names the release in the comment, so that is what this does.
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          # The version of the uv tool, which is a different thing from the
+          # version of the action above. Held equal to the local baseline so CI
+          # installs from uv.lock with the same uv that produced it.
+          version: '0.12.10'
+
+      # Blocking on its own: a lock that drifted from pyproject would mean CI
+      # installs a tree nobody reviewed.
+      - name: Dependency lock is consistent
+        run: uv lock --check
+
+      # --frozen installs exactly what the lock records and refuses to resolve
+      # anything, so this run and every later run get the same tree.
+      - name: Install from the lock
+        run: uv sync --frozen
 
       - name: Ruff
-        run: python -m ruff check .
+        run: uv run ruff check .
 
       - name: Mypy
-        run: python -m mypy
+        run: uv run mypy
+
+      - name: Create the migration and application roles
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci
+          -f ${{ github.workspace }}/.github/ci/setup-database.sql
+
+      # Blocking, and deliberately before anything touches the schema: if the
+      # application role could bypass isolation, every later test would pass for
+      # the wrong reason.
+      - name: The application role cannot bypass isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          flags=$(psql -tAX -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci \
+            -c "SELECT rolsuper::text || ' ' || rolbypassrls::text FROM pg_roles WHERE rolname = 'sahl_app';")
+          echo "sahl_app rolsuper rolbypassrls: $flags"
+          test "$flags" = "false false"
+
+      # A full round trip, not just a forward run: a migration that cannot be
+      # reversed is found here rather than during an incident.
+      - name: Alembic migration round trip
+        env:
+          DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
+        run: |
+          set -euo pipefail
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+          uv run alembic current | tee "$RUNNER_TEMP/alembic-current.txt"
+          grep -q '(head)' "$RUNNER_TEMP/alembic-current.txt"
 
       - name: Pytest
-        run: python -m pytest
+        run: uv run pytest
 
   web:
     name: Web (lint, types, tests, build)
@@ -48,9 +134,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version comes from apps/web/.nvmrc so the local machine and CI read
+      # one source instead of two numbers that have to be kept equal by hand.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: apps/web/.nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
