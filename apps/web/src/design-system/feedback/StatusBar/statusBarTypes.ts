@@ -1,4 +1,50 @@
-export type StatusTone = 'success' | 'warning' | 'danger' | 'info';
+import type { Tone } from '../../tones';
+
+/**
+ * Three separate concepts, kept separate on purpose.
+ *
+ *   Intent  - what happened in the domain. Nine values.
+ *   Tone    - which colour family expresses it. Five values, derived.
+ *   Preset  - how that family is drawn. Chosen by the customisation engine.
+ *
+ * A caller states the intent and nothing else. Tone is derived here, so there
+ * is one way to say a thing rather than two that can disagree.
+ */
+export type StatusIntent =
+  | 'success'
+  | 'saved'
+  | 'updated'
+  | 'deleted'
+  | 'cancelled'
+  | 'blocked'
+  | 'warning'
+  | 'error'
+  | 'info';
+
+/** The status bar draws with the shared tone vocabulary. */
+export type StatusTone = Tone;
+
+/**
+ * A deletion that went through is a success: the warning belonged before it,
+ * not after. A refusal is not an error in the system but a refusal to the user,
+ * and it reads in the same family. A cancellation is neither good nor bad news,
+ * which is exactly why the neutral tone exists.
+ */
+const INTENT_TONE: Record<StatusIntent, StatusTone> = {
+  success: 'success',
+  saved: 'success',
+  updated: 'success',
+  deleted: 'success',
+  cancelled: 'neutral',
+  blocked: 'danger',
+  warning: 'warning',
+  error: 'danger',
+  info: 'info',
+};
+
+export function statusIntentToTone(intent: StatusIntent): StatusTone {
+  return INTENT_TONE[intent];
+}
 
 export interface StatusLink {
   /** The record reference shown in bold, for example JE-000123. */
@@ -13,7 +59,11 @@ export interface StatusUndo {
 }
 
 export interface StatusMessage {
-  tone: StatusTone;
+  /**
+   * What happened. Never a colour and never a preset: the engine decides how
+   * this is drawn, and the caller decides only what it means.
+   */
+  intent: StatusIntent;
   /**
    * A translation key, never a rendered string. A message that is resolved at
    * call time freezes into one language and stops following the switcher.
@@ -22,8 +72,10 @@ export interface StatusMessage {
   messageValues?: Record<string, string | number>;
   link?: StatusLink;
   /**
-   * Only supply this when the backend can genuinely reverse the operation.
-   * No caller does yet; the engine is ready for the phase that introduces one.
+   * A capability of the message, not a state of it: whether the user can put
+   * the thing back. Only supply it when the backend can genuinely reverse the
+   * operation. No caller does yet; the engine is ready for the phase that
+   * introduces one.
    */
   undo?: StatusUndo;
   dismissible?: boolean;
@@ -36,7 +88,11 @@ export interface StatusBarActions {
   clear: () => void;
 }
 
-/** Success and information fade on their own; warnings and errors wait for the user. */
-export function defaultDuration(tone: StatusTone): number | null {
-  return tone === 'success' || tone === 'info' ? 6000 : null;
+/**
+ * Outcomes the user asked for fade on their own. Anything that stops the user,
+ * or warns them, waits until they deal with it.
+ */
+export function defaultDuration(intent: StatusIntent): number | null {
+  const tone = statusIntentToTone(intent);
+  return tone === 'warning' || tone === 'danger' ? null : 6000;
 }

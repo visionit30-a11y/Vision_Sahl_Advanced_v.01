@@ -1,18 +1,11 @@
 import { useTranslation } from 'react-i18next';
 
 import { Icon } from '../../components/Icon/Icon';
-import type { IconName } from '../../components/Icon/Icon';
 import { IconButton } from '../../components/IconButton/IconButton';
+import { TONE_ICON } from '../../tones';
 import { useStatusBar, useStatusMessage } from './StatusBarContext';
-import type { StatusTone } from './statusBarTypes';
+import { statusIntentToTone } from './statusBarTypes';
 import styles from './StatusBar.module.css';
-
-const TONE_ICON: Record<StatusTone, IconName> = {
-  success: 'circleCheck',
-  warning: 'alertTriangle',
-  danger: 'alertCircle',
-  info: 'info',
-};
 
 /**
  * The region always occupies the same height whether a message is present or
@@ -24,12 +17,15 @@ export function StatusBarRegion() {
   const { clear } = useStatusBar();
 
   const dismissible = message?.dismissible ?? true;
+  // Derived here and nowhere else: the caller states an intent, the engine
+  // decides which colour family expresses it.
+  const tone = message ? statusIntentToTone(message.intent) : null;
 
   return (
     <div className={styles.region} aria-live="polite" aria-label={t('status:region')}>
-      {message ? (
-        <div className={[styles.bar, styles[message.tone]].join(' ')}>
-          <Icon name={TONE_ICON[message.tone]} size="sm" className={styles.icon} />
+      {message && tone ? (
+        <div className={[styles.bar, styles[tone]].join(' ')}>
+          <Icon name={TONE_ICON[tone]} size="sm" className={styles.icon} />
           <p className={styles.text} title={t(message.messageKey, message.messageValues)}>
             {t(message.messageKey, message.messageValues)}
             {message.link ? (

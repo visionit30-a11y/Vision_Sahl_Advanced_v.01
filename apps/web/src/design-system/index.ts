@@ -37,9 +37,12 @@ export { TopBar } from './layout/TopBar/TopBar';
 export { StatusBarProvider } from './feedback/StatusBar/StatusBarProvider';
 export { StatusBarRegion } from './feedback/StatusBar/StatusBarRegion';
 export { useStatusBar, useStatusMessage } from './feedback/StatusBar/StatusBarContext';
+export { statusIntentToTone } from './feedback/StatusBar/statusBarTypes';
 export type {
+  StatusIntent,
   StatusLink,
   StatusMessage,
   StatusTone,
   StatusUndo,
 } from './feedback/StatusBar/statusBarTypes';
+export type { Tone } from './tones';

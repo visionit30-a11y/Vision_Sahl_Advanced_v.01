@@ -26,7 +26,7 @@ export function StatusBarProvider({ children }: { children: ReactNode }) {
       clearTimer();
       setMessage(next);
 
-      const duration = next.durationMs === undefined ? defaultDuration(next.tone) : next.durationMs;
+      const duration = next.durationMs === undefined ? defaultDuration(next.intent) : next.durationMs;
       if (duration !== null) {
         timerRef.current = window.setTimeout(() => {
           setMessage(null);

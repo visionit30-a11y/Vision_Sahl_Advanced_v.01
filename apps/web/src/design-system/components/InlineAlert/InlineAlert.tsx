@@ -1,17 +1,12 @@
 import type { ReactNode } from 'react';
 
 import { Icon } from '../Icon/Icon';
-import type { IconName } from '../Icon/Icon';
+import { TONE_ICON } from '../../tones';
+import type { Tone } from '../../tones';
 import styles from './InlineAlert.module.css';
 
-export type AlertTone = 'success' | 'warning' | 'danger' | 'info';
-
-const TONE_ICON: Record<AlertTone, IconName> = {
-  success: 'circleCheck',
-  warning: 'alertTriangle',
-  danger: 'alertCircle',
-  info: 'info',
-};
+/** Inline alerts draw with the shared tone vocabulary. */
+export type AlertTone = Tone;
 
 export interface InlineAlertProps {
   tone?: AlertTone;

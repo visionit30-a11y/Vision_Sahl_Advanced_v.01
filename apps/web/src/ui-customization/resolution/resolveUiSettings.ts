@@ -49,12 +49,16 @@ export function resolveUiSettings(layers: UiSettingsLayers): ResolvedUiSettings 
   const settings = {} as UiSettings;
   const origin = {} as UiSettingsOrigin;
 
+  // TypeScript widens an assignment through a union of keys to never, so the
+  // writes below go through one narrow cast rather than a per key branch.
+  const write = settings as unknown as Record<string, unknown>;
+
   for (const key of keys) {
     for (const scope of PRECEDENCE) {
       const value = layerOf(layers, scope)?.[key];
 
       if (value !== undefined && UI_SETTINGS_VALIDATORS[key](value)) {
-        settings[key] = value;
+        write[key] = value;
         origin[key] = scope;
         break;
       }
@@ -62,7 +66,7 @@ export function resolveUiSettings(layers: UiSettingsLayers): ResolvedUiSettings 
 
     if (origin[key] === undefined) {
       // Reached only when the built-in layer itself carries an invalid value.
-      settings[key] = BUILT_IN_UI_SETTINGS[key];
+      write[key] = BUILT_IN_UI_SETTINGS[key];
       origin[key] = 'builtIn';
     }
   }

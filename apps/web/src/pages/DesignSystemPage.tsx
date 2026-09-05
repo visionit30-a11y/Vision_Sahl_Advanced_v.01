@@ -221,7 +221,7 @@ export function DesignSystemPage() {
             size="sm"
             onClick={() => {
               show({
-                tone: 'success',
+                intent: 'saved',
                 messageKey: 'designSystem:samples.recordCreated',
                 link: { label: t('designSystem:samples.recordNumber'), href: '/design-system' },
               });
@@ -233,7 +233,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'warning', messageKey: 'designSystem:samples.warningMessage' });
+              show({ intent: 'warning', messageKey: 'designSystem:samples.warningMessage' });
             }}
           >
             {t('designSystem:showStatus.warning')}
@@ -242,7 +242,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
+              show({ intent: 'error', messageKey: 'designSystem:samples.dangerMessage' });
             }}
           >
             {t('designSystem:showStatus.danger')}
@@ -251,7 +251,7 @@ export function DesignSystemPage() {
             size="sm"
             variant="secondary"
             onClick={() => {
-              show({ tone: 'info', messageKey: 'designSystem:samples.infoMessage' });
+              show({ intent: 'info', messageKey: 'designSystem:samples.infoMessage' });
             }}
           >
             {t('designSystem:showStatus.info')}
@@ -321,7 +321,7 @@ export function DesignSystemPage() {
                 variant="danger"
                 onClick={() => {
                   setModalOpen(false);
-                  show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
+                  show({ intent: 'deleted', messageKey: 'designSystem:samples.recordCreated' });
                 }}
               >
                 {t('common:actions.delete')}
