@@ -1,0 +1,62 @@
+/*
+  اللوحة (ج) — تيل هادئ برأس ملوّن.
+  الهوية الافتراضية المعتمدة للمنصة (Default Platform Theme) بقرار مالك المشروع.
+*/
+:root,
+[data-palette='c'] {
+  --color-bg-page: #f6f6f4;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #efefec;
+  --color-bg-hover: #e8e8e4;
+
+  --color-border: #deded8;
+  --color-border-strong: #c4c4bc;
+
+  --color-text-primary: #1e211f;
+  --color-text-secondary: #4b4f4c;
+  --color-text-muted: #71756f;
+  --color-text-inverse: #ffffff;
+
+  --color-brand: #0f6e70;
+  --color-brand-hover: #0b585a;
+  --color-brand-active: #084446;
+  --color-brand-subtle: #e6f1f1;
+  --color-brand-border: #b7d8d8;
+  --color-on-brand: #ffffff;
+
+  --color-focus-ring: #17898b;
+  --color-link: #0d5f61;
+
+  --color-success: #1f7a4d;
+  --color-success-fg: #145c39;
+  --color-success-bg: #e9f4ee;
+  --color-success-border: #bfe0cd;
+
+  --color-warning: #9a6b00;
+  --color-warning-fg: #7a5500;
+  --color-warning-bg: #fbf3e2;
+  --color-warning-border: #ebd9ae;
+
+  --color-danger: #a32020;
+  --color-danger-fg: #8a1b1b;
+  --color-danger-bg: #fbecec;
+  --color-danger-border: #efc4c4;
+
+  --color-info: #1f5f8b;
+  --color-info-fg: #17496b;
+  --color-info-bg: #eaf2f8;
+  --color-info-border: #c3d9e9;
+
+  --color-overlay-scrim: rgb(16 24 32 / 45%);
+
+  --color-header-bg: #0f6e70;
+  --color-header-fg: #ffffff;
+  --color-header-border: #0b585a;
+
+  --color-nav-bg: #f6f6f4;
+  --color-nav-fg: #4b4f4c;
+  --color-nav-fg-muted: #71756f;
+  --color-nav-active-bg: #e6f1f1;
+  --color-nav-active-fg: #0b585a;
+  --color-nav-border: #deded8;
+}

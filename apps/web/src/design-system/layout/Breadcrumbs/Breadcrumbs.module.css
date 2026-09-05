@@ -1,0 +1,26 @@
+.breadcrumbs {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.link {
+  color: var(--color-text-secondary);
+}
+
+.separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}

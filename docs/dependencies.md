@@ -38,14 +38,21 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`,
 `jsdom`, `@testing-library/jest-dom`, `@types/react`, `@types/react-dom`, `@types/node`.
 
+## الواجهة — Phase 1 (معتمد ومثبَّت)
+
+| المكتبة | الدور |
+|---|---|
+| `react-router-dom` | مسارات القشرة |
+| `i18next` + `react-i18next` | طبقة الترجمة المركزية |
+| `@fontsource/ibm-plex-sans-arabic` | استضافة الخط الرسمي ذاتيًا (ترخيص OFL، بلا CDN) |
+
 ## معتمد مبدئيًا — يُثبَّت في المرحلة التي تحتاجه فعليًا
 
-| المكتبة | المرحلة المتوقعة |
-|---|---|
-| react-i18next / i18next | Phase 1 |
-| React Router | Phase 1 |
-| TanStack Query | Phase 1 |
-| TanStack Table (Headless — بلا CSS) | Phase 1 (محرك الجداول) |
-| React Hook Form + Zod | Phase 1/2 |
+| المكتبة | المرحلة المتوقعة | سبب التأجيل |
+|---|---|---|
+| TanStack Query | Phase 2 | لا جلب بيانات أعمال قبل وجود API ومصادقة |
+| TanStack Table (Headless — بلا CSS) | مع أول شاشة قائمة حقيقية | ADR-0007 · منع التجريد الاستباقي |
+| React Hook Form + Zod | مع أول نموذج أعمال | لا نماذج أعمال في Phase 1 |
+| مجموعة أيقونات مفتوحة الترخيص | بانتظار الاعتماد | ADR-0009 |
 
 أنماط معتمدة للواجهة: **CSS Modules + Design Tokens + CSS Variables**.

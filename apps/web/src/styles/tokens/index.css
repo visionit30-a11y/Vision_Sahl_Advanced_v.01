@@ -1,0 +1,11 @@
+/* The default theme first, then the alternatives: equal specificity, so order decides. */
+@import './palettes/palette-c.css';
+@import './palettes/palette-a.css';
+@import './palettes/palette-b.css';
+@import './space.css';
+@import './typography.css';
+@import './radius.css';
+@import './shadow.css';
+@import './layer.css';
+@import './motion.css';
+@import './breakpoints.css';

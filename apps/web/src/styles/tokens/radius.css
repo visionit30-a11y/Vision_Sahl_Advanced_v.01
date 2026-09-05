@@ -1,0 +1,7 @@
+/* أنصاف صغيرة ومهنية. لا استدارات مبالغ فيها. */
+:root {
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+}

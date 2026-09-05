@@ -1,0 +1,43 @@
+{
+  "app": {
+    "name": "Sahl Developer",
+    "short": "Sahl",
+    "tagline": "Management platform for non-profit organisations"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "close": "Close",
+    "retry": "Try again",
+    "undo": "Undo",
+    "back": "Back"
+  },
+  "states": {
+    "loading": "Loading…",
+    "emptyTitle": "No data",
+    "emptyDescription": "There is nothing to show yet.",
+    "errorTitle": "The operation could not be completed",
+    "errorDescription": "Something went wrong while loading the data. Please try again."
+  },
+  "form": {
+    "optional": "Optional",
+    "required": "Required",
+    "selectPlaceholder": "Select…"
+  },
+  "language": {
+    "label": "Language",
+    "arabic": "العربية",
+    "english": "English",
+    "change": "Change language"
+  },
+  "skipToContent": "Skip to content",
+  "notFound": {
+    "title": "Page not found",
+    "description": "The address you opened is not valid or is no longer available."
+  }
+}

@@ -1,0 +1,18 @@
+.icon {
+  flex: none;
+  color: inherit;
+}
+
+.sm {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.md {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+[dir='rtl'] .directional {
+  transform: scaleX(-1);
+}

@@ -1,0 +1,5 @@
+.textArea {
+  resize: vertical;
+  min-block-size: 72px;
+  line-height: var(--line-height-base);
+}

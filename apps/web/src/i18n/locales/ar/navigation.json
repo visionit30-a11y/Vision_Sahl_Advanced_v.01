@@ -1,0 +1,13 @@
+{
+  "mainNav": "التنقل الرئيسي",
+  "breadcrumb": "مسار التنقل",
+  "openNav": "فتح قائمة التنقل",
+  "closeNav": "إغلاق قائمة التنقل",
+  "sections": {
+    "workspace": "مساحة العمل"
+  },
+  "items": {
+    "home": "الرئيسية",
+    "designSystem": "نظام التصميم"
+  }
+}

@@ -31,6 +31,9 @@ _logs/
 *.log
 *.pid
 
+# ── Delivered copies from the assistant, not project sources ─
+Claude outputs/
+
 # ── OS / IDE ─────────────────────────────────────────────
 .DS_Store
 Thumbs.db

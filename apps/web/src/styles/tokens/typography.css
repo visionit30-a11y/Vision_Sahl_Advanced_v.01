@@ -1,0 +1,23 @@
+/*
+  السلم الطباعي. عائلة واحدة للعربية والإنجليزية: IBM Plex Sans Arabic.
+  ارتفاعات الأسطر مضبوطة لصالح العربية (تحتاج فسحة رأسية أعلى من اللاتينية).
+*/
+:root {
+  --font-family-base: 'IBM Plex Sans Arabic', system-ui, 'Segoe UI', Tahoma, sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-body: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.35;
+  --line-height-base: 1.65;
+}

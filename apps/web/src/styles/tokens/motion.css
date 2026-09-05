@@ -1,0 +1,13 @@
+/* حركة قصيرة ووظيفية. تُلغى تمامًا عند تفضيل تقليل الحركة. */
+:root {
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}
