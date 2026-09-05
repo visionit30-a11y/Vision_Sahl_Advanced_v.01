@@ -1,0 +1,86 @@
+/*
+  الشكل كله من عقد --print-*، ونفس المتغيرات تقرأها styles/print.css على الورق.
+  فما يُرى هنا هو ما يُطبع، لأن القيم واحدة لا نسختان.
+
+  الهوامش حشوٌ على الحاوية لا قاعدة @page، فالمتغيّر المخصص لا يُقرأ داخل @page.
+*/
+.surface {
+  padding-block-start: var(--print-page-padding-block-start);
+  padding-block-end: var(--print-page-padding-block-end);
+  padding-inline: var(--print-page-padding-inline);
+  background-color: var(--print-surface-bg);
+  color: var(--print-text-color);
+  font-size: var(--print-font-size);
+  line-height: var(--print-line-height);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-block-end: var(--print-title-spacing);
+}
+
+/* موضع الشعار: فسحة ومقاس فقط، بلا أي شعار حقيقي. */
+.logoSlot {
+  flex: none;
+  inline-size: var(--space-10);
+  block-size: var(--space-10);
+  border: var(--print-border-width) dashed var(--print-border-color);
+  border-radius: var(--radius-sm);
+}
+
+.headerText {
+  min-inline-size: 0;
+  color: var(--print-header-fg);
+  background-color: var(--print-header-bg);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.title {
+  font-size: var(--print-title-font-size);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  margin-block-end: var(--space-2);
+}
+
+.meta {
+  font-size: var(--print-meta-font-size);
+  color: var(--print-text-color);
+  margin-block-end: var(--print-title-spacing);
+}
+
+.rule {
+  block-size: var(--print-rule-width);
+  border: 0;
+  background-color: var(--print-border-color);
+  margin-block-end: var(--print-title-spacing);
+}
+
+.body {
+  margin-block-end: var(--print-title-spacing);
+}
+
+.footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding-block-start: var(--space-6);
+  border-block-start: var(--print-border-width) solid var(--print-border-color);
+  font-size: var(--print-meta-font-size);
+}
+
+/* موضع التوقيع: خط وفسحة، بلا اسم ولا صفة. */
+.signatureSlot {
+  flex: 1;
+  padding-block-start: var(--space-8);
+  border-block-start: var(--print-border-width) solid var(--print-border-color);
+  max-inline-size: 40%;
+}
+
+.pageNumberSlot {
+  flex: none;
+}

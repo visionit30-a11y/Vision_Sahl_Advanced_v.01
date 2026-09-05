@@ -1,0 +1,81 @@
+/*
+  الشكل كله من عقد --table-*. لا محرك جداول هنا: بنية ساكنة تُثبت العقد بصريًا
+  وتُختبر تحت كل نمط، وستقرأ نفس هذه المتغيرات حين يأتي المحرك الحقيقي.
+*/
+.wrapper {
+  overflow-x: auto;
+  border: var(--table-header-border-width) solid var(--table-border-color);
+  border-radius: var(--table-radius);
+  background-color: var(--color-bg-surface);
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--table-font-size);
+}
+
+.caption {
+  padding-block: var(--space-2);
+  padding-inline: var(--table-cell-padding-inline);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: start;
+}
+
+.headerCell {
+  padding-block: var(--table-row-padding-block);
+  padding-inline: var(--table-cell-padding-inline);
+  background-color: var(--table-header-bg);
+  color: var(--table-header-fg);
+  font-weight: var(--table-header-font-weight);
+  text-align: start;
+  white-space: nowrap;
+  border-block-end: var(--table-header-border-width) solid var(--table-border-color);
+  border-inline-end: var(--table-column-border-width) solid var(--table-border-color);
+}
+
+.row:nth-child(even) {
+  background-color: var(--table-stripe-bg);
+}
+
+.row.selected {
+  background-color: var(--table-selected-bg);
+}
+
+.row:hover {
+  background-color: var(--table-hover-bg);
+}
+
+.cell {
+  padding-block: var(--table-row-padding-block);
+  padding-inline: var(--table-cell-padding-inline);
+  border-block-start: var(--table-row-border-width) solid var(--table-border-color);
+  border-inline-end: var(--table-column-border-width) solid var(--table-border-color);
+}
+
+.headerCell:last-child,
+.cell:last-child {
+  border-inline-end: 0;
+}
+
+.numeric {
+  text-align: end;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.totalRow {
+  background-color: var(--table-total-row-bg);
+  font-weight: var(--table-total-row-font-weight);
+}
+
+.totalCell {
+  padding-block: var(--table-row-padding-block);
+  padding-inline: var(--table-cell-padding-inline);
+  border-block-start: var(--table-header-border-width) solid var(--table-border-color);
+  border-inline-end: var(--table-column-border-width) solid var(--table-border-color);
+}
+
+.totalCell:last-child {
+  border-inline-end: 0;
+}
