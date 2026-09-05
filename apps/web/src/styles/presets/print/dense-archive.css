@@ -8,7 +8,6 @@
   --print-page-padding-inline: var(--space-5);
   --print-font-size: var(--font-size-xs);
   --print-line-height: var(--line-height-tight);
-  --print-row-padding-block: var(--space-1);
   --print-title-font-size: var(--font-size-md);
   --print-title-spacing: var(--space-2);
   --print-meta-font-size: var(--font-size-xs);
