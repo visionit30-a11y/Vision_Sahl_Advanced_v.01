@@ -1,0 +1,103 @@
+/*
+  Phase 0 only: neutral styles for the technical verification page.
+  This file is deleted in Phase 1 and replaced by the design system
+  (design tokens + CSS variables + CSS Modules).
+*/
+
+:root {
+  --page-bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #dfe3e8;
+  --text: #1c2430;
+  --muted: #5b6672;
+  --up: #1f7a4d;
+  --down: #a32020;
+  --disabled: #8a6d1f;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Tahoma,
+    sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.page__title {
+  font-size: 1.25rem;
+  margin: 0 0 4px;
+}
+
+.page__note {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0 0 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card__label {
+  font-weight: 600;
+}
+
+.card__detail {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  width: 100%;
+}
+
+.state {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.state--up {
+  color: var(--up);
+}
+
+.state--down {
+  color: var(--down);
+}
+
+.state--disabled {
+  color: var(--disabled);
+}
+
+.actions {
+  margin-top: 16px;
+}
+
+button {
+  font: inherit;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
