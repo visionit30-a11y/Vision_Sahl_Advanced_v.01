@@ -20,9 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version comes from apps/api/.python-version, the same file uv reads,
+      # so the machine, CI and the future production image read one source.
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version-file: apps/api/.python-version
           cache: pip
 
       - name: Install dependencies

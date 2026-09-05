@@ -47,6 +47,45 @@ try {
         Write-Warn 'apps\web\.nvmrc is missing; the Node baseline cannot be checked.'
     }
 
+    $pythonVersionFile = Join-Path $root 'apps\api\.python-version'
+    if (Test-Path $pythonVersionFile) {
+        $pythonBaseline = (Get-Content $pythonVersionFile -Raw).Trim()
+        $baselineVersion = Get-ToolVersion -File 'py' -Arguments @(('-' + $pythonBaseline), '--version')
+        if ($baselineVersion) {
+            Write-Ok ("Python baseline {0} available: {1}" -f $pythonBaseline, $baselineVersion)
+        }
+        else {
+            Write-Fail ("Python baseline is {0} (apps\api\.python-version) but 'py -{0}' did not answer" -f $pythonBaseline)
+        }
+
+        $venvConfig = Join-Path $root 'apps\api\.venv\pyvenv.cfg'
+        if (Test-Path $venvConfig) {
+            $venvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
+            if ($venvVersion) { $venvVersion = $venvVersion.Trim() }
+            if ($venvVersion -and $venvVersion.StartsWith($pythonBaseline + '.')) {
+                Write-Ok ("Project virtualenv runs {0}" -f $venvVersion)
+            }
+            else {
+                Write-Fail ("Project virtualenv runs {0} but the baseline is {1}; run scripts\01-setup.ps1" -f $venvVersion, $pythonBaseline)
+            }
+        }
+        else {
+            Write-Info 'Project virtualenv not created yet'
+        }
+    }
+    else {
+        Write-Warn 'apps\api\.python-version is missing; the Python baseline cannot be checked.'
+    }
+
+    $uvPresent = Test-CommandExists 'uv'
+    if ($uvPresent) {
+        $uvVersion = Get-ToolVersion -File 'uv'
+        Write-Ok ('uv found: ' + $uvVersion)
+    }
+    else {
+        Write-Fail 'uv was not found in PATH; the backend dependency lock cannot be used.'
+    }
+
     Write-Section 'Python interpreters'
     if (Test-CommandExists 'py') {
         $interpreters = Invoke-NativeCapture -File 'py' -Arguments @('-0p')
