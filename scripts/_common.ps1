@@ -217,6 +217,67 @@ function Test-TcpPort {
     }
 }
 
+function Get-RunPidFile {
+    return (Join-Path (Get-ProjectRoot) '_logs\run-pids.json')
+}
+
+function Stop-SahlServices {
+    <#
+        Stops only the processes a previous 02-run recorded. Safe to call when
+        nothing is running.
+    #>
+    $pidFile = Get-RunPidFile
+    if (-not (Test-Path $pidFile)) {
+        return
+    }
+
+    $recorded = Get-Content $pidFile -Raw | ConvertFrom-Json
+    foreach ($name in @('api', 'web')) {
+        $processId = $recorded.$name
+        if (-not $processId) { continue }
+        if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { continue }
+        Invoke-Native -File 'taskkill' -Arguments @('/PID', "$processId", '/T', '/F') -AllowFailure | Out-Null
+        Write-Info ($name + ' from an earlier run stopped (pid ' + $processId + ')')
+    }
+
+    Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+}
+
+function Get-PortOwner {
+    param([Parameter(Mandatory = $true)][int] $Port)
+
+    $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -eq $connection) { return $null }
+    return (Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue)
+}
+
+function Clear-DevelopmentPort {
+    <#
+        Frees a development port that an orphaned run of this project left
+        behind. Only the runtimes this project starts are stopped; anything
+        else is reported and left untouched.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][int] $Port,
+        [string[]] $OwnedProcessNames = @('node', 'python', 'cmd', 'conhost')
+    )
+
+    $owner = Get-PortOwner -Port $Port
+    if ($null -eq $owner) { return $true }
+
+    if ($OwnedProcessNames -notcontains $owner.ProcessName) {
+        Write-Fail ("Port {0} is held by {1} (pid {2}), which this project did not start." -f $Port, $owner.ProcessName, $owner.Id)
+        Write-Warn 'Close that program yourself, then run this script again. Nothing was stopped.'
+        return $false
+    }
+
+    Write-Info ("Port {0} was left in use by an orphaned {1} (pid {2}); stopping it." -f $Port, $owner.ProcessName, $owner.Id)
+    Invoke-Native -File 'taskkill' -Arguments @('/PID', "$($owner.Id)", '/T', '/F') -AllowFailure | Out-Null
+    Start-Sleep -Seconds 1
+    return ($null -eq (Get-PortOwner -Port $Port))
+}
+
 function Get-VenvPython {
     $python = Join-Path (Get-ProjectRoot) 'apps\api\.venv\Scripts\python.exe'
     if (-not (Test-Path $python)) {
