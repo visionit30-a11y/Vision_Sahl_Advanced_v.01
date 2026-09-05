@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { StatusBarProvider } from '../design-system';
 import { directionOf } from '../i18n';
+import { UiCustomizationProvider } from '../ui-customization';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const { i18n } = useTranslation();
@@ -14,5 +15,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     root.dir = directionOf(i18n.language);
   }, [i18n.language]);
 
-  return <StatusBarProvider>{children}</StatusBarProvider>;
+  return (
+    <UiCustomizationProvider>
+      <StatusBarProvider>{children}</StatusBarProvider>
+    </UiCustomizationProvider>
+  );
 }

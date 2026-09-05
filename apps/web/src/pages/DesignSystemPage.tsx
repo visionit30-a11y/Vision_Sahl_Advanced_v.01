@@ -2,8 +2,6 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { PALETTES, applyPalette, readStoredPalette } from '../app/palette';
-import type { PaletteId } from '../app/palette';
 import {
   Badge,
   Button,
@@ -24,6 +22,8 @@ import {
   useStatusBar,
 } from '../design-system';
 import type { RadioOption } from '../design-system';
+import { themeRegistry, useUiCustomization } from '../ui-customization';
+import type { EditableUiScope } from '../ui-customization';
 import styles from './DesignSystemPage.module.css';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -37,32 +37,92 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function DesignSystemPage() {
   const { t } = useTranslation(['designSystem', 'common']);
   const { show, clear } = useStatusBar();
-  const [palette, setPalette] = useState<PaletteId>(() => readStoredPalette());
+  const { settings, origin, layers, canManage, setSetting, clearSetting } = useUiCustomization();
+  const [scope, setScope] = useState<EditableUiScope>('platform');
   const [modalOpen, setModalOpen] = useState(false);
 
-  const paletteOptions: RadioOption[] = PALETTES.map((id) => ({
-    value: id,
-    label: t(`designSystem:palette.options.${id}`),
-    hint: t(`designSystem:palette.hints.${id}`),
+  const scopeOptions: RadioOption[] = [
+    {
+      value: 'platform',
+      label: t('designSystem:customization.scopes.platform'),
+      hint: t('designSystem:customization.scopeHints.platform'),
+    },
+    {
+      value: 'tenant',
+      label: t('designSystem:customization.scopes.tenant'),
+      hint: t('designSystem:customization.scopeHints.tenant'),
+    },
+  ];
+
+  // Built from the registry, so a sixth identity needs no edit in this screen.
+  const themeOptions: RadioOption[] = themeRegistry.list().map((theme) => ({
+    value: theme.id,
+    label: t(theme.labelKey),
+    hint: t(theme.descriptionKey),
   }));
+
+  const storedInScope = layers[scope]?.theme;
+  const activeThemeLabel = t(`designSystem:themes.${settings.theme}.label`);
 
   return (
     <>
       <PageHeader title={t('designSystem:title')} description={t('designSystem:description')} />
 
-      <Card title={t('designSystem:palette.title')}>
+      <Card title={t('designSystem:customization.title')}>
         <div className={styles.section}>
-          <p className={styles.note}>{t('designSystem:palette.description')}</p>
+          <p className={styles.note}>{t('designSystem:customization.description')}</p>
+
+          <div className={styles.row}>
+            <Badge tone="brand">{activeThemeLabel}</Badge>
+            <Badge>{t(`designSystem:customization.origin.${origin.theme}`)}</Badge>
+          </div>
+
           <RadioGroup
-            legend={t('designSystem:palette.label')}
-            options={paletteOptions}
-            value={palette}
+            legend={t('designSystem:customization.scopeLabel')}
+            options={scopeOptions}
+            value={scope}
             onValueChange={(value) => {
-              const next = value as PaletteId;
-              setPalette(next);
-              applyPalette(next);
+              setScope(value as EditableUiScope);
             }}
           />
+
+          {canManage(scope) ? (
+            <>
+              <RadioGroup
+                legend={t('designSystem:customization.themeLabel')}
+                options={themeOptions}
+                value={storedInScope ?? settings.theme}
+                onValueChange={(value) => {
+                  void setSetting(scope, 'theme', value as typeof settings.theme);
+                }}
+              />
+              <div className={styles.row}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={storedInScope === undefined}
+                  onClick={() => {
+                    void clearSetting(scope, 'theme');
+                  }}
+                >
+                  {t('designSystem:customization.reset')}
+                </Button>
+                <p className={styles.note}>
+                  {storedInScope === undefined
+                    ? t('designSystem:customization.inheriting')
+                    : t('designSystem:customization.customised')}
+                </p>
+              </div>
+            </>
+          ) : (
+            <InlineAlert tone="info" title={t('designSystem:customization.notAllowedTitle')}>
+              {t('designSystem:customization.notAllowed')}
+            </InlineAlert>
+          )}
+
+          <InlineAlert tone="info" title={t('designSystem:customization.temporaryTitle')}>
+            {t('designSystem:customization.temporary')}
+          </InlineAlert>
         </div>
       </Card>
 

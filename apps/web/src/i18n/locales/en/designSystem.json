@@ -1,19 +1,53 @@
 {
   "title": "Design system",
   "description": "A living reference for every component and state, in both directions. Not a business screen.",
-  "palette": {
-    "title": "Choose the visual identity",
-    "description": "Switch between the three proposals and see their effect on the header, navigation, buttons, fields, cards and status bar. Your choice becomes the approved identity.",
-    "label": "Proposal",
-    "options": {
-      "a": "Calm institutional green",
-      "b": "Institutional navy with a dark sidebar",
-      "c": "Muted teal with a coloured header"
+  "customization": {
+    "title": "Interface customisation",
+    "description": "The visual identity is resolved through four layers: user, then association, then platform, then the built-in default. Switch the scope and the identity and watch the header, navigation, buttons, fields, cards and status bar on this very page repaint at once.",
+    "scopeLabel": "Scope",
+    "themeLabel": "Identity",
+    "reset": "Return to inherited",
+    "inheriting": "Nothing is customised in this scope; the value is inherited from below.",
+    "customised": "This scope carries a customisation that overrides the layers below it.",
+    "temporaryTitle": "Temporary preview",
+    "temporary": "Browser storage is temporary for this phase, and permissions are open because there is no user identity yet. Real storage and real permissions arrive in Phase 2. The association identifier here is a preview fixture, not a real association.",
+    "notAllowedTitle": "Not available",
+    "notAllowed": "The permissions layer does not allow this scope to be changed.",
+    "scopes": {
+      "platform": "Platform default",
+      "tenant": "Association customisation"
     },
-    "hints": {
-      "a": "Light header and navigation. The quietest option and the best fit for dense data screens.",
-      "b": "A dark sidebar that separates navigation from content clearly.",
-      "c": "A branded header gives the identity a stronger presence over neutral content."
+    "scopeHints": {
+      "platform": "Applies to every association that has not customised its identity.",
+      "tenant": "Overrides the platform default for this association alone."
+    },
+    "origin": {
+      "builtIn": "Built-in default",
+      "platform": "Inherited from the platform",
+      "tenant": "Customised for the association",
+      "user": "User preference"
+    }
+  },
+  "themes": {
+    "teal-calm": {
+      "label": "Calm teal",
+      "description": "A branded header gives the identity a clearer presence over neutral content. The platform default."
+    },
+    "green-institutional": {
+      "label": "Institutional green",
+      "description": "A light header and navigation. The quietest of the set, and the easiest on data-dense screens."
+    },
+    "navy-institutional": {
+      "label": "Institutional navy",
+      "description": "A dark side navigation that separates wayfinding from content."
+    },
+    "slate-neutral": {
+      "label": "Neutral slate",
+      "description": "Blue-grey with no prominent brand colour: maximum neutrality for an organisation that wants the numbers, not the badge."
+    },
+    "sand-warm": {
+      "label": "Warm sand",
+      "description": "Warm neutrals with a quiet golden brown brand: an institutional warmth without noise."
     }
   },
   "sections": {

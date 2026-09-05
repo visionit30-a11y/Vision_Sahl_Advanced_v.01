@@ -1,0 +1,89 @@
+/*
+  رملي دافئ — محايدات دافئة وبراند بني ذهبي هادئ، بطابع مؤسسي دافئ دون صخب.
+
+  ملف هوية: قيم ألوان فقط. لا مسافات ولا أحجام ولا خطوط ولا أنصاف ولا نقاط كسر —
+  وحارس آلي يرفض أي إعلان هنا لا يبدأ بـ--color-، فلا تستطيع هوية أن تزيح تخطيطًا.
+*/
+[data-theme='sand-warm'] {
+  /* الأسطح والخلفيات */
+  --color-bg-page: #f7f5f1;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #f0ece5;
+  --color-bg-hover: #e9e4db;
+
+  /* الحدود */
+  --color-border: #e0dad0;
+  --color-border-strong: #9b9285;
+
+  /* النصوص */
+  --color-text-primary: #201d18;
+  --color-text-secondary: #4f4a42;
+  --color-text-muted: #676157;
+  --color-text-inverse: #ffffff;
+
+  /* لون الهوية الأساسي */
+  --color-brand: #7a5230;
+  --color-brand-hover: #634226;
+  --color-brand-active: #4c331d;
+  --color-brand-subtle: #f4ede6;
+  --color-brand-border: #ddcbb8;
+  --color-on-brand: #ffffff;
+
+  /* اللون الثانوي */
+  --color-secondary: #5a5145;
+  --color-secondary-hover: #4a4238;
+  --color-secondary-subtle: #f0ece5;
+  --color-on-secondary: #ffffff;
+
+  /* لون التمييز */
+  --color-accent: #4f6b2f;
+  --color-accent-subtle: #eef3e7;
+
+  /* التركيز والروابط */
+  --color-focus-ring: #7a5230;
+  --color-link: #6b4526;
+
+  /* الحالات */
+  --color-success: #1f7a4d;
+  --color-success-fg: #145c39;
+  --color-success-bg: #e9f4ee;
+  --color-success-border: #bfe0cd;
+  --color-warning: #9a6b00;
+  --color-warning-fg: #7a5500;
+  --color-warning-bg: #fbf3e2;
+  --color-warning-border: #ebd9ae;
+  --color-danger: #a32020;
+  --color-danger-fg: #8a1b1b;
+  --color-danger-bg: #fbecec;
+  --color-danger-border: #efc4c4;
+  --color-info: #1f5f8b;
+  --color-info-fg: #17496b;
+  --color-info-bg: #eaf2f8;
+  --color-info-border: #c3d9e9;
+
+  /* المعطّل */
+  --color-disabled-bg: #f0ece5;
+  --color-disabled-fg: #6d675d;
+  --color-disabled-border: #ddd6cb;
+
+  /* المحدَّد */
+  --color-selected-bg: #f4ede6;
+  --color-selected-fg: #634226;
+  --color-selected-border: #ddcbb8;
+
+  /* طبقة التعتيم */
+  --color-overlay-scrim: rgb(26 22 18 / 45%);
+
+  /* الرأس */
+  --color-header-bg: #ffffff;
+  --color-header-fg: #201d18;
+  --color-header-border: #e0dad0;
+
+  /* التنقل الجانبي */
+  --color-nav-bg: #f7f5f1;
+  --color-nav-fg: #4f4a42;
+  --color-nav-fg-muted: #676157;
+  --color-nav-active-bg: #f4ede6;
+  --color-nav-active-fg: #634226;
+  --color-nav-border: #e0dad0;
+}
