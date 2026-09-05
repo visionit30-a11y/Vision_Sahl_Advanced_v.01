@@ -22,6 +22,8 @@ export interface UiSettings {
   buttonPreset: ButtonPresetId;
   alertPreset: AlertPresetId;
   overlayPreset: OverlayPresetId;
+  tablePreset: TablePresetId;
+  printPreset: PrintPresetId;
 }
 
 export type UiSettingsPatch = Partial<UiSettings>;
@@ -37,6 +39,8 @@ export const BUILT_IN_UI_SETTINGS: UiSettings = {
   buttonPreset: 'institutional-standard',
   alertPreset: 'tinted-standard',
   overlayPreset: 'institutional-standard',
+  tablePreset: 'institutional-standard',
+  printPreset: 'institutional-standard',
 };
 
 export function isThemeId(value: unknown): value is ThemeId {
@@ -58,6 +62,8 @@ export const UI_SETTINGS_VALIDATORS: {
   buttonPreset: isButtonPresetId,
   alertPreset: isAlertPresetId,
   overlayPreset: isOverlayPresetId,
+  tablePreset: isTablePresetId,
+  printPreset: isPrintPresetId,
 };
 
 export const UI_SETTING_KEYS = Object.keys(UI_SETTINGS_VALIDATORS) as (keyof UiSettings)[];
