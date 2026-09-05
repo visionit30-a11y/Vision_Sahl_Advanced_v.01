@@ -478,6 +478,173 @@ function Remove-ProjectDirectory {
     return $false
 }
 
+# The keys that carry the interpreter version in pyvenv.cfg. Python's own venv
+# module writes "version"; uv writes "version_info". Both forms are real and a
+# reader that knows only one of them silently reports nothing. Order matters
+# only for which is reported first when a file carries both.
+$script:PyvenvVersionKeys = @('version_info', 'version')
+
+function Get-VersionMajorMinor {
+    <#
+        Returns the "major.minor" of a version string, or $null when the string
+        does not start with two numbers. Patch levels move under us; the
+        baseline is a line, not a point release.
+    #>
+    param([string] $Version)
+
+    if (-not $Version) { return $null }
+    if ($Version -match '(\d+)\.(\d+)') { return ($Matches[1] + '.' + $Matches[2]) }
+    return $null
+}
+
+function Get-PyvenvConfigVersion {
+    <#
+        Reads the interpreter version out of a pyvenv.cfg. Returns an object
+        with Version and Error; exactly one of them is set, so a caller can
+        never mistake a parse failure for an answer.
+    #>
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{ Version = $null; Key = $null; Error = ($Path + ' does not exist') }
+    }
+
+    $lines = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
+    foreach ($key in $script:PyvenvVersionKeys) {
+        foreach ($line in $lines) {
+            if ($line -match ('^\s*' + [regex]::Escape($key) + '\s*=\s*(?<value>\S+)\s*$')) {
+                return [pscustomobject]@{ Version = $Matches['value']; Key = $key; Error = $null }
+            }
+        }
+    }
+
+    # Say what was expected and what is actually there, so the next reader does
+    # not have to open the file to find out.
+    $present = @()
+    foreach ($line in $lines) {
+        if ($line -match '^\s*(?<name>[^=\s]+)\s*=') { $present += $Matches['name'] }
+    }
+    $expected = $script:PyvenvVersionKeys -join ', '
+    $actual = if ($present.Count -gt 0) { $present -join ', ' } else { '(no key = value lines)' }
+    return [pscustomobject]@{
+        Version = $null
+        Key     = $null
+        Error   = ('None of the expected keys (' + $expected + ') is in ' + $Path + '. Keys present: ' + $actual)
+    }
+}
+
+function Get-PythonExecutableVersion {
+    <#
+        Asks an interpreter what it is. This is the operational source of truth:
+        pyvenv.cfg records what created the environment, while this is what
+        actually runs. Returns Version or Error, never a silent blank.
+    #>
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{ Version = $null; Error = ($Path + ' does not exist') }
+    }
+
+    $output = $null
+    try {
+        # Some Python builds answer --version on stderr, so both streams are kept.
+        $output = (& $Path '--version' 2>&1 | Out-String).Trim()
+    }
+    catch {
+        return [pscustomobject]@{ Version = $null; Error = ($Path + ' could not be started: ' + $_.Exception.Message) }
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ Version = $null; Error = ($Path + ' exited with code ' + $LASTEXITCODE + ': ' + $output) }
+    }
+    if ($output -match 'Python\s+(?<value>\d+\.\d+(\.\d+)?)') {
+        return [pscustomobject]@{ Version = $Matches['value']; Error = $null }
+    }
+    return [pscustomobject]@{ Version = $null; Error = ($Path + ' answered something this cannot read: ' + $output) }
+}
+
+function Get-VirtualEnvironmentState {
+    <#
+        Decides whether a virtual environment is the baseline one, from two
+        independent sources: the interpreter itself and pyvenv.cfg. Status is
+        one of
+
+          matches      both sources agree with each other and with the baseline
+          mismatch     both sources agree with each other on another version
+          incomplete   the environment is missing, or its interpreter will not run
+          inconsistent the two sources disagree, or one of them cannot be read
+
+        Only "mismatch" and "incomplete" describe an environment that should be
+        rebuilt. "inconsistent" is never a reason to delete anything: something
+        unexplained is going on and the caller is expected to stop.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string] $VenvPath,
+        [Parameter(Mandatory = $true)][string] $Baseline
+    )
+
+    $executable = Join-Path $VenvPath 'Scripts\python.exe'
+    $config = Join-Path $VenvPath 'pyvenv.cfg'
+
+    $state = [pscustomobject]@{
+        Status            = 'incomplete'
+        Baseline          = $Baseline
+        ExecutableVersion = $null
+        ExecutableError   = $null
+        ConfigVersion     = $null
+        ConfigKey         = $null
+        ConfigError       = $null
+        Reason            = $null
+    }
+
+    if (-not (Test-Path -LiteralPath $VenvPath)) {
+        $state.Reason = 'no virtual environment at ' + $VenvPath
+        return $state
+    }
+
+    $fromExecutable = Get-PythonExecutableVersion -Path $executable
+    $state.ExecutableVersion = $fromExecutable.Version
+    $state.ExecutableError = $fromExecutable.Error
+
+    $fromConfig = Get-PyvenvConfigVersion -Path $config
+    $state.ConfigVersion = $fromConfig.Version
+    $state.ConfigKey = $fromConfig.Key
+    $state.ConfigError = $fromConfig.Error
+
+    if (-not $fromExecutable.Version) {
+        # An interpreter that will not run is proven unusable, not ambiguous.
+        $state.Status = 'incomplete'
+        $state.Reason = $fromExecutable.Error
+        return $state
+    }
+
+    $executableLine = Get-VersionMajorMinor -Version $fromExecutable.Version
+    $configLine = Get-VersionMajorMinor -Version $fromConfig.Version
+
+    if (-not $configLine) {
+        $state.Status = 'inconsistent'
+        $state.Reason = ('the interpreter reports ' + $fromExecutable.Version +
+            ' but pyvenv.cfg could not be read: ' + $fromConfig.Error)
+        return $state
+    }
+    if ($executableLine -ne $configLine) {
+        $state.Status = 'inconsistent'
+        $state.Reason = ('the interpreter reports ' + $fromExecutable.Version +
+            ' but pyvenv.cfg records ' + $fromConfig.Version)
+        return $state
+    }
+    if ($executableLine -ne $Baseline) {
+        $state.Status = 'mismatch'
+        $state.Reason = ('both sources report ' + $fromExecutable.Version + ' but the baseline is ' + $Baseline)
+        return $state
+    }
+
+    $state.Status = 'matches'
+    $state.Reason = ('interpreter ' + $fromExecutable.Version + ' and pyvenv.cfg (' + $fromConfig.Key + ' = ' +
+        $fromConfig.Version + ') both agree with the baseline ' + $Baseline)
+    return $state
+}
+
 function Get-VenvPython {
     $python = Join-Path (Get-ProjectRoot) 'apps\api\.venv\Scripts\python.exe'
     if (-not (Test-Path $python)) {

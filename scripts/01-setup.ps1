@@ -202,27 +202,33 @@ try {
     Write-Section '4. Python virtual environment and API packages'
     $venvDir = Join-Path $apiDir '.venv'
     $venvPython = Join-Path $venvDir 'Scripts\python.exe'
-    $venvConfig = Join-Path $venvDir 'pyvenv.cfg'
 
     # An environment built on another Python is rebuilt rather than patched.
     # Only apps\api\.venv is ever removed, and the path is asserted twice - here
     # and again inside Remove-ProjectDirectory - so a future edit cannot widen
     # what this deletes.
     $expectedVenvDir = Join-Path $apiDir '.venv'
-    $venvVersion = $null
     $rebuildReason = $null
 
-    if (Test-Path $venvConfig) {
-        $venvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
-        if ($venvVersion) { $venvVersion = $venvVersion.Trim() }
-        if (-not ($venvVersion -and $venvVersion.StartsWith($pythonBaseline + '.'))) {
-            $rebuildReason = 'old venv = Python ' + $venvVersion + ' but the baseline is ' + $pythonBaseline
+    # Two independent sources decide this: the interpreter that actually runs,
+    # and pyvenv.cfg. They are only allowed to send us down the destructive path
+    # when they agree; a disagreement stops the script instead of deleting on a
+    # reading nobody can explain.
+    $venvState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+    switch ($venvState.Status) {
+        'matches' { Write-Ok ('old venv already matches the baseline: ' + $venvState.Reason) }
+        'mismatch' { $rebuildReason = 'old venv = Python ' + $venvState.ExecutableVersion + ' but the baseline is ' + $pythonBaseline }
+        'incomplete' {
+            if (Test-Path $venvDir) {
+                # Wreckage of an interrupted rebuild. Installing into it would
+                # hide the damage, so it is replaced.
+                $rebuildReason = 'old venv is unusable (' + $venvState.Reason + ') and is replaced'
+            }
         }
-    }
-    elseif (Test-Path $venvDir) {
-        # A directory with no pyvenv.cfg is the wreckage of an interrupted
-        # rebuild. Installing into it would hide the damage, so it is replaced.
-        $rebuildReason = 'old venv is incomplete (pyvenv.cfg is missing) and is replaced'
+        'inconsistent' {
+            throw ('The existing virtual environment cannot be classified: ' + $venvState.Reason +
+                ' Nothing was deleted. Inspect apps\api\.venv yourself, then run this script again.')
+        }
     }
 
     if ($rebuildReason) {
@@ -264,21 +270,22 @@ try {
         Write-Ok 'uv sync --frozen succeeded'
     }
 
-    # uv builds the environment, so the version it chose is read back from disk
-    # rather than assumed from the baseline file.
-    if (-not (Test-Path $venvConfig)) {
-        throw 'The virtual environment was not created. Nothing further was installed.'
+    # uv builds the environment, so what it produced is read back from disk
+    # rather than assumed from the baseline file - and from both sources, since
+    # an interpreter and the file that describes it can drift apart.
+    $builtState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+    if ($builtState.Status -ne 'matches') {
+        if ($builtState.ExecutableError) { Write-Fail ('interpreter: ' + $builtState.ExecutableError) }
+        if ($builtState.ConfigError) { Write-Fail ('pyvenv.cfg: ' + $builtState.ConfigError) }
+        throw ('The virtual environment does not match the baseline ' + $pythonBaseline + ': ' + $builtState.Reason)
     }
-    $newVenvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
-    if ($newVenvVersion) { $newVenvVersion = $newVenvVersion.Trim() }
-    if (-not ($newVenvVersion -and $newVenvVersion.StartsWith($pythonBaseline + '.'))) {
-        throw ('The rebuilt virtual environment runs ' + $newVenvVersion + ' but the baseline is ' + $pythonBaseline + '.')
-    }
+    Write-Info ('interpreter reports Python ' + $builtState.ExecutableVersion)
+    Write-Info ('pyvenv.cfg records ' + $builtState.ConfigKey + ' = ' + $builtState.ConfigVersion)
     if ($rebuildReason) {
-        Write-Ok ('new venv created with Python ' + $newVenvVersion)
+        Write-Ok ('new venv created with Python ' + $builtState.ExecutableVersion)
     }
     else {
-        Write-Ok ('virtual environment runs Python ' + $newVenvVersion + ' - matches the baseline')
+        Write-Ok ('virtual environment runs Python ' + $builtState.ExecutableVersion + ' - matches the baseline')
     }
 
     Write-Section '5. Frontend packages'

@@ -58,15 +58,32 @@ try {
             Write-Fail ("Python baseline is {0} (apps\api\.python-version) but 'py -{0}' did not answer" -f $pythonBaseline)
         }
 
-        $venvConfig = Join-Path $root 'apps\api\.venv\pyvenv.cfg'
-        if (Test-Path $venvConfig) {
-            $venvVersion = ((Get-Content $venvConfig | Where-Object { $_ -match '^version\s*=' }) -split '=')[1]
-            if ($venvVersion) { $venvVersion = $venvVersion.Trim() }
-            if ($venvVersion -and $venvVersion.StartsWith($pythonBaseline + '.')) {
-                Write-Ok ("Project virtualenv runs {0}" -f $venvVersion)
+        $venvDir = Join-Path $root 'apps\api\.venv'
+        if (Test-Path $venvDir) {
+            # Both sources are reported, because a report that shows only one of
+            # them cannot tell a matching environment from a half-rebuilt one.
+            $venvState = Get-VirtualEnvironmentState -VenvPath $venvDir -Baseline $pythonBaseline
+            if ($venvState.ExecutableVersion) {
+                Write-Info ('Project virtualenv interpreter: Python ' + $venvState.ExecutableVersion)
             }
             else {
-                Write-Fail ("Project virtualenv runs {0} but the baseline is {1}; run scripts\01-setup.ps1" -f $venvVersion, $pythonBaseline)
+                Write-Fail ('Project virtualenv interpreter: ' + $venvState.ExecutableError)
+            }
+            if ($venvState.ConfigVersion) {
+                Write-Info ('Project virtualenv pyvenv.cfg: ' + $venvState.ConfigKey + ' = ' + $venvState.ConfigVersion)
+            }
+            else {
+                Write-Fail ('Project virtualenv pyvenv.cfg: ' + $venvState.ConfigError)
+            }
+
+            if ($venvState.Status -eq 'matches') {
+                Write-Ok ('Project virtualenv matches the baseline ' + $pythonBaseline)
+            }
+            else {
+                Write-Fail ('Project virtualenv does not match the baseline: ' + $venvState.Reason)
+                if ($venvState.Status -ne 'inconsistent') {
+                    Write-Info 'Run scripts\01-setup.ps1 to rebuild it.'
+                }
             }
         }
         else {
