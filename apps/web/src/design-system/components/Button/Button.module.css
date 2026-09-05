@@ -1,33 +1,46 @@
+/*
+  الشكل كله من عقد --button-*، والألوان من رموز الهوية.
+  المكوّن لا يعرف اسم نمط ولا اسم هوية: يقرأ العقد فحسب.
+*/
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding-inline: var(--space-4);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  gap: var(--button-icon-gap);
+  padding-inline: var(--button-padding-inline-md);
+  border: var(--button-border-width) solid transparent;
+  border-radius: var(--button-radius);
   font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--button-font-weight);
   line-height: 1;
   cursor: pointer;
   white-space: nowrap;
   transition:
     background-color var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover:not(:disabled) {
+  box-shadow: var(--button-hover-elevation);
+}
+
+.button:active:not(:disabled) {
+  translate: 0 var(--button-pressed-translate-block);
 }
 
 .button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: var(--button-disabled-opacity);
 }
 
 .md {
-  block-size: var(--size-control-height-md);
+  block-size: var(--button-height-md);
 }
 
 .sm {
-  block-size: var(--size-control-height-sm);
-  padding-inline: var(--space-3);
+  block-size: var(--button-height-sm);
+  padding-inline: var(--button-padding-inline-sm);
   font-size: var(--font-size-sm);
 }
 
@@ -39,17 +52,22 @@
   display: inline-block;
 }
 
+/*
+  الأساسي هو المتغير الوحيد الذي يملك النمط تعبئته وحدّه، لأن نمط outlined-calm
+  يحوّله من تعبئة صلبة إلى حد ونص. البقية تقرأ رموز الهوية مباشرة.
+*/
 .primary {
-  background-color: var(--color-brand);
-  color: var(--color-on-brand);
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: var(--button-primary-fg);
 }
 
 .primary:hover:not(:disabled) {
-  background-color: var(--color-brand-hover);
+  background-color: var(--button-primary-bg-hover);
 }
 
 .primary:active:not(:disabled) {
-  background-color: var(--color-brand-active);
+  background-color: var(--button-primary-bg-active);
 }
 
 .secondary {
