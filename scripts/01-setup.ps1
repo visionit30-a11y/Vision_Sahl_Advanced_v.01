@@ -170,21 +170,36 @@ try {
     }
     else {
         Write-Info 'A separate role and database are created. No existing database is modified.'
-        $superUser = Read-Host 'PostgreSQL superuser name (press Enter for "postgres")'
-        if ([string]::IsNullOrWhiteSpace($superUser)) { $superUser = 'postgres' }
-        $securePassword = Read-Host ('Password for PostgreSQL user "' + $superUser + '"') -AsSecureString
-        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+        Write-Info 'A Windows credential dialog will open. Enter the PostgreSQL superuser password'
+        Write-Info 'you chose during the PostgreSQL 17 installation. It is never written to a log.'
+
+        $credential = Get-Credential -UserName 'postgres' -Message 'PostgreSQL superuser password (set during PostgreSQL 17 installation)'
+        if ($null -eq $credential) {
+            throw 'The credential dialog was cancelled. Nothing was changed.'
+        }
+
+        $superUser = ($credential.UserName -replace '^.*\\', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($superUser)) {
+            throw 'No superuser name was provided. Nothing was changed.'
+        }
+        Write-Info ('Connecting as superuser: ' + $superUser)
+
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($credential.Password)
         $sqlPath = Join-Path $env:TEMP ('sahl-provision-' + [guid]::NewGuid().ToString('N') + '.sql')
         try {
             $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+            if ([string]::IsNullOrEmpty($env:PGPASSWORD)) {
+                throw 'No password was entered in the credential dialog. Nothing was changed.'
+            }
 
             $probe = Invoke-NativeCapture -File $psqlExe -Arguments @(
                 '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres', '-tAc', 'SELECT version()'
             )
             if ($probe.ExitCode -ne 0) {
-                Write-Fail 'Could not connect as the superuser. psql reported:'
+                Write-Fail ('Could not connect to 127.0.0.1:' + $dbPort + ' as "' + $superUser + '". psql reported:')
                 foreach ($line in $probe.Output) { Write-Host ('    ' + $line) }
-                throw 'Superuser connection failed.'
+                Write-Warn 'Check that the password is the one set during the PostgreSQL 17 installation.'
+                throw 'Superuser connection failed. Nothing was changed.'
             }
             Write-Ok ('Connected. Server: ' + $probe.Text)
 
