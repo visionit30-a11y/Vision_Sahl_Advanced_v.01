@@ -1,5 +1,17 @@
-import { isAlertPresetId, isButtonPresetId, isOverlayPresetId } from './presets';
-import type { AlertPresetId, ButtonPresetId, OverlayPresetId } from './presets';
+import {
+  isAlertPresetId,
+  isButtonPresetId,
+  isOverlayPresetId,
+  isPrintPresetId,
+  isTablePresetId,
+} from './presets';
+import type {
+  AlertPresetId,
+  ButtonPresetId,
+  OverlayPresetId,
+  PrintPresetId,
+  TablePresetId,
+} from './presets';
 
 export const THEME_IDS = [
   'teal-calm',

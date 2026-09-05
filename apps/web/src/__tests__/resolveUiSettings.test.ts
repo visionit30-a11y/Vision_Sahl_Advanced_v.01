@@ -77,3 +77,43 @@ describe('ui settings resolution', () => {
     expect(origin.theme).toBe('builtIn');
   });
 });
+
+/**
+ * The whole point of a per key origin map: a manager can inherit the platform's
+ * button style while the association has chosen its own identity and its own
+ * table style, and see which is which.
+ */
+describe('per setting origin across six settings', () => {
+  it('reports a separate source for every setting', () => {
+    const { settings, origin } = resolveUiSettings({
+      builtIn: BUILT_IN_UI_SETTINGS,
+      platform: { buttonPreset: 'compact-sharp', tablePreset: 'zebra-scan' },
+      tenant: { theme: 'sand-warm', tablePreset: 'full-grid' },
+    });
+
+    expect(settings.theme).toBe('sand-warm');
+    expect(settings.buttonPreset).toBe('compact-sharp');
+    expect(settings.tablePreset).toBe('full-grid');
+
+    expect(origin).toEqual({
+      theme: 'tenant',
+      buttonPreset: 'platform',
+      alertPreset: 'builtIn',
+      overlayPreset: 'builtIn',
+      tablePreset: 'tenant',
+      printPreset: 'builtIn',
+    });
+  });
+
+  it('returns one setting to the layer beneath without touching the others', () => {
+    const { origin } = resolveUiSettings({
+      builtIn: BUILT_IN_UI_SETTINGS,
+      platform: { buttonPreset: 'compact-sharp', tablePreset: 'zebra-scan' },
+      tenant: { theme: 'sand-warm' },
+    });
+
+    expect(origin.tablePreset).toBe('platform');
+    expect(origin.theme).toBe('tenant');
+    expect(origin.printPreset).toBe('builtIn');
+  });
+});

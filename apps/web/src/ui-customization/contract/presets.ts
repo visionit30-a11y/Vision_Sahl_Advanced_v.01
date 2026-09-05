@@ -9,11 +9,7 @@
 
 /** The UiSettings keys these families fill. */
 export type PresetSettingKey =
-  | 'buttonPreset'
-  | 'alertPreset'
-  | 'overlayPreset'
-  | 'tablePreset'
-  | 'printPreset';
+  'buttonPreset' | 'alertPreset' | 'overlayPreset' | 'tablePreset' | 'printPreset';
 
 export const BUTTON_PRESET_IDS = [
   'compact-sharp',
@@ -218,7 +214,6 @@ export const PRINT_PRESET_VARIABLES = [
   '--print-page-padding-inline',
   '--print-font-size',
   '--print-line-height',
-  '--print-row-padding-block',
   '--print-title-font-size',
   '--print-title-spacing',
   '--print-meta-font-size',

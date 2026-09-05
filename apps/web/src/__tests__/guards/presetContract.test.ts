@@ -11,6 +11,8 @@ import { PRESET_FAMILIES } from '../../ui-customization/contract/presets';
 import { alertPresetRegistry } from '../../ui-customization/registries/alertPresetRegistry';
 import { buttonPresetRegistry } from '../../ui-customization/registries/buttonPresetRegistry';
 import { overlayPresetRegistry } from '../../ui-customization/registries/overlayPresetRegistry';
+import { printPresetRegistry } from '../../ui-customization/registries/printPresetRegistry';
+import { tablePresetRegistry } from '../../ui-customization/registries/tablePresetRegistry';
 import { familyDirectory, readPresetFiles } from './presetFiles';
 import { readFile } from './walk';
 
@@ -18,6 +20,8 @@ const REGISTRIES = {
   buttonPreset: buttonPresetRegistry,
   alertPreset: alertPresetRegistry,
   overlayPreset: overlayPresetRegistry,
+  tablePreset: tablePresetRegistry,
+  printPreset: printPresetRegistry,
 };
 
 /**
