@@ -34,6 +34,15 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 | eslint · prettier | Lint / Format |
 | vitest 3 · @testing-library/react | الاختبارات — الإصدار 3 لازم لأن vitest 2 يجلب نسخة Vite 5 داخلية تتعارض أنواعها مع Vite 6 المعتمد |
 
+## الواجهة — Phase 1 (معتمد)
+
+| المكتبة | الدور | المبرر |
+|---|---|---|
+| react-router-dom | التوجيه | معتمد مسبقًا لمراحل لاحقة، ولزم في Phase 1A لقشرة التنقل |
+| i18next · react-i18next | طبقة الترجمة | العربية والإنجليزية من نفس البنية، ولا نص مرئي داخل مكوّن |
+| @fontsource/ibm-plex-sans-arabic | الخط الرسمي | استضافة ذاتية بأوزان 400/500/600/700 بلا أي CDN خارجي |
+| lucide-react | نظام الأيقونات الرسمي | ADR-0009 · ترخيص ISC · أسلوب خطي واحد و`currentColor` · مستوردة في `Icon` وحده وحارس آلي يمنع استيرادها في غيره |
+
 **توابع أدوات لازمة لتشغيل ما سبق** (بلا أثر معماري): `@eslint/js`,
 `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`,
 `jsdom`, `@testing-library/jest-dom`, `@types/react`, `@types/react-dom`, `@types/node`.
