@@ -62,7 +62,7 @@ _HTTP_ERROR_CODES = {
     status.HTTP_404_NOT_FOUND: "not_found",
     status.HTTP_405_METHOD_NOT_ALLOWED: "method_not_allowed",
     status.HTTP_409_CONFLICT: "conflict",
-    status.HTTP_422_UNPROCESSABLE_ENTITY: "validation_error",
+    status.HTTP_422_UNPROCESSABLE_CONTENT: "validation_error",
     status.HTTP_503_SERVICE_UNAVAILABLE: "service_unavailable",
 }
 
@@ -90,7 +90,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         _request: Request, exc: RequestValidationError
     ) -> JSONResponse:
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=build_error_payload(
                 "validation_error",
                 "The request payload is not valid.",
