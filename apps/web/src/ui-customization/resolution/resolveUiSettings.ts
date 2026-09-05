@@ -1,4 +1,4 @@
-import { BUILT_IN_UI_SETTINGS, isThemeId } from '../contract/settings';
+import { BUILT_IN_UI_SETTINGS, UI_SETTINGS_VALIDATORS } from '../contract/settings';
 import type { UiScope, UiSettings, UiSettingsPatch } from '../contract/settings';
 
 export interface UiSettingsLayers {
@@ -25,15 +25,6 @@ export interface ResolvedUiSettings {
  * wins, and the built-in layer always answers.
  */
 const PRECEDENCE: readonly UiScope[] = ['user', 'tenant', 'platform', 'builtIn'];
-
-/**
- * A value read from storage is untrusted input: it may come from an older
- * release that knew other identifiers. An unknown value is ignored rather than
- * applied, so the next layer answers instead of the interface breaking.
- */
-const VALIDATORS: { [K in keyof UiSettings]: (value: unknown) => value is UiSettings[K] } = {
-  theme: isThemeId,
-};
 
 function layerOf(layers: UiSettingsLayers, scope: UiScope): UiSettingsPatch | null | undefined {
   switch (scope) {
@@ -62,7 +53,7 @@ export function resolveUiSettings(layers: UiSettingsLayers): ResolvedUiSettings 
     for (const scope of PRECEDENCE) {
       const value = layerOf(layers, scope)?.[key];
 
-      if (value !== undefined && VALIDATORS[key](value)) {
+      if (value !== undefined && UI_SETTINGS_VALIDATORS[key](value)) {
         settings[key] = value;
         origin[key] = scope;
         break;
