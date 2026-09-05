@@ -8,6 +8,7 @@
   --alert-radius: var(--radius-sm);
   --alert-border-width: 1px;
   --alert-accent-inline-start-width: 1px;
+  --alert-accent-mix: 0%;
   --alert-solid-mix: 0%;
   --alert-surface-mix: 0%;
   --alert-bg-alpha: 100%;

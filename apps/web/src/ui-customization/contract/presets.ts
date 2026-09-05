@@ -87,6 +87,7 @@ export const BUTTON_PRESET_VARIABLES = [
  *   solid-mix    100% draws the tone at full strength under inverse text
  *   surface-mix  100% replaces the tinted background with the plain surface
  *   bg-alpha       0% removes the background altogether
+ *   accent-mix   100% paints the inline start edge in the tone at full strength
  *
  * --size-statusbar-height is deliberately NOT here: the reserved band is a
  * layout token, and a guard rejects any preset that tries to declare it.
@@ -97,6 +98,7 @@ export const ALERT_PRESET_VARIABLES = [
   '--alert-radius',
   '--alert-border-width',
   '--alert-accent-inline-start-width',
+  '--alert-accent-mix',
   '--alert-solid-mix',
   '--alert-surface-mix',
   '--alert-bg-alpha',

@@ -1,7 +1,9 @@
 /*
-  The reserved band. Its height is fixed, not a minimum: a message must never
-  make it taller, because that would push the page content down. It also sticks
-  under the header, so a message stays visible wherever the user has scrolled.
+  الشريط المحجوز. ارتفاعه ثابت لا حد أدنى: رسالة يجب ألا تجعله أطول، لأن ذلك يدفع
+  محتوى الصفحة لأسفل. ويلتصق تحت الرأس، فتبقى الرسالة ظاهرة أينما مرّر المستخدم.
+
+  --size-statusbar-height رمز تخطيط عام، وحارس يمنع أي نمط تنبيهات من تعريفه.
+  النمط يغيّر الشريط الداخلي وحده.
 */
 .region {
   position: sticky;
@@ -15,19 +17,25 @@
 }
 
 .bar {
+  composes: surface from '../../tones.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-2);
   inline-size: 100%;
   block-size: calc(var(--size-statusbar-height) - var(--space-2));
-  padding-inline: var(--space-3);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-body);
+  padding-inline: var(--alert-padding-inline);
+  border-style: solid;
+  border-width: var(--alert-border-width);
+  border-inline-start-width: var(--alert-accent-inline-start-width);
+  border-radius: var(--alert-radius);
+  font-size: var(--alert-font-size);
 }
 
 .icon {
   flex: none;
+  inline-size: var(--alert-icon-size);
+  block-size: var(--alert-icon-size);
+  opacity: var(--alert-icon-opacity);
 }
 
 .text {
@@ -42,7 +50,7 @@
   margin-inline-start: var(--space-2);
   font-weight: var(--font-weight-bold);
   color: inherit;
-  text-decoration: underline;
+  text-decoration: var(--alert-link-decoration);
 }
 
 .undo {
@@ -52,7 +60,7 @@
   padding: 0;
   color: inherit;
   font-weight: var(--font-weight-medium);
-  text-decoration: underline;
+  text-decoration: var(--alert-link-decoration);
   cursor: pointer;
 }
 
@@ -62,31 +70,21 @@
 }
 
 .success {
-  background-color: var(--color-success-bg);
-  border-color: var(--color-success-border);
-  color: var(--color-success-fg);
+  composes: success from '../../tones.module.css';
 }
 
 .warning {
-  background-color: var(--color-warning-bg);
-  border-color: var(--color-warning-border);
-  color: var(--color-warning-fg);
+  composes: warning from '../../tones.module.css';
 }
 
 .danger {
-  background-color: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-  color: var(--color-danger-fg);
+  composes: danger from '../../tones.module.css';
 }
 
 .info {
-  background-color: var(--color-info-bg);
-  border-color: var(--color-info-border);
-  color: var(--color-info-fg);
+  composes: info from '../../tones.module.css';
 }
 
 .neutral {
-  background-color: var(--color-neutral-bg);
-  border-color: var(--color-neutral-border);
-  color: var(--color-neutral-fg);
+  composes: neutral from '../../tones.module.css';
 }
