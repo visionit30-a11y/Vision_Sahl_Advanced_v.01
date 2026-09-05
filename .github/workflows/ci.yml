@@ -41,7 +41,11 @@ jobs:
           --health-retries 20
 
     env:
-      APP_ENV: ci
+      # CI is not a fifth deployment environment, it is where the test
+      # environment's suite runs. "ci" is not a value the Settings contract
+      # declares and no code branches on it, so the job runs as "test" - the
+      # same environment a developer's pytest run reports.
+      APP_ENV: test
       LOG_FORMAT: json
       REDIS_ENABLED: 'false'
       # Tests run as the application role, which owns nothing.
