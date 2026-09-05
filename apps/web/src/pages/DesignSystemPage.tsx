@@ -26,10 +26,14 @@ import {
   alertPresetRegistry,
   buttonPresetRegistry,
   overlayPresetRegistry,
+  printPresetRegistry,
+  tablePresetRegistry,
   themeRegistry,
   useUiCustomization,
 } from '../ui-customization';
 import type { EditableUiScope, UiSettings } from '../ui-customization';
+import { PrintSpecimen } from './design-system/specimens/PrintSpecimen';
+import { TableSpecimen } from './design-system/specimens/TableSpecimen';
 import styles from './DesignSystemPage.module.css';
 
 /** What a switcher needs from a registry, and nothing more. */
@@ -46,6 +50,8 @@ const CUSTOMISABLE: readonly { key: keyof UiSettings; options: OptionSource }[] 
   { key: 'buttonPreset', options: buttonPresetRegistry },
   { key: 'alertPreset', options: alertPresetRegistry },
   { key: 'overlayPreset', options: overlayPresetRegistry },
+  { key: 'tablePreset', options: tablePresetRegistry },
+  { key: 'printPreset', options: printPresetRegistry },
 ];
 
 const STATUS_INTENTS = [
@@ -312,6 +318,20 @@ export function DesignSystemPage() {
               }
             />
           </div>
+        </div>
+      </Section>
+
+      <Section title={t('designSystem:sections.tables')}>
+        <p className={styles.note}>{t('designSystem:table.description')}</p>
+        <TableSpecimen />
+      </Section>
+
+      <Section title={t('designSystem:sections.print')}>
+        <InlineAlert tone="info" title={t('designSystem:print.simulationTitle')}>
+          {t('designSystem:print.simulation')}
+        </InlineAlert>
+        <div className={styles.paper}>
+          <PrintSpecimen />
         </div>
       </Section>
 

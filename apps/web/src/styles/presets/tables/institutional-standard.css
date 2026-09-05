@@ -1,0 +1,26 @@
+/*
+  المعياري المؤسسي — النمط الافتراضي المدمج للجداول.
+  كثافة معتدلة، رأس مصبوغ خفيف، حدود أفقية فقط، بلا تخطيط متناوب.
+
+  لا يوجد شكل سابق يُحافَظ عليه هنا: هذا قرار تصميمي جديد يُراجَع بصريًا قبل القبول.
+  وملف نمط: قيم متغيرات فقط، وبادئة --table- وحدها.
+*/
+:root,
+[data-table-preset='institutional-standard'] {
+  --table-row-padding-block: var(--space-2);
+  --table-cell-padding-inline: var(--space-3);
+  --table-font-size: var(--font-size-body);
+  --table-radius: var(--radius-md);
+  --table-header-bg: var(--color-bg-subtle);
+  --table-header-fg: var(--color-text-primary);
+  --table-header-font-weight: var(--font-weight-semibold);
+  --table-header-border-width: 1px;
+  --table-row-border-width: 1px;
+  --table-column-border-width: 0;
+  --table-border-color: var(--color-border);
+  --table-stripe-bg: transparent;
+  --table-hover-bg: var(--color-bg-hover);
+  --table-selected-bg: var(--color-selected-bg);
+  --table-total-row-bg: var(--color-bg-subtle);
+  --table-total-row-font-weight: var(--font-weight-semibold);
+}

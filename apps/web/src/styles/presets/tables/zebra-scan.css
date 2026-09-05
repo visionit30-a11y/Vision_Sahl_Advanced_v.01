@@ -1,0 +1,24 @@
+/*
+  تخطيط متناوب — الصف الزوجي مصبوغ والحدود الأفقية مرفوعة، فالتخطيط وحده يفصل الصفوف.
+  للجداول العريضة التي تُمسح بالعين أفقيًا فتضيع فيها العين بين الأعمدة.
+
+  رأس الجدول أغمق درجة من التخطيط كي يبقى متميزًا عنه لا ذائبًا فيه.
+*/
+[data-table-preset='zebra-scan'] {
+  --table-row-padding-block: var(--space-2);
+  --table-cell-padding-inline: var(--space-3);
+  --table-font-size: var(--font-size-body);
+  --table-radius: var(--radius-md);
+  --table-header-bg: var(--color-bg-hover);
+  --table-header-fg: var(--color-text-primary);
+  --table-header-font-weight: var(--font-weight-semibold);
+  --table-header-border-width: 1px;
+  --table-row-border-width: 0;
+  --table-column-border-width: 0;
+  --table-border-color: var(--color-border);
+  --table-stripe-bg: var(--color-bg-subtle);
+  --table-hover-bg: var(--color-bg-hover);
+  --table-selected-bg: var(--color-selected-bg);
+  --table-total-row-bg: var(--color-bg-hover);
+  --table-total-row-font-weight: var(--font-weight-semibold);
+}
