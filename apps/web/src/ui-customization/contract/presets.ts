@@ -75,9 +75,18 @@ export const BUTTON_PRESET_VARIABLES = [
 ] as const;
 
 /**
- * The alert family, shared by InlineAlert and the status bar. The three colour
- * slots point at the tone variables the component sets, so a preset decides
- * which colour layer of a tone is used, never what that colour is.
+ * The alert family, shared by InlineAlert and the status bar.
+ *
+ * The colour side is three mix ratios rather than three colour slots, and that
+ * is not a style choice. A custom property is substituted on the element that
+ * declares it, so a preset at :root cannot alias --tone-bg: the tone lives on
+ * the message element, and the alias would resolve against nothing. Ratios do
+ * resolve at :root, and a mix at 0% or 100% returns its endpoint exactly, so
+ * the hand tuned and contrast checked tone tokens survive untouched.
+ *
+ *   solid-mix    100% draws the tone at full strength under inverse text
+ *   surface-mix  100% replaces the tinted background with the plain surface
+ *   bg-alpha       0% removes the background altogether
  *
  * --size-statusbar-height is deliberately NOT here: the reserved band is a
  * layout token, and a guard rejects any preset that tries to declare it.
@@ -88,10 +97,9 @@ export const ALERT_PRESET_VARIABLES = [
   '--alert-radius',
   '--alert-border-width',
   '--alert-accent-inline-start-width',
-  '--alert-accent-color',
-  '--alert-bg',
-  '--alert-fg',
-  '--alert-border-color',
+  '--alert-solid-mix',
+  '--alert-surface-mix',
+  '--alert-bg-alpha',
   '--alert-icon-size',
   '--alert-icon-opacity',
   '--alert-font-size',

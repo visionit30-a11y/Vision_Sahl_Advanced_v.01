@@ -108,6 +108,18 @@ export const CONTRAST_TEXT_PAIRS: readonly (readonly [SemanticColorToken, Semant
   // on the surface at rest and on the subtle tint while hovered:
   ['brand', 'bg-surface'],
   ['brand', 'brand-subtle'],
+  // bordered-quiet and minimal-inline drop the tinted background, leaving each
+  // tone's text on the plain surface and on the page:
+  ['success-fg', 'bg-surface'],
+  ['success-fg', 'bg-page'],
+  ['warning-fg', 'bg-surface'],
+  ['warning-fg', 'bg-page'],
+  ['danger-fg', 'bg-surface'],
+  ['danger-fg', 'bg-page'],
+  ['info-fg', 'bg-surface'],
+  ['info-fg', 'bg-page'],
+  ['neutral-fg', 'bg-surface'],
+  ['neutral-fg', 'bg-page'],
 ];
 
 export const CONTRAST_INTERFACE_PAIRS: readonly (readonly [

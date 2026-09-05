@@ -1,0 +1,18 @@
+/*
+  أدنى حد — بلا خلفية ولا حد: أيقونة ملوّنة ونص بلون النبرة.
+  أعلى كثافة معلومات، لشاشة تريد الرسالة دون أن تفقد سطرًا من الجدول.
+*/
+[data-alert-preset='minimal-inline'] {
+  --alert-padding-block: var(--space-2);
+  --alert-padding-inline: var(--space-1);
+  --alert-radius: var(--radius-sm);
+  --alert-border-width: 0;
+  --alert-accent-inline-start-width: 0;
+  --alert-solid-mix: 0%;
+  --alert-surface-mix: 0%;
+  --alert-bg-alpha: 0%;
+  --alert-icon-size: var(--size-icon-sm);
+  --alert-icon-opacity: 1;
+  --alert-font-size: var(--font-size-body);
+  --alert-link-decoration: underline;
+}
