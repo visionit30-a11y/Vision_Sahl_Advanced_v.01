@@ -1,0 +1,26 @@
+/*
+  المعياري المؤسسي — النمط الافتراضي المدمج للطباعة والتقارير.
+  هوامش معتدلة وألوان محافظة وخط فاصل خفيف.
+
+  الهوامش حشو على حاوية الطباعة لا قاعدة @page: المتغيّر المخصص لا يُقرأ داخل @page،
+  وقاعدة «ملف النمط قيم متغيرات فقط» تبقى سليمة. و@page المحايدة في styles/print.css.
+*/
+:root,
+[data-print-preset='institutional-standard'] {
+  --print-page-padding-block-start: var(--space-8);
+  --print-page-padding-block-end: var(--space-8);
+  --print-page-padding-inline: var(--space-8);
+  --print-font-size: var(--font-size-sm);
+  --print-line-height: var(--line-height-base);
+  --print-row-padding-block: var(--space-2);
+  --print-title-font-size: var(--font-size-xl);
+  --print-title-spacing: var(--space-4);
+  --print-meta-font-size: var(--font-size-xs);
+  --print-rule-width: 1px;
+  --print-surface-bg: var(--color-bg-surface);
+  --print-text-color: var(--color-text-primary);
+  --print-border-width: 1px;
+  --print-border-color: var(--color-border);
+  --print-header-bg: var(--color-bg-subtle);
+  --print-header-fg: var(--color-text-primary);
+}

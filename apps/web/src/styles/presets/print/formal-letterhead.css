@@ -1,0 +1,22 @@
+/*
+  ترويسة رسمية — هامش علوي أوسع يترك فسحة لترويسة الجهة، وخط أكبر ومسافات مريحة.
+  موضع الترويسة فسحة ومقاس فقط: لا اسم جهة ولا شعار ولا أي محتوى أعمال.
+*/
+[data-print-preset='formal-letterhead'] {
+  --print-page-padding-block-start: var(--space-10);
+  --print-page-padding-block-end: var(--space-8);
+  --print-page-padding-inline: var(--space-9);
+  --print-font-size: var(--font-size-body);
+  --print-line-height: var(--line-height-base);
+  --print-row-padding-block: var(--space-3);
+  --print-title-font-size: var(--font-size-2xl);
+  --print-title-spacing: var(--space-6);
+  --print-meta-font-size: var(--font-size-sm);
+  --print-rule-width: 2px;
+  --print-surface-bg: var(--color-bg-surface);
+  --print-text-color: var(--color-text-primary);
+  --print-border-width: 1px;
+  --print-border-color: var(--color-border);
+  --print-header-bg: transparent;
+  --print-header-fg: var(--color-text-secondary);
+}

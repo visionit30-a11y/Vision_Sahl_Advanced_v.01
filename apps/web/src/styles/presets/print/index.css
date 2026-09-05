@@ -1,0 +1,8 @@
+/*
+  أنماط الطباعة والتقارير. الافتراضي المدمج أولًا ومعرَّف على :root أيضًا.
+*/
+@import './institutional-standard.css';
+@import './ink-saving.css';
+@import './dense-archive.css';
+@import './formal-letterhead.css';
+@import './high-contrast-print.css';

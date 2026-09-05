@@ -1,0 +1,8 @@
+/*
+  أنماط الجداول. الافتراضي المدمج أولًا ومعرَّف على :root أيضًا.
+*/
+@import './institutional-standard.css';
+@import './compact-rows.css';
+@import './zebra-scan.css';
+@import './full-grid.css';
+@import './airy-report.css';
