@@ -7,9 +7,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 describe('Menu', () => {
   it('opens, reports its state and runs the chosen item', () => {
     const onSelect = vi.fn();
-    renderWithProviders(
-      <Menu label="Actions" items={[{ id: 'edit', label: 'Edit', onSelect }]} />,
-    );
+    renderWithProviders(<Menu label="Actions" items={[{ id: 'edit', label: 'Edit', onSelect }]} />);
 
     const trigger = screen.getByRole('button', { name: /Actions/ });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');

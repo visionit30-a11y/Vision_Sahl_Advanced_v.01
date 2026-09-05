@@ -11,7 +11,15 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   id?: string;
 }
 
-export function TextField({ label, hint, error, required, id, className, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  hint,
+  error,
+  required,
+  id,
+  className,
+  ...rest
+}: TextFieldProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const classes = [control.control, error ? control.invalid : '', className]

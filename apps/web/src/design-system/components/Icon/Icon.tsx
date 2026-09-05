@@ -69,7 +69,9 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="18" cy="12" r="1" />
     </>
   ),
-  externalLink: <path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h4" />,
+  externalLink: (
+    <path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h4" />
+  ),
   inbox: <path d="M4 13h4l1.5 3h5L16 13h4M4 13l2-7h12l2 7v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z" />,
 };
 

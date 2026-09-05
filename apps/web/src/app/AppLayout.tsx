@@ -15,9 +15,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const currentLabel = location.pathname.startsWith('/design-system')
     ? t('items.designSystem')
     : null;
-  const breadcrumbs: Crumb[] = currentLabel
-    ? [home, { id: 'current', label: currentLabel }]
-    : [];
+  const breadcrumbs: Crumb[] = currentLabel ? [home, { id: 'current', label: currentLabel }] : [];
 
   return (
     <AppShell sections={NAV_SECTIONS} breadcrumbs={breadcrumbs} headerActions={<LanguageMenu />}>

@@ -10,8 +10,10 @@ export interface SelectOption {
   label: string;
 }
 
-export interface SelectProps
-  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id' | 'children'> {
+export interface SelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'id' | 'children'
+> {
   label: string;
   options: SelectOption[];
   placeholder?: string;

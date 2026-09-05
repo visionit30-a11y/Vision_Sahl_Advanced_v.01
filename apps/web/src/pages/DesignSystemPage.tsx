@@ -91,7 +91,11 @@ export function DesignSystemPage() {
           <Menu
             label={t('designSystem:samples.menuLabel')}
             items={[
-              { id: 'edit', label: t('designSystem:samples.buttonGhost'), onSelect: () => undefined },
+              {
+                id: 'edit',
+                label: t('designSystem:samples.buttonGhost'),
+                onSelect: () => undefined,
+              },
               {
                 id: 'delete',
                 label: t('designSystem:samples.buttonDanger'),

@@ -7,7 +7,8 @@ export const PALETTES = ['a', 'b', 'c'] as const;
 
 export type PaletteId = (typeof PALETTES)[number];
 
-export const DEFAULT_PALETTE: PaletteId = 'a';
+/** Approved by the project owner as the default platform theme. */
+export const DEFAULT_PALETTE: PaletteId = 'c';
 
 const STORAGE_KEY = 'sahl.palette';
 

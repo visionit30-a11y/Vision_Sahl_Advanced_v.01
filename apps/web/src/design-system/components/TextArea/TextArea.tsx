@@ -12,7 +12,16 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
   id?: string;
 }
 
-export function TextArea({ label, hint, error, required, id, className, rows = 3, ...rest }: TextAreaProps) {
+export function TextArea({
+  label,
+  hint,
+  error,
+  required,
+  id,
+  className,
+  rows = 3,
+  ...rest
+}: TextAreaProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const classes = [control.control, styles.textArea, error ? control.invalid : '', className]

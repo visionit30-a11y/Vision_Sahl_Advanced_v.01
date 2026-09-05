@@ -1,6 +1,7 @@
+/* The default theme first, then the alternatives: equal specificity, so order decides. */
+@import './palettes/palette-c.css';
 @import './palettes/palette-a.css';
 @import './palettes/palette-b.css';
-@import './palettes/palette-c.css';
 @import './space.css';
 @import './typography.css';
 @import './radius.css';

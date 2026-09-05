@@ -3,8 +3,7 @@
   ارتفاعات الأسطر مضبوطة لصالح العربية (تحتاج فسحة رأسية أعلى من اللاتينية).
 */
 :root {
-  --font-family-base:
-    'IBM Plex Sans Arabic', system-ui, 'Segoe UI', Tahoma, sans-serif;
+  --font-family-base: 'IBM Plex Sans Arabic', system-ui, 'Segoe UI', Tahoma, sans-serif;
 
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;

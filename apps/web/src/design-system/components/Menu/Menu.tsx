@@ -125,7 +125,9 @@ export function Menu({
               type="button"
               role="menuitem"
               disabled={item.disabled}
-              className={[styles.item, item.selected ? styles.selected : ''].filter(Boolean).join(' ')}
+              className={[styles.item, item.selected ? styles.selected : '']
+                .filter(Boolean)
+                .join(' ')}
               ref={(element) => {
                 itemRefs.current[index] = element;
               }}

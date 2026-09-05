@@ -28,7 +28,11 @@ beforeEach(() => {
       if (!body) {
         throw new Error(`Unexpected request: ${String(input)}`);
       }
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(body),
+      } as Response);
     }),
   );
 });
