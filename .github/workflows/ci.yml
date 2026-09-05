@@ -48,9 +48,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version comes from apps/web/.nvmrc so the local machine and CI read
+      # one source instead of two numbers that have to be kept equal by hand.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: apps/web/.nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 

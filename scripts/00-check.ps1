@@ -27,6 +27,26 @@ try {
         }
     }
 
+    Write-Section 'Baseline versions'
+    # The baseline lives in one file per runtime, and this compares the machine
+    # against it. A silent drift between the local machine and CI is how a build
+    # passes in one place and fails in the other.
+    $nvmrc = Join-Path $root 'apps\web\.nvmrc'
+    if (Test-Path $nvmrc) {
+        $nodeBaseline = (Get-Content $nvmrc -Raw).Trim()
+        $nodeActual = Get-ToolVersion -File 'node'
+        $nodeMajor = if ($nodeActual -match 'v?(\d+)\.') { $Matches[1] } else { $null }
+        if ($nodeMajor -eq $nodeBaseline) {
+            Write-Ok ("Node baseline {0} matches installed {1}" -f $nodeBaseline, $nodeActual)
+        }
+        else {
+            Write-Fail ("Node baseline is {0} (apps\web\.nvmrc) but {1} is installed" -f $nodeBaseline, $nodeActual)
+        }
+    }
+    else {
+        Write-Warn 'apps\web\.nvmrc is missing; the Node baseline cannot be checked.'
+    }
+
     Write-Section 'Python interpreters'
     if (Test-CommandExists 'py') {
         $interpreters = Invoke-NativeCapture -File 'py' -Arguments @('-0p')
