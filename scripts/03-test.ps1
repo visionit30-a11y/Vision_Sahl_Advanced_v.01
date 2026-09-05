@@ -23,6 +23,27 @@ try {
     $venvPython = Get-VenvPython
     $npmExe = if (Test-CommandExists 'npm.cmd') { 'npm.cmd' } else { 'npm' }
 
+    Write-Section 'Frontend - dependency freshness'
+    $manifest = Join-Path $webDir 'package.json'
+    $installMarker = Join-Path $webDir 'node_modules\.package-lock.json'
+    $needsInstall = -not (Test-Path $installMarker)
+    if (-not $needsInstall) {
+        $needsInstall = (Get-Item $manifest).LastWriteTimeUtc -gt (Get-Item $installMarker).LastWriteTimeUtc
+    }
+    if ($needsInstall) {
+        Write-Info 'package.json is newer than the installed tree - refreshing packages'
+        Invoke-Native -File $npmExe -Arguments @('install', '--no-fund', '--no-audit') -WorkingDirectory $webDir | Out-Null
+    }
+    else {
+        Write-Info 'Frontend packages are up to date'
+    }
+
+    # Formatting is applied, not just checked, so the gates below run on
+    # formatted sources. Only layout changes; no tool behaviour is altered.
+    Write-Section 'Auto-format (ruff format / prettier --write)'
+    Invoke-Native -File $venvPython -Arguments @('-m', 'ruff', 'format', '.') -WorkingDirectory $apiDir -AllowFailure | Out-Null
+    Invoke-Native -File $npmExe -Arguments @('run', 'format') -WorkingDirectory $webDir -AllowFailure | Out-Null
+
     Write-Section 'Backend - ruff (lint)'
     Add-Result 'ruff check' (Invoke-Native -File $venvPython -Arguments @('-m', 'ruff', 'check', '.') -WorkingDirectory $apiDir -AllowFailure) $true
 

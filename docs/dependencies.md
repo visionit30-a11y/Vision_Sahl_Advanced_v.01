@@ -32,7 +32,7 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 | vite · @vitejs/plugin-react | أداة البناء المقفلة |
 | typescript | لغة الواجهة المعتمدة رسميًا |
 | eslint · prettier | Lint / Format |
-| vitest · @testing-library/react | الاختبارات |
+| vitest 3 · @testing-library/react | الاختبارات — الإصدار 3 لازم لأن vitest 2 يجلب نسخة Vite 5 داخلية تتعارض أنواعها مع Vite 6 المعتمد |
 
 **توابع أدوات لازمة لتشغيل ما سبق** (بلا أثر معماري): `@eslint/js`,
 `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`,

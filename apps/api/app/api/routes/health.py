@@ -75,6 +75,4 @@ async def read_cache_health(response: Response) -> DependencyHealthResponse:
     result = await cache_health()
     if result.is_failure:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    return DependencyHealthResponse(
-        dependency="redis", status=result.status, detail=result.detail
-    )
+    return DependencyHealthResponse(dependency="redis", status=result.status, detail=result.detail)
