@@ -252,30 +252,74 @@ function Get-PortOwner {
     return (Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue)
 }
 
+function Get-OwnedTreeRoot {
+    <#
+        Walks up from a process while its parent is still one of this project's
+        runtimes, and returns the topmost one. Killing a worker on its own is
+        useless when a reloader parent survives to spawn a replacement.
+        The walk stops at anything else, so a shell is never a candidate.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][int] $ProcessId,
+        [Parameter(Mandatory = $true)][string[]] $OwnedProcessNames
+    )
+
+    $currentId = $ProcessId
+    for ($step = 0; $step -lt 6; $step += 1) {
+        $info = Get-CimInstance Win32_Process -Filter "ProcessId = $currentId" -ErrorAction SilentlyContinue
+        if ($null -eq $info) { break }
+
+        $parentId = [int]$info.ParentProcessId
+        if ($parentId -le 0) { break }
+
+        $parent = Get-Process -Id $parentId -ErrorAction SilentlyContinue
+        if ($null -eq $parent) { break }
+        if ($OwnedProcessNames -notcontains $parent.ProcessName) { break }
+
+        $currentId = $parentId
+    }
+
+    return $currentId
+}
+
 function Clear-DevelopmentPort {
     <#
         Frees a development port that an orphaned run of this project left
         behind. Only the runtimes this project starts are stopped; anything
-        else is reported and left untouched.
+        else is reported and left untouched. A uvicorn reloader restarts its
+        worker, so the whole owned tree is killed and the port re-checked.
     #>
     param(
         [Parameter(Mandatory = $true)][int] $Port,
-        [string[]] $OwnedProcessNames = @('node', 'python', 'cmd', 'conhost')
+        [string[]] $OwnedProcessNames = @('node', 'python', 'cmd'),
+        [int] $Attempts = 6
     )
 
-    $owner = Get-PortOwner -Port $Port
-    if ($null -eq $owner) { return $true }
+    for ($attempt = 1; $attempt -le $Attempts; $attempt += 1) {
+        $owner = Get-PortOwner -Port $Port
+        if ($null -eq $owner) {
+            return $true
+        }
 
-    if ($OwnedProcessNames -notcontains $owner.ProcessName) {
-        Write-Fail ("Port {0} is held by {1} (pid {2}), which this project did not start." -f $Port, $owner.ProcessName, $owner.Id)
-        Write-Warn 'Close that program yourself, then run this script again. Nothing was stopped.'
-        return $false
+        if ($OwnedProcessNames -notcontains $owner.ProcessName) {
+            Write-Fail ("Port {0} is held by {1} (pid {2}), which this project did not start." -f $Port, $owner.ProcessName, $owner.Id)
+            Write-Warn 'Close that program yourself, then run this script again. Nothing was stopped.'
+            return $false
+        }
+
+        $rootId = Get-OwnedTreeRoot -ProcessId $owner.Id -OwnedProcessNames $OwnedProcessNames
+        Write-Info ("Port {0} is held by an orphaned {1} (pid {2}); stopping its process tree from pid {3}." -f $Port, $owner.ProcessName, $owner.Id, $rootId)
+        Invoke-Native -File 'taskkill' -Arguments @('/PID', "$rootId", '/T', '/F') -AllowFailure | Out-Null
+        Start-Sleep -Seconds 2
     }
 
-    Write-Info ("Port {0} was left in use by an orphaned {1} (pid {2}); stopping it." -f $Port, $owner.ProcessName, $owner.Id)
-    Invoke-Native -File 'taskkill' -Arguments @('/PID', "$($owner.Id)", '/T', '/F') -AllowFailure | Out-Null
-    Start-Sleep -Seconds 1
-    return ($null -eq (Get-PortOwner -Port $Port))
+    $remaining = Get-PortOwner -Port $Port
+    if ($null -eq $remaining) {
+        return $true
+    }
+
+    Write-Fail ("Port {0} is still held by {1} (pid {2}) after {3} attempts." -f $Port, $remaining.ProcessName, $remaining.Id, $Attempts)
+    return $false
 }
 
 function Get-VenvPython {
