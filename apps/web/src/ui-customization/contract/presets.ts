@@ -141,6 +141,8 @@ export interface PresetFamily {
   key: PresetSettingKey;
   /** The dataset property applyUiSettings writes on the document element. */
   attribute: string;
+  /** The same thing as CSS sees it, which is what a preset file selects on. */
+  dataAttribute: string;
   /** The directory under styles/presets/ holding this family's stylesheets. */
   directory: string;
   /** The only variable prefix a file in that directory may declare. */
@@ -158,6 +160,7 @@ export const PRESET_FAMILIES: readonly PresetFamily[] = [
   {
     key: 'buttonPreset',
     attribute: 'buttonPreset',
+    dataAttribute: 'data-button-preset',
     directory: 'buttons',
     prefix: '--button-',
     ids: BUTTON_PRESET_IDS,
@@ -167,6 +170,7 @@ export const PRESET_FAMILIES: readonly PresetFamily[] = [
   {
     key: 'alertPreset',
     attribute: 'alertPreset',
+    dataAttribute: 'data-alert-preset',
     directory: 'alerts',
     prefix: '--alert-',
     ids: ALERT_PRESET_IDS,
@@ -176,6 +180,7 @@ export const PRESET_FAMILIES: readonly PresetFamily[] = [
   {
     key: 'overlayPreset',
     attribute: 'overlayPreset',
+    dataAttribute: 'data-overlay-preset',
     directory: 'overlays',
     prefix: '--overlay-',
     ids: OVERLAY_PRESET_IDS,

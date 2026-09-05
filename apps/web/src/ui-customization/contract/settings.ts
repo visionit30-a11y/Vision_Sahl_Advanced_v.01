@@ -1,8 +1,4 @@
-import {
-  isAlertPresetId,
-  isButtonPresetId,
-  isOverlayPresetId,
-} from './presets';
+import { isAlertPresetId, isButtonPresetId, isOverlayPresetId } from './presets';
 import type { AlertPresetId, ButtonPresetId, OverlayPresetId } from './presets';
 
 export const THEME_IDS = [
