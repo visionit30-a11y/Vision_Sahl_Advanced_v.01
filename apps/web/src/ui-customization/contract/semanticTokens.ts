@@ -47,6 +47,10 @@ export const SEMANTIC_COLOR_TOKENS = [
   'info-fg',
   'info-bg',
   'info-border',
+  'neutral',
+  'neutral-fg',
+  'neutral-bg',
+  'neutral-border',
   'disabled-bg',
   'disabled-fg',
   'disabled-border',
@@ -86,11 +90,36 @@ export const CONTRAST_TEXT_PAIRS: readonly (readonly [SemanticColorToken, Semant
   ['warning-fg', 'warning-bg'],
   ['danger-fg', 'danger-bg'],
   ['info-fg', 'info-bg'],
+  ['neutral-fg', 'neutral-bg'],
   ['header-fg', 'header-bg'],
   ['nav-fg', 'nav-bg'],
   ['nav-fg-muted', 'nav-bg'],
   ['nav-active-fg', 'nav-active-bg'],
   ['selected-fg', 'selected-bg'],
+
+  // Pairs that exist because a presentation preset uses them.
+  // solid-emphatic draws a tone at full strength under inverse text:
+  ['text-inverse', 'success'],
+  ['text-inverse', 'warning'],
+  ['text-inverse', 'danger'],
+  ['text-inverse', 'info'],
+  ['text-inverse', 'neutral'],
+  // outlined-calm turns the identity colour into the primary button's text,
+  // on the surface at rest and on the subtle tint while hovered:
+  ['brand', 'bg-surface'],
+  ['brand', 'brand-subtle'],
+  // bordered-quiet and minimal-inline drop the tinted background, leaving each
+  // tone's text on the plain surface and on the page:
+  ['success-fg', 'bg-surface'],
+  ['success-fg', 'bg-page'],
+  ['warning-fg', 'bg-surface'],
+  ['warning-fg', 'bg-page'],
+  ['danger-fg', 'bg-surface'],
+  ['danger-fg', 'bg-page'],
+  ['info-fg', 'bg-surface'],
+  ['info-fg', 'bg-page'],
+  ['neutral-fg', 'bg-surface'],
+  ['neutral-fg', 'bg-page'],
 ];
 
 export const CONTRAST_INTERFACE_PAIRS: readonly (readonly [

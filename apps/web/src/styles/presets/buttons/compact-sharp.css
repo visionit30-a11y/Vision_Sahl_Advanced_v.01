@@ -1,0 +1,22 @@
+/*
+  مضغوط حاد — أقصر ارتفاع وأضيق حشو وأصغر نصف قطر.
+  لشاشات الإدخال والجداول التي تحمل إجراءات كثيرة في مساحة واحدة.
+*/
+[data-button-preset='compact-sharp'] {
+  --button-radius: var(--radius-sm);
+  --button-height-md: var(--size-control-height-sm);
+  --button-height-sm: var(--size-control-height-xs);
+  --button-padding-inline-md: var(--space-3);
+  --button-padding-inline-sm: var(--space-2);
+  --button-icon-gap: var(--space-1);
+  --button-font-weight: var(--font-weight-medium);
+  --button-border-width: 1px;
+  --button-primary-bg: var(--color-brand);
+  --button-primary-bg-hover: var(--color-brand-hover);
+  --button-primary-bg-active: var(--color-brand-active);
+  --button-primary-fg: var(--color-on-brand);
+  --button-primary-border: transparent;
+  --button-hover-elevation: none;
+  --button-pressed-translate-block: 0;
+  --button-disabled-opacity: 0.55;
+}

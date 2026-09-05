@@ -60,6 +60,10 @@
   --color-info-fg: #17496b;
   --color-info-bg: #eaf2f8;
   --color-info-border: #c3d9e9;
+  --color-neutral: #55504a;
+  --color-neutral-fg: #423d37;
+  --color-neutral-bg: #f0ece5;
+  --color-neutral-border: #ddd6cb;
 
   /* المعطّل */
   --color-disabled-bg: #f0ece5;

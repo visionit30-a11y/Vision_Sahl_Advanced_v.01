@@ -22,9 +22,43 @@ import {
   useStatusBar,
 } from '../design-system';
 import type { RadioOption } from '../design-system';
-import { themeRegistry, useUiCustomization } from '../ui-customization';
-import type { EditableUiScope } from '../ui-customization';
+import {
+  alertPresetRegistry,
+  buttonPresetRegistry,
+  overlayPresetRegistry,
+  themeRegistry,
+  useUiCustomization,
+} from '../ui-customization';
+import type { EditableUiScope, UiSettings } from '../ui-customization';
 import styles from './DesignSystemPage.module.css';
+
+/** What a switcher needs from a registry, and nothing more. */
+interface OptionSource {
+  list: () => readonly { id: string; labelKey: string; descriptionKey: string }[];
+}
+
+/**
+ * One row per setting. The list is data, so a fourth family later is an entry
+ * here rather than another block of markup.
+ */
+const CUSTOMISABLE: readonly { key: keyof UiSettings; options: OptionSource }[] = [
+  { key: 'theme', options: themeRegistry },
+  { key: 'buttonPreset', options: buttonPresetRegistry },
+  { key: 'alertPreset', options: alertPresetRegistry },
+  { key: 'overlayPreset', options: overlayPresetRegistry },
+];
+
+const STATUS_INTENTS = [
+  'saved',
+  'updated',
+  'deleted',
+  'success',
+  'cancelled',
+  'blocked',
+  'warning',
+  'error',
+  'info',
+] as const;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -54,15 +88,18 @@ export function DesignSystemPage() {
     },
   ];
 
-  // Built from the registry, so a sixth identity needs no edit in this screen.
-  const themeOptions: RadioOption[] = themeRegistry.list().map((theme) => ({
-    value: theme.id,
-    label: t(theme.labelKey),
-    hint: t(theme.descriptionKey),
-  }));
+  // Built from the registries, so a sixth option anywhere needs no edit here.
+  const optionsFor = (source: OptionSource): RadioOption[] =>
+    source.list().map((entry) => ({
+      value: entry.id,
+      label: t(entry.labelKey),
+      hint: t(entry.descriptionKey),
+    }));
 
-  const storedInScope = layers[scope]?.theme;
-  const activeThemeLabel = t(`designSystem:themes.${settings.theme}.label`);
+  const labelOf = (source: OptionSource, id: string): string => {
+    const entry = source.list().find((candidate) => candidate.id === id);
+    return entry ? t(entry.labelKey) : id;
+  };
 
   return (
     <>
@@ -71,11 +108,6 @@ export function DesignSystemPage() {
       <Card title={t('designSystem:customization.title')}>
         <div className={styles.section}>
           <p className={styles.note}>{t('designSystem:customization.description')}</p>
-
-          <div className={styles.row}>
-            <Badge tone="brand">{activeThemeLabel}</Badge>
-            <Badge>{t(`designSystem:customization.origin.${origin.theme}`)}</Badge>
-          </div>
 
           <RadioGroup
             legend={t('designSystem:customization.scopeLabel')}
@@ -87,33 +119,49 @@ export function DesignSystemPage() {
           />
 
           {canManage(scope) ? (
-            <>
-              <RadioGroup
-                legend={t('designSystem:customization.themeLabel')}
-                options={themeOptions}
-                value={storedInScope ?? settings.theme}
-                onValueChange={(value) => {
-                  void setSetting(scope, 'theme', value as typeof settings.theme);
-                }}
-              />
-              <div className={styles.row}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={storedInScope === undefined}
-                  onClick={() => {
-                    void clearSetting(scope, 'theme');
-                  }}
-                >
-                  {t('designSystem:customization.reset')}
-                </Button>
-                <p className={styles.note}>
-                  {storedInScope === undefined
-                    ? t('designSystem:customization.inheriting')
-                    : t('designSystem:customization.customised')}
-                </p>
-              </div>
-            </>
+            <div className={styles.grid}>
+              {CUSTOMISABLE.map((setting) => {
+                const storedInScope = layers[scope]?.[setting.key];
+
+                return (
+                  <div key={setting.key} className={styles.setting}>
+                    <div className={styles.row}>
+                      <Badge tone="brand">{labelOf(setting.options, settings[setting.key])}</Badge>
+                      <Badge>{t(`designSystem:customization.origin.${origin[setting.key]}`)}</Badge>
+                    </div>
+                    <RadioGroup
+                      legend={t(`designSystem:customization.settings.${setting.key}`)}
+                      options={optionsFor(setting.options)}
+                      value={storedInScope ?? settings[setting.key]}
+                      onValueChange={(value) => {
+                        // The value comes from this setting's own registry, so
+                        // it is a valid identifier for it by construction.
+                        void setSetting(
+                          scope,
+                          setting.key,
+                          value as UiSettings[typeof setting.key],
+                        );
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={storedInScope === undefined}
+                      onClick={() => {
+                        void clearSetting(scope, setting.key);
+                      }}
+                    >
+                      {t('designSystem:customization.reset')}
+                    </Button>
+                    <p className={styles.note}>
+                      {storedInScope === undefined
+                        ? t('designSystem:customization.inheriting')
+                        : t('designSystem:customization.customised')}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <InlineAlert tone="info" title={t('designSystem:customization.notAllowedTitle')}>
               {t('designSystem:customization.notAllowed')}
@@ -216,46 +264,24 @@ export function DesignSystemPage() {
       </Section>
 
       <Section title={t('designSystem:sections.feedback')}>
+        <p className={styles.note}>{t('designSystem:intents.description')}</p>
         <div className={styles.row}>
-          <Button
-            size="sm"
-            onClick={() => {
-              show({
-                tone: 'success',
-                messageKey: 'designSystem:samples.recordCreated',
-                link: { label: t('designSystem:samples.recordNumber'), href: '/design-system' },
-              });
-            }}
-          >
-            {t('designSystem:showStatus.success')}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              show({ tone: 'warning', messageKey: 'designSystem:samples.warningMessage' });
-            }}
-          >
-            {t('designSystem:showStatus.warning')}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
-            }}
-          >
-            {t('designSystem:showStatus.danger')}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              show({ tone: 'info', messageKey: 'designSystem:samples.infoMessage' });
-            }}
-          >
-            {t('designSystem:showStatus.info')}
-          </Button>
+          {STATUS_INTENTS.map((intent) => (
+            <Button
+              key={intent}
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                show({
+                  intent,
+                  messageKey: `designSystem:intents.${intent}.message`,
+                  link: { label: t('designSystem:samples.recordNumber'), href: '/design-system' },
+                });
+              }}
+            >
+              {t(`designSystem:intents.${intent}.label`)}
+            </Button>
+          ))}
           <Button size="sm" variant="ghost" onClick={clear}>
             {t('designSystem:showStatus.clear')}
           </Button>
@@ -321,7 +347,7 @@ export function DesignSystemPage() {
                 variant="danger"
                 onClick={() => {
                   setModalOpen(false);
-                  show({ tone: 'danger', messageKey: 'designSystem:samples.dangerMessage' });
+                  show({ intent: 'deleted', messageKey: 'designSystem:samples.recordCreated' });
                 }}
               >
                 {t('common:actions.delete')}

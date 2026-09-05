@@ -1,3 +1,7 @@
+/*
+  الشكل من عقد --overlay-*، واللون من رموز الهوية.
+  السلوك — حصر التركيز وEscape والأدوار — في المكوّن لا في النمط، فلا يستطيع نمط لمسه.
+*/
 .overlay {
   position: fixed;
   inset: 0;
@@ -6,7 +10,11 @@
   align-items: flex-start;
   justify-content: center;
   padding: var(--space-6) var(--space-4);
-  background-color: var(--color-overlay-scrim);
+  background-color: color-mix(
+    in srgb,
+    var(--color-text-primary) var(--overlay-scrim-boost),
+    color-mix(in srgb, var(--color-overlay-scrim) var(--overlay-scrim-strength), transparent)
+  );
   overflow-y: auto;
 }
 
@@ -15,8 +23,9 @@
   max-inline-size: 520px;
   margin-block-start: var(--space-8);
   background-color: var(--color-bg-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-overlay);
+  border: var(--overlay-border-width) solid var(--overlay-border-color);
+  border-radius: var(--overlay-radius);
+  box-shadow: var(--overlay-shadow);
 }
 
 .header {
@@ -24,7 +33,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding-block: var(--overlay-header-padding-block);
+  padding-inline: var(--overlay-padding-inline);
   border-block-end: 1px solid var(--color-border);
 }
 
@@ -33,7 +43,8 @@
 }
 
 .body {
-  padding: var(--space-4);
+  padding-block: var(--overlay-padding-block);
+  padding-inline: var(--overlay-padding-inline);
 }
 
 .footer {
@@ -41,7 +52,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding-block: var(--overlay-footer-padding-block);
+  padding-inline: var(--overlay-padding-inline);
   border-block-start: 1px solid var(--color-border);
 }
 

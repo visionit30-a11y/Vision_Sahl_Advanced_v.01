@@ -1,0 +1,19 @@
+/*
+  مصمت بارز — لون النبرة بكامل قوته ونص معكوس فوقه وأيقونة أكبر.
+  أعلى بروز في العائلة، لجهة تريد ألا تمر رسالة خطأ دون أن تُرى.
+*/
+[data-alert-preset='solid-emphatic'] {
+  --alert-padding-block: var(--space-3);
+  --alert-padding-inline: var(--space-4);
+  --alert-radius: var(--radius-md);
+  --alert-border-width: 1px;
+  --alert-accent-inline-start-width: 1px;
+  --alert-accent-mix: 0%;
+  --alert-solid-mix: 100%;
+  --alert-surface-mix: 0%;
+  --alert-bg-alpha: 100%;
+  --alert-icon-size: var(--size-icon-md);
+  --alert-icon-opacity: 1;
+  --alert-font-size: var(--font-size-body);
+  --alert-link-decoration: underline;
+}

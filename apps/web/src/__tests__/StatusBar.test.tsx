@@ -14,7 +14,7 @@ function Harness() {
         type="button"
         onClick={() => {
           show({
-            tone: 'success',
+            intent: 'saved',
             messageKey: 'designSystem:samples.recordCreated',
             link: { label: 'JE-000123', href: '/entries/123' },
             durationMs: null,

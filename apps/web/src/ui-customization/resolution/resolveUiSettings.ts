@@ -1,4 +1,4 @@
-import { BUILT_IN_UI_SETTINGS, isThemeId } from '../contract/settings';
+import { BUILT_IN_UI_SETTINGS, UI_SETTINGS_VALIDATORS } from '../contract/settings';
 import type { UiScope, UiSettings, UiSettingsPatch } from '../contract/settings';
 
 export interface UiSettingsLayers {
@@ -26,15 +26,6 @@ export interface ResolvedUiSettings {
  */
 const PRECEDENCE: readonly UiScope[] = ['user', 'tenant', 'platform', 'builtIn'];
 
-/**
- * A value read from storage is untrusted input: it may come from an older
- * release that knew other identifiers. An unknown value is ignored rather than
- * applied, so the next layer answers instead of the interface breaking.
- */
-const VALIDATORS: { [K in keyof UiSettings]: (value: unknown) => value is UiSettings[K] } = {
-  theme: isThemeId,
-};
-
 function layerOf(layers: UiSettingsLayers, scope: UiScope): UiSettingsPatch | null | undefined {
   switch (scope) {
     case 'user':
@@ -58,12 +49,16 @@ export function resolveUiSettings(layers: UiSettingsLayers): ResolvedUiSettings 
   const settings = {} as UiSettings;
   const origin = {} as UiSettingsOrigin;
 
+  // TypeScript widens an assignment through a union of keys to never, so the
+  // writes below go through one narrow cast rather than a per key branch.
+  const write = settings as unknown as Record<string, unknown>;
+
   for (const key of keys) {
     for (const scope of PRECEDENCE) {
       const value = layerOf(layers, scope)?.[key];
 
-      if (value !== undefined && VALIDATORS[key](value)) {
-        settings[key] = value;
+      if (value !== undefined && UI_SETTINGS_VALIDATORS[key](value)) {
+        write[key] = value;
         origin[key] = scope;
         break;
       }
@@ -71,7 +66,7 @@ export function resolveUiSettings(layers: UiSettingsLayers): ResolvedUiSettings 
 
     if (origin[key] === undefined) {
       // Reached only when the built-in layer itself carries an invalid value.
-      settings[key] = BUILT_IN_UI_SETTINGS[key];
+      write[key] = BUILT_IN_UI_SETTINGS[key];
       origin[key] = 'builtIn';
     }
   }

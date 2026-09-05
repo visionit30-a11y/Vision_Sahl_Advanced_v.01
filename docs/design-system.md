@@ -6,6 +6,8 @@
 
 ```
 styles/themes/*.css            قيم الرموز اللونية لكل هوية — ألوان فقط
+styles/presets/*/*.css         قيم شكل كل نمط عرض — متغيرات عائلته فقط
+design-system/tones.*          مفردات النبرة الخمس ومزيج عرضها
 styles/tokens/*.css            مسافات · طباعة · أنصاف · ظلال · طبقات · حركة · نقاط كسر
 ui-customization/*             محرك تخصيص الواجهة: العقد والسجلات والحسم والمحوّلات
 styles/base.css                إعادة ضبط وعناصر HTML الأساسية
@@ -27,7 +29,11 @@ design-system/index.ts         المدخل الوحيد للمكتبة
 | الشاشات تستورد المكتبة من مدخلها الوحيد | `importBoundaries.test.ts` |
 | كل هوية تعرّف عقد الرموز حرفيًا، وألوانًا فقط | `themeContract.test.ts` |
 | تباين WCAG AA في كل الهويات | `contrast.test.ts` |
-| لا مكوّن يعرف اسم هوية، ولا يستورد مكتبة الأيقونات، ولا يلمس تخزين المتصفح | `uiBoundaries.test.ts` |
+| لا مكوّن يعرف اسم هوية أو نمط، ولا يستورد مكتبة الأيقونات، ولا يلمس تخزين المتصفح، ولا يكتب على المستند | `uiBoundaries.test.ts` |
+| كل نمط يعرّف عقد عائلته حرفيًا ولا يخرج عن بادئته | `presetContract.test.ts` · `presetScope.test.ts` |
+| ملف نمط لا يحمل قاعدة تخطيط ولا رمزًا مشتركًا ولا كودًا | `presetScope.test.ts` |
+| لا متغيّر عائلة مجهول ولا متغيّر في العقد بلا قارئ | `presetVariableUsage.test.ts` |
+| السلوك وإمكانية الوصول لا يتغيران بتغير النمط | `buttonPresets` · `alertPresets` · `overlayPresets` |
 
 ## الاتجاه
 

@@ -1,0 +1,19 @@
+/*
+  مضغوط كثيف — تلوين المصبوغ نفسه بحشو أقل وخط أصغر ونصف قطر أصغر.
+  للشاشات المزدحمة التي تريد الرسالة كاملة في مساحة أقل.
+*/
+[data-alert-preset='dense-compact'] {
+  --alert-padding-block: var(--space-2);
+  --alert-padding-inline: var(--space-3);
+  --alert-radius: var(--radius-sm);
+  --alert-border-width: 1px;
+  --alert-accent-inline-start-width: 1px;
+  --alert-accent-mix: 0%;
+  --alert-solid-mix: 0%;
+  --alert-surface-mix: 0%;
+  --alert-bg-alpha: 100%;
+  --alert-icon-size: var(--size-icon-sm);
+  --alert-icon-opacity: 0.85;
+  --alert-font-size: var(--font-size-sm);
+  --alert-link-decoration: underline;
+}

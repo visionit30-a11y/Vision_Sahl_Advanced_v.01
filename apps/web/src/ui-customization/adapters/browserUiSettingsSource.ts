@@ -1,4 +1,8 @@
-import { BUILT_IN_UI_SETTINGS, isThemeId } from '../contract/settings';
+import {
+  BUILT_IN_UI_SETTINGS,
+  UI_SETTINGS_VALIDATORS,
+  UI_SETTING_KEYS,
+} from '../contract/settings';
 import type { UiSettings, UiSettingsPatch } from '../contract/settings';
 import { resolveUiSettings } from '../resolution/resolveUiSettings';
 import type { UiSettingsSource } from './UiSettingsSource';
@@ -44,10 +48,16 @@ function readKey(key: string): UiSettingsPatch | null {
       return null;
     }
 
+    const stored = parsed as Record<string, unknown>;
     const patch: UiSettingsPatch = {};
-    const theme = (parsed as Record<string, unknown>).theme;
-    if (isThemeId(theme)) {
-      patch.theme = theme;
+
+    for (const key of UI_SETTING_KEYS) {
+      const value = stored[key];
+      if (UI_SETTINGS_VALIDATORS[key](value)) {
+        // The validator has narrowed the value for this key, but TypeScript
+        // cannot carry that narrowing through a key it only knows as a union.
+        (patch as Record<string, unknown>)[key] = value;
+      }
     }
 
     return patch;

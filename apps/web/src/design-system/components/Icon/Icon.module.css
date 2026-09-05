@@ -4,13 +4,13 @@
 }
 
 .sm {
-  inline-size: 16px;
-  block-size: 16px;
+  inline-size: var(--size-icon-sm);
+  block-size: var(--size-icon-sm);
 }
 
 .md {
-  inline-size: 20px;
-  block-size: 20px;
+  inline-size: var(--size-icon-md);
+  block-size: var(--size-icon-md);
 }
 
 [dir='rtl'] .directional {

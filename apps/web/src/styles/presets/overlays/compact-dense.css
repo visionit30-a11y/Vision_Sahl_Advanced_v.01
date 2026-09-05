@@ -1,0 +1,23 @@
+/*
+  مضغوط كثيف — حشو أقل وصفوف قائمة أقصر ونصف قطر أصغر وظل أخف.
+  لمن يفتح القوائم عشرات المرات في الجلسة.
+*/
+[data-overlay-preset='compact-dense'] {
+  --overlay-radius: var(--radius-md);
+  --overlay-shadow: var(--shadow-raised);
+  --overlay-border-width: 0;
+  --overlay-border-color: var(--color-border);
+  --overlay-padding-block: var(--space-3);
+  --overlay-padding-inline: var(--space-3);
+  --overlay-header-padding-block: var(--space-2);
+  --overlay-footer-padding-block: var(--space-2);
+  --overlay-scrim-strength: 100%;
+  --overlay-scrim-boost: 0%;
+  --overlay-menu-border-width: 1px;
+  --overlay-menu-radius: var(--radius-sm);
+  --overlay-menu-padding-block: var(--space-1);
+  --overlay-menu-padding-inline: var(--space-2);
+  --overlay-menu-gap: var(--space-1);
+  --overlay-selected-bg: transparent;
+  --overlay-selected-weight: var(--font-weight-medium);
+}

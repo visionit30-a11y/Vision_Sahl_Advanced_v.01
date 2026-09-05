@@ -26,6 +26,12 @@
       "platform": "Inherited from the platform",
       "tenant": "Customised for the association",
       "user": "User preference"
+    },
+    "settings": {
+      "theme": "Identity",
+      "buttonPreset": "Button style",
+      "alertPreset": "Alert style",
+      "overlayPreset": "Dialog and menu style"
     }
   },
   "themes": {
@@ -48,6 +54,113 @@
     "sand-warm": {
       "label": "Warm sand",
       "description": "Warm neutrals with a quiet golden brown brand: an institutional warmth without noise."
+    }
+  },
+  "presets": {
+    "button": {
+      "compact-sharp": {
+        "label": "Compact sharp",
+        "description": "The shortest height, the tightest padding and near square corners. For data entry and action heavy tables."
+      },
+      "institutional-standard": {
+        "label": "Institutional standard",
+        "description": "The platform default: moderate height and padding with quiet corners."
+      },
+      "balanced-roomy": {
+        "label": "Balanced roomy",
+        "description": "More height and wider padding. Easier to hit and clearer on a projected screen."
+      },
+      "soft-rounded": {
+        "label": "Soft rounded",
+        "description": "Larger corners, heavier type and a slight lift on hover. A gentler character."
+      },
+      "outlined-calm": {
+        "label": "Outlined calm",
+        "description": "The primary button as a border and text in the identity colour rather than a solid fill. Quieter when a screen carries many buttons."
+      }
+    },
+    "alert": {
+      "tinted-standard": {
+        "label": "Tinted standard",
+        "description": "A light background in the state's colour with a border and an icon. The default."
+      },
+      "bordered-quiet": {
+        "label": "Bordered quiet",
+        "description": "The plain surface with a coloured edge on the leading side. The quietest presence available."
+      },
+      "solid-emphatic": {
+        "label": "Solid emphatic",
+        "description": "The state's colour at full strength under inverse text. The highest prominence, for what must not be missed."
+      },
+      "minimal-inline": {
+        "label": "Minimal inline",
+        "description": "No background and no border: a coloured icon and text. The highest information density."
+      },
+      "dense-compact": {
+        "label": "Dense compact",
+        "description": "The same colouring with less padding and smaller type. For crowded screens."
+      }
+    },
+    "overlay": {
+      "institutional-standard": {
+        "label": "Institutional standard",
+        "description": "The default: moderate corners, shadow and padding."
+      },
+      "compact-dense": {
+        "label": "Compact dense",
+        "description": "Less padding and shorter menu rows. For anyone who opens menus often."
+      },
+      "soft-elevated": {
+        "label": "Soft elevated",
+        "description": "Larger corners, wider padding and a roomier menu row."
+      },
+      "flat-bordered": {
+        "label": "Flat bordered",
+        "description": "No shadow, a clear border and a lighter scrim. A quiet character."
+      },
+      "dim-focused": {
+        "label": "Dim focused",
+        "description": "A darker scrim that isolates the dialog firmly. For critical confirmations."
+      }
+    }
+  },
+  "intents": {
+    "description": "The nine states and what each means. The meaning settles the tone; the preset settles how it is drawn.",
+    "saved": {
+      "label": "Saved",
+      "message": "The record was saved."
+    },
+    "updated": {
+      "label": "Updated",
+      "message": "The data was updated."
+    },
+    "deleted": {
+      "label": "Deleted",
+      "message": "The record was deleted."
+    },
+    "success": {
+      "label": "Success",
+      "message": "The operation completed."
+    },
+    "cancelled": {
+      "label": "Cancelled",
+      "message": "The operation was cancelled and nothing was saved."
+    },
+    "blocked": {
+      "label": "Blocked",
+      "message": "Permissions do not allow this operation."
+    },
+    "warning": {
+      "label": "Warning",
+      "message": "The available budget is below the requested amount."
+    },
+    "error": {
+      "label": "Error",
+      "message": "The record could not be saved. Check the highlighted fields."
+    },
+    "info": {
+      "label": "Information",
+      "message": "Another user updated this organisation's details."
     }
   },
   "sections": {
@@ -97,10 +210,6 @@
     }
   },
   "showStatus": {
-    "success": "Show a success message",
-    "warning": "Show a warning",
-    "danger": "Show an error",
-    "info": "Show information",
     "clear": "Dismiss"
   }
 }

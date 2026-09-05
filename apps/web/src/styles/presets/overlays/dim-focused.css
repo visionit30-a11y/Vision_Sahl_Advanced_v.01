@@ -1,0 +1,23 @@
+/*
+  معتم مركَّز — حجاب أغمق بتعتيم إضافي فوق رمز الهوية، وظل أوضح.
+  يعزل الحوار عن الصفحة بقوة، للتأكيدات الحرجة التي لا يصح أن تُمرَّر بلا انتباه.
+*/
+[data-overlay-preset='dim-focused'] {
+  --overlay-radius: var(--radius-lg);
+  --overlay-shadow: var(--shadow-overlay);
+  --overlay-border-width: 0;
+  --overlay-border-color: var(--color-border);
+  --overlay-padding-block: var(--space-5);
+  --overlay-padding-inline: var(--space-5);
+  --overlay-header-padding-block: var(--space-3);
+  --overlay-footer-padding-block: var(--space-3);
+  --overlay-scrim-strength: 100%;
+  --overlay-scrim-boost: 25%;
+  --overlay-menu-border-width: 1px;
+  --overlay-menu-radius: var(--radius-md);
+  --overlay-menu-padding-block: var(--space-2);
+  --overlay-menu-padding-inline: var(--space-3);
+  --overlay-menu-gap: var(--space-1);
+  --overlay-selected-bg: var(--color-selected-bg);
+  --overlay-selected-weight: var(--font-weight-semibold);
+}
