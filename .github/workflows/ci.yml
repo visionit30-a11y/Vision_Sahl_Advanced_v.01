@@ -25,21 +25,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version-file: apps/api/.python-version
-          cache: pip
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      # Blocking on its own: a lock that drifted from pyproject would mean CI
+      # installs a tree nobody reviewed.
+      - name: Dependency lock is consistent
+        run: uv lock --check
+
+      # --frozen installs exactly what the lock records and refuses to resolve
+      # anything, so this run and every later run get the same tree.
+      - name: Install from the lock
+        run: uv sync --frozen
 
       - name: Ruff
-        run: python -m ruff check .
+        run: uv run ruff check .
 
       - name: Mypy
-        run: python -m mypy
+        run: uv run mypy
 
       - name: Pytest
-        run: python -m pytest
+        run: uv run pytest
 
   web:
     name: Web (lint, types, tests, build)

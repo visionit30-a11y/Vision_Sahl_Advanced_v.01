@@ -23,6 +23,16 @@ try {
     $venvPython = Get-VenvPython
     $npmExe = if (Test-CommandExists 'npm.cmd') { 'npm.cmd' } else { 'npm' }
 
+    Write-Section 'Backend - dependency lock'
+    if (-not (Test-CommandExists 'uv')) {
+        throw 'uv was not found in PATH. Install it from https://docs.astral.sh/uv/ and run scripts\01-setup.ps1.'
+    }
+    # Blocking: a lock that no longer matches pyproject means the tree that CI
+    # installs and the tree installed here can differ, which is the whole reason
+    # the lock exists.
+    Add-Result 'uv lock --check' (Invoke-Native -File 'uv' -Arguments @('lock', '--check') -WorkingDirectory $apiDir -AllowFailure) $true
+    Invoke-Native -File 'uv' -Arguments @('sync', '--frozen') -WorkingDirectory $apiDir -AllowFailure | Out-Null
+
     Write-Section 'Frontend - dependency freshness'
     $manifest = Join-Path $webDir 'package.json'
     $installMarker = Join-Path $webDir 'node_modules\.package-lock.json'
