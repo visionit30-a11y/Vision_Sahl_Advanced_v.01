@@ -12,11 +12,42 @@ concurrency:
 
 jobs:
   api:
-    name: API (lint, types, tests)
+    name: API (lint, types, tests, database)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/api
+
+    # A real PostgreSQL, matching the local baseline. Row level security is a
+    # database behaviour: it cannot be proven against SQLite and it cannot be
+    # mocked, so from here on the pipeline runs against the real thing.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sahl_ci
+        # 5433 on the runner, so the connection string has the same shape as the
+        # local one, where 5432 belongs to an unrelated installation (ADR-0006).
+        ports:
+          - 5433:5432
+        # Without this the migration step can start before the server accepts
+        # connections, and the failure becomes intermittent - the worst kind.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sahl_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      APP_ENV: ci
+      LOG_FORMAT: json
+      REDIS_ENABLED: 'false'
+      # Tests run as the application role, which owns nothing.
+      DATABASE_URL: postgresql+psycopg://sahl_app:ci_app_password@127.0.0.1:5433/sahl_ci
+      MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
+
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +76,39 @@ jobs:
 
       - name: Mypy
         run: uv run mypy
+
+      - name: Create the migration and application roles
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci
+          -f ${{ github.workspace }}/.github/ci/setup-database.sql
+
+      # Blocking, and deliberately before anything touches the schema: if the
+      # application role could bypass isolation, every later test would pass for
+      # the wrong reason.
+      - name: The application role cannot bypass isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          flags=$(psql -tAX -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci \
+            -c "SELECT rolsuper::text || ' ' || rolbypassrls::text FROM pg_roles WHERE rolname = 'sahl_app';")
+          echo "sahl_app rolsuper rolbypassrls: $flags"
+          test "$flags" = "false false"
+
+      # A full round trip, not just a forward run: a migration that cannot be
+      # reversed is found here rather than during an incident.
+      - name: Alembic migration round trip
+        env:
+          DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
+        run: |
+          set -euo pipefail
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+          uv run alembic current | tee "$RUNNER_TEMP/alembic-current.txt"
+          grep -q '(head)' "$RUNNER_TEMP/alembic-current.txt"
 
       - name: Pytest
         run: uv run pytest

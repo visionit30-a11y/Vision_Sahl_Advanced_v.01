@@ -90,8 +90,10 @@ try {
         Add-Result 'alembic down/up' $roundTrip $true
     }
     else {
-        Write-Warn 'PostgreSQL is not reachable; the migration round trip was skipped.'
-        Add-Result 'alembic down/up' -1 $false
+        # No longer a skip: the database gate is blocking in CI, and a local run
+        # that silently skips it stops being the same baseline.
+        Write-Fail 'PostgreSQL is not reachable; the migration round trip cannot run.'
+        Add-Result 'alembic down/up' 1 $true
     }
 
     Write-Section 'Frontend - prettier (advisory)'
