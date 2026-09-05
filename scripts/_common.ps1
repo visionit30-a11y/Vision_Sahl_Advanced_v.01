@@ -145,7 +145,7 @@ function Resolve-PsqlPath {
             Select-Object -ExpandProperty FullName)
     }
     if ($standalone.Count -gt 0) {
-        return (@($standalone) | Sort-Object -Descending)[0]
+        return @(@($standalone) | Sort-Object -Descending)[0]
     }
 
     $command = Get-Command 'psql' -ErrorAction SilentlyContinue
@@ -160,7 +160,7 @@ function Resolve-PsqlPath {
     }
     if ($bundled.Count -gt 0) {
         Write-Warn 'Only an Odoo bundled psql client was found. It is used as a client only; the Sahl server must still be an independent instance.'
-        return (@($bundled) | Sort-Object -Descending)[0]
+        return @(@($bundled) | Sort-Object -Descending)[0]
     }
 
     return $null
