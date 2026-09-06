@@ -13,13 +13,13 @@ param(
 #
 #    1. tool check (psql is located without touching PATH)
 #    2. detect the independent PostgreSQL port (never 5432 - that is Odoo)
-#    3. .env file and the generated application database password
+#    3. .env file and the generated application and migration role passwords
 #    4. Python virtual environment and API packages   (uv, from uv.lock)
 #    5. frontend packages                             (skipped if present)
 #    6. verify the server identity through data_directory BEFORE any change
-#    7. create the sahl_app role and the sahl_dev database
+#    7. create the sahl_migrator and sahl_app roles, the database, and the grants
 #    8. verify that the application role can connect
-#    9. apply the Alembic baseline migration
+#    9. apply the Alembic migrations, as the migration role
 #
 #  The PostgreSQL superuser password is typed masked, held in memory only for
 #  the psql child process, and is never logged, printed or written to any file.
@@ -179,6 +179,18 @@ try {
         Write-Ok 'Generated the application database password and stored it in .env (never logged, never committed)'
     }
 
+    # Alembic connects with its own role. The two are separate settings with no
+    # fallback between them: a table's owner bypasses row level security unless
+    # the table forces it, so the application role must never own an object.
+    $migrationUrl = Get-EnvValue 'MIGRATION_DATABASE_URL'
+    if (-not $migrationUrl -or $migrationUrl -match 'CHANGE_ME') {
+        $generatedMigrator = New-DatabasePassword
+        $port = if ($detectedPort) { $detectedPort } else { 5433 }
+        $migrationUrl = 'postgresql+psycopg://sahl_migrator:' + $generatedMigrator + '@127.0.0.1:' + $port + '/sahl_dev'
+        Set-EnvLine -Key 'MIGRATION_DATABASE_URL' -Value $migrationUrl
+        Write-Ok 'Generated the migration role password and stored it in .env (never logged, never committed)'
+    }
+
     if ($databaseUrl -notmatch '^postgresql\+psycopg://([^:]+):([^@]+)@([^:/]+):(\d+)/(.+)$') {
         throw 'DATABASE_URL in .env is not in the expected format.'
     }
@@ -188,6 +200,21 @@ try {
     $dbPort = $Matches[4]
     $dbName = $Matches[5]
 
+    if ($migrationUrl -notmatch '^postgresql\+psycopg://([^:]+):([^@]+)@([^:/]+):(\d+)/(.+)$') {
+        throw 'MIGRATION_DATABASE_URL in .env is not in the expected format.'
+    }
+    $migratorUser = $Matches[1]
+    $migratorPassword = $Matches[2]
+    $migratorPort = $Matches[4]
+    $migratorName = $Matches[5]
+
+    if ($migratorUser -eq $dbUser) {
+        throw 'MIGRATION_DATABASE_URL and DATABASE_URL name the same role. They must be two different roles; the application role must never own a schema object.'
+    }
+    if ($migratorName -ne $dbName) {
+        throw 'MIGRATION_DATABASE_URL and DATABASE_URL point at different databases.'
+    }
+
     if ([int]$dbPort -eq 5432) {
         throw 'DATABASE_URL points at port 5432, which belongs to the Odoo PostgreSQL instance. Sahl must use its own server (ADR-0006).'
     }
@@ -196,6 +223,11 @@ try {
         Set-EnvLine -Key 'DATABASE_URL' -Value $databaseUrl
         $dbPort = "$detectedPort"
         Write-Ok ('DATABASE_URL port updated to the detected port ' + $detectedPort)
+    }
+    if ($detectedPort -and [int]$migratorPort -ne [int]$detectedPort) {
+        $migrationUrl = 'postgresql+psycopg://' + $migratorUser + ':' + $migratorPassword + '@' + $dbHost + ':' + $detectedPort + '/' + $migratorName
+        Set-EnvLine -Key 'MIGRATION_DATABASE_URL' -Value $migrationUrl
+        Write-Ok ('MIGRATION_DATABASE_URL port updated to the detected port ' + $detectedPort)
     }
     Write-Info ('Database target: ' + $dbUser + '@' + $dbHost + ':' + $dbPort + '/' + $dbName)
 
@@ -306,6 +338,7 @@ try {
 
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
     $sqlPath = Join-Path $env:TEMP ('sahl-provision-' + [guid]::NewGuid().ToString('N') + '.sql')
+    $grantPath = Join-Path $env:TEMP ('sahl-grants-' + [guid]::NewGuid().ToString('N') + '.sql')
     try {
         $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
         if ([string]::IsNullOrEmpty($env:PGPASSWORD)) {
@@ -335,10 +368,21 @@ try {
         }
         Write-Ok 'Confirmed: this is an independent PostgreSQL instance, not the Odoo one.'
 
-        Write-Section '7. Role and database'
+        Write-Section '7. Roles and database'
+        # Two roles, matching .github/ci/setup-database.sql exactly. The
+        # migration role owns the schema and runs Alembic; the application role
+        # owns nothing and runs the application. Sharing one role would leave
+        # every isolation policy one missing FORCE away from being inert, and
+        # its tests would pass for the wrong reason.
         $sql = @"
 DO `$`$
 BEGIN
+   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$migratorUser') THEN
+      EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', '$migratorUser', '$migratorPassword');
+   ELSE
+      EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', '$migratorUser', '$migratorPassword');
+   END IF;
+
    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$dbUser') THEN
       EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', '$dbUser', '$dbPassword');
    ELSE
@@ -347,7 +391,7 @@ BEGIN
 END
 `$`$;
 
-SELECT 'CREATE DATABASE $dbName OWNER $dbUser'
+SELECT 'CREATE DATABASE $dbName OWNER $superUser'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
 \gexec
 "@
@@ -358,13 +402,50 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
             '-v', 'ON_ERROR_STOP=1', '-q',
             '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres', '-f', $sqlPath
         ) | Out-Null
-        Write-Ok ('Role "' + $dbUser + '" and database "' + $dbName + '" are ready')
+        Write-Ok ('Roles "' + $migratorUser + '" and "' + $dbUser + '" and database "' + $dbName + '" are ready')
 
-        Write-Info 'Application role privileges (both must be f):'
+        # Ownership and grants live inside the database, so this runs connected
+        # to it. REASSIGN OWNED moves anything the application role created
+        # before the two roles were split; on a fresh database it does nothing.
+        $grantSql = @"
+ALTER DATABASE $dbName OWNER TO $superUser;
+GRANT CONNECT ON DATABASE $dbName TO $migratorUser, $dbUser;
+
+REASSIGN OWNED BY $dbUser TO $migratorUser;
+
+ALTER SCHEMA public OWNER TO $migratorUser;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO $dbUser;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE $migratorUser IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO $dbUser;
+ALTER DEFAULT PRIVILEGES FOR ROLE $migratorUser IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO $dbUser;
+"@
+        [System.IO.File]::WriteAllText($grantPath, ($grantSql -replace "`r`n", "`n"), $utf8NoBom)
+        Invoke-Native -File $psqlExe -Arguments @(
+            '-v', 'ON_ERROR_STOP=1', '-q',
+            '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', $dbName, '-f', $grantPath
+        ) | Out-Null
+        Write-Ok ('Schema "public" is owned by "' + $migratorUser + '"; "' + $dbUser + '" may use it and owns nothing')
+
+        Write-Info 'Role privileges (is_superuser and bypasses_rls must both be f):'
         Invoke-Native -File $psqlExe -Arguments @(
             '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres', '-c',
-            ("SELECT rolname, rolsuper AS is_superuser, rolbypassrls AS bypasses_rls FROM pg_roles WHERE rolname = '" + $dbUser + "';")
+            ("SELECT rolname, rolsuper AS is_superuser, rolbypassrls AS bypasses_rls FROM pg_roles WHERE rolname IN ('" + $migratorUser + "', '" + $dbUser + "') ORDER BY rolname;")
         ) -AllowFailure | Out-Null
+
+        Write-Info 'Objects owned by the application role (must be 0):'
+        $ownedProbe = Invoke-NativeCapture -File $psqlExe -Arguments @(
+            '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', $dbName, '-tAc',
+            ("SELECT count(*) FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner WHERE r.rolname = '" + $dbUser + "' AND c.relkind IN ('r','p','v','m','S');")
+        )
+        if ($ownedProbe.ExitCode -eq 0 -and $ownedProbe.Text.Trim() -eq '0') {
+            Write-Ok ($dbUser + ' owns 0 objects')
+        }
+        else {
+            Write-Fail ($dbUser + ' owns ' + $ownedProbe.Text.Trim() + ' object(s). An owner bypasses row level security; run this script again after inspecting them.')
+        }
 
         Write-Section '8. Application connection'
         $env:PGPASSWORD = $dbPassword
@@ -384,13 +465,17 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
         Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
         if (Test-Path $sqlPath) { Remove-Item $sqlPath -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $grantPath) { Remove-Item $grantPath -Force -ErrorAction SilentlyContinue }
     }
 
     Write-Section '9. Database migrations'
     if ($databaseReady) {
+        # Alembic reads MIGRATION_DATABASE_URL from .env and refuses to run as
+        # the application role, so this connects as the migration role without
+        # anything being swapped here.
         Invoke-Native -File $venvPython -Arguments @('-m', 'alembic', 'upgrade', 'head') -WorkingDirectory $apiDir | Out-Null
         Invoke-Native -File $venvPython -Arguments @('-m', 'alembic', 'current') -WorkingDirectory $apiDir -AllowFailure | Out-Null
-        Write-Ok 'Baseline migration applied'
+        Write-Ok 'Migrations applied as the migration role'
     }
     else {
         Write-Warn 'Skipped: the database is not ready.'

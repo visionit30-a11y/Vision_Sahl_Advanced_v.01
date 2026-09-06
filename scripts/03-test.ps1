@@ -96,6 +96,67 @@ try {
         Add-Result 'alembic down/up' 1 $true
     }
 
+    Write-Section 'Database - role separation'
+    # The same two gates CI runs, so the local baseline and the pipeline cannot
+    # drift apart. Both are blocking: an application role that can bypass
+    # isolation, or that owns a table, makes every later isolation test pass for
+    # the wrong reason.
+    $psqlExe = Resolve-PsqlPath
+    if (-not $psqlExe) {
+        Write-Fail 'psql.exe was not found; the role gates cannot run.'
+        Add-Result 'app role cannot bypass RLS' 1 $true
+        Add-Result 'app role owns nothing' 1 $true
+    }
+    elseif (-not ($databasePort -and (Test-TcpPort -Port $databasePort))) {
+        Write-Fail 'PostgreSQL is not reachable; the role gates cannot run.'
+        Add-Result 'app role cannot bypass RLS' 1 $true
+        Add-Result 'app role owns nothing' 1 $true
+    }
+    else {
+        # Connecting as the application role itself: no superuser password is
+        # needed, and pg_roles and pg_class are readable by any role.
+        $appUser = $null
+        $appPassword = $null
+        $appDatabase = $null
+        if ($databaseUrl -match '^postgresql\+psycopg://([^:]+):([^@]+)@([^:/]+):(\d+)/(.+)$') {
+            $appUser = $Matches[1]
+            $appPassword = $Matches[2]
+            $appHost = $Matches[3]
+            $appDatabase = $Matches[5]
+        }
+
+        if (-not $appUser) {
+            Write-Fail 'DATABASE_URL could not be parsed; the role gates cannot run.'
+            Add-Result 'app role cannot bypass RLS' 1 $true
+            Add-Result 'app role owns nothing' 1 $true
+        }
+        else {
+            $env:PGPASSWORD = $appPassword
+            try {
+                $flags = Invoke-NativeCapture -File $psqlExe -Arguments @(
+                    '-tAX', '-h', $appHost, '-p', "$databasePort", '-U', $appUser, '-d', $appDatabase, '-c',
+                    ("SELECT rolsuper::text || ' ' || rolbypassrls::text FROM pg_roles WHERE rolname = '" + $appUser + "';")
+                )
+                Write-Info ($appUser + ' rolsuper rolbypassrls: ' + $flags.Text.Trim())
+                $bypassExit = 1
+                if ($flags.ExitCode -eq 0 -and $flags.Text.Trim() -eq 'false false') { $bypassExit = 0 }
+                Add-Result 'app role cannot bypass RLS' $bypassExit $true
+
+                $owned = Invoke-NativeCapture -File $psqlExe -Arguments @(
+                    '-tAX', '-h', $appHost, '-p', "$databasePort", '-U', $appUser, '-d', $appDatabase, '-c',
+                    ("SELECT count(*) FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner WHERE r.rolname = '" + $appUser + "' AND c.relkind IN ('r','p','v','m','S');")
+                )
+                Write-Info ('objects owned by ' + $appUser + ': ' + $owned.Text.Trim())
+                $ownedExit = 1
+                if ($owned.ExitCode -eq 0 -and $owned.Text.Trim() -eq '0') { $ownedExit = 0 }
+                Add-Result 'app role owns nothing' $ownedExit $true
+            }
+            finally {
+                Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
     Write-Section 'Frontend - prettier (advisory)'
     Add-Result 'prettier --check' (Invoke-Native -File $npmExe -Arguments @('run', 'format:check') -WorkingDirectory $webDir -AllowFailure) $false
 

@@ -137,6 +137,37 @@ try {
         else { Write-Info ('nothing listening on 127.0.0.1:' + $port) }
     }
 
+    Write-Section 'Database roles'
+    # A report, not a gate: 03-test.ps1 enforces these. It is here because the
+    # first question when isolation misbehaves is which role owns what.
+    $envFile = Join-Path $root '.env'
+    if (Test-Path $envFile) {
+        $runtimeUrl = Get-EnvValue 'DATABASE_URL'
+        $migrationUrl = Get-EnvValue 'MIGRATION_DATABASE_URL'
+        $runtimeRole = $null
+        $migrationRole = $null
+        if ($runtimeUrl -match '^postgresql\+psycopg://([^:]+):') { $runtimeRole = $Matches[1] }
+        if ($migrationUrl -match '^postgresql\+psycopg://([^:]+):') { $migrationRole = $Matches[1] }
+
+        if ($runtimeRole) { Write-Info ('DATABASE_URL role           : ' + $runtimeRole) }
+        else { Write-Fail 'DATABASE_URL is missing or unreadable in .env' }
+
+        if ($migrationRole) { Write-Info ('MIGRATION_DATABASE_URL role : ' + $migrationRole) }
+        else { Write-Fail 'MIGRATION_DATABASE_URL is not set in .env; migrations cannot run (there is no fallback)' }
+
+        if ($runtimeRole -and $migrationRole) {
+            if ($runtimeRole -eq $migrationRole) {
+                Write-Fail 'Both URLs name the same role. Migrations would create objects owned by the application role, which bypasses row level security.'
+            }
+            else {
+                Write-Ok 'The runtime and migration roles are separate'
+            }
+        }
+    }
+    else {
+        Write-Info '.env not created yet; run scripts\01-setup.ps1'
+    }
+
     Write-Section 'Optional tools (not required for Phase 0)'
     foreach ($tool in @('docker', 'redis-cli')) {
         if (Test-CommandExists $tool) { Write-Ok ($tool + ' present') }
