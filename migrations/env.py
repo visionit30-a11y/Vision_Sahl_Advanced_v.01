@@ -32,6 +32,10 @@ if str(API_DIR) not in sys.path:
 from app.core.config import get_settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 
+# Importing the models registers them on Base.metadata; a model that is not
+# reachable from here is invisible to autogenerate.
+import app.models  # noqa: E402,F401
+
 config = context.config
 
 if config.config_file_name is not None:
