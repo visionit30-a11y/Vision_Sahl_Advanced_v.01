@@ -12,9 +12,13 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from app.authorization.permissions import Permission
+from app.auth.tenants import AuthenticatedPrincipal
+from app.authorization.permissions import Permission, PermissionId
+from app.authorization.service import AuthorizationDecision, AuthorizationService
 from app.core.config import Settings
 from app.models.authorization import Role
+from app.models.tenant import TenantId
+from app.tenancy.context import TenantContext
 
 RBAC_TABLES = ("roles", "role_permissions", "membership_roles")
 
@@ -23,8 +27,12 @@ RBAC_TABLES = ("roles", "role_permissions", "membership_roles")
 class RbacFixture:
     tenant_a: uuid.UUID
     tenant_b: uuid.UUID
+    user_a: uuid.UUID
+    user_b: uuid.UUID
     membership_a: uuid.UUID
     membership_b: uuid.UUID
+    session_a: uuid.UUID
+    session_b: uuid.UUID
     role_a: uuid.UUID
     role_b: uuid.UUID
 
@@ -40,8 +48,19 @@ def _set_tenant(connection: Connection, tenant_id: uuid.UUID) -> None:
 def rbac_fixture(
     settings: Settings, application_engine: Engine, migration_role: str
 ) -> Iterator[RbacFixture]:
-    values = [uuid.uuid7() for _ in range(8)]
-    tenant_a, tenant_b, user_a, user_b, membership_a, membership_b, role_a, role_b = values
+    values = [uuid.uuid7() for _ in range(10)]
+    (
+        tenant_a,
+        tenant_b,
+        user_a,
+        user_b,
+        membership_a,
+        membership_b,
+        session_a,
+        session_b,
+        role_a,
+        role_b,
+    ) = values
     slug_a, slug_b = f"rbac-{tenant_a.hex[-12:]}", f"rbac-{tenant_b.hex[-12:]}"
     email_a, email_b = f"{slug_a}@example.test", f"{slug_b}@example.test"
     migration_engine = create_engine(settings.required_migration_database_url, poolclass=NullPool)
@@ -78,6 +97,30 @@ def rbac_fixture(
                 "tb": tenant_b,
             },
         )
+        connection.execute(
+            text(
+                "INSERT INTO auth.sessions("
+                "id,user_id,bearer_digest,csrf_digest,security_version,created_at,"
+                "authenticated_at,last_seen_at,idle_expires_at,absolute_expires_at,"
+                "selected_membership_id,selected_membership_version) VALUES "
+                "(:sa,:ua,:ba,:ca,1,now(),now(),now(),now()+interval '30 minutes',"
+                "now()+interval '8 hours',:ma,1),"
+                "(:sb,:ub,:bb,:cb,1,now(),now(),now(),now()+interval '30 minutes',"
+                "now()+interval '8 hours',:mb,1)"
+            ),
+            {
+                "sa": session_a,
+                "ua": user_a,
+                "ba": bytes([1]) * 32,
+                "ca": bytes([2]) * 32,
+                "ma": membership_a,
+                "sb": session_b,
+                "ub": user_b,
+                "bb": bytes([3]) * 32,
+                "cb": bytes([4]) * 32,
+                "mb": membership_b,
+            },
+        )
     with application_engine.begin() as connection:
         _set_tenant(connection, tenant_a)
         connection.execute(
@@ -96,7 +139,18 @@ def rbac_fixture(
             ),
             {"r": role_b, "t": tenant_b},
         )
-    state = RbacFixture(tenant_a, tenant_b, membership_a, membership_b, role_a, role_b)
+    state = RbacFixture(
+        tenant_a,
+        tenant_b,
+        user_a,
+        user_b,
+        membership_a,
+        membership_b,
+        session_a,
+        session_b,
+        role_a,
+        role_b,
+    )
     try:
         yield state
     finally:
@@ -106,6 +160,10 @@ def rbac_fixture(
                 for table in ("membership_roles", "role_permissions", "roles"):
                     connection.execute(text(f"DELETE FROM auth.{table}"))
         with migration_engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM auth.sessions WHERE id IN (:a,:b)"),
+                {"a": session_a, "b": session_b},
+            )
             connection.execute(
                 text("DELETE FROM auth.tenant_memberships WHERE id IN (:a,:b)"),
                 {"a": membership_a, "b": membership_b},
@@ -351,3 +409,228 @@ def test_duplicate_role_permission_is_rejected(
     with pytest.raises(IntegrityError):
         app_connection.execute(statement, parameters)
     app_connection.rollback()
+
+
+def _principal(
+    state: RbacFixture, *, tenant_b: bool = False, version: int = 1
+) -> tuple[AuthenticatedPrincipal, TenantContext]:
+    if tenant_b:
+        return (
+            AuthenticatedPrincipal(state.user_b, state.session_b, state.membership_b, version),
+            TenantContext(TenantId(state.tenant_b)),
+        )
+    return (
+        AuthenticatedPrincipal(state.user_a, state.session_a, state.membership_a, version),
+        TenantContext(TenantId(state.tenant_a)),
+    )
+
+
+def _grant(
+    connection: Connection,
+    state: RbacFixture,
+    permission: Permission,
+    *,
+    role_id: uuid.UUID | None = None,
+) -> None:
+    selected_role = role_id or state.role_a
+    _set_tenant(connection, state.tenant_a)
+    connection.execute(
+        text(
+            "INSERT INTO auth.role_permissions(tenant_id,role_id,permission_id) "
+            "VALUES (:tenant,:role,:permission)"
+        ),
+        {
+            "tenant": state.tenant_a,
+            "role": selected_role,
+            "permission": permission.value,
+        },
+    )
+    connection.execute(
+        text(
+            "INSERT INTO auth.membership_roles(tenant_id,membership_id,role_id) "
+            "VALUES (:tenant,:membership,:role) ON CONFLICT DO NOTHING"
+        ),
+        {
+            "tenant": state.tenant_a,
+            "membership": state.membership_a,
+            "role": selected_role,
+        },
+    )
+    connection.commit()
+
+
+@pytest.mark.asyncio
+async def test_authorization_allows_one_permission_through_one_role(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    principal, context = _principal(rbac_fixture)
+    decision = await AuthorizationService().authorize(
+        principal, context, PermissionId(Permission.TENANT_ROLES_READ.value)
+    )
+    assert decision is AuthorizationDecision.ALLOW
+
+
+@pytest.mark.asyncio
+async def test_authorization_unions_permissions_from_multiple_roles(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    second_role = uuid.uuid7()
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    _set_tenant(app_connection, rbac_fixture.tenant_a)
+    app_connection.execute(
+        text(
+            "INSERT INTO auth.roles(id,tenant_id,key,display_name) "
+            "VALUES (:role,:tenant,'manager','Manager')"
+        ),
+        {"role": second_role, "tenant": rbac_fixture.tenant_a},
+    )
+    app_connection.commit()
+    _grant(
+        app_connection,
+        rbac_fixture,
+        Permission.TENANT_MEMBERSHIPS_MANAGE,
+        role_id=second_role,
+    )
+    principal, context = _principal(rbac_fixture)
+    service = AuthorizationService()
+    assert (
+        await service.authorize(
+            principal, context, PermissionId(Permission.TENANT_ROLES_READ.value)
+        )
+        is AuthorizationDecision.ALLOW
+    )
+    assert (
+        await service.authorize(
+            principal,
+            context,
+            PermissionId(Permission.TENANT_MEMBERSHIPS_MANAGE.value),
+        )
+        is AuthorizationDecision.ALLOW
+    )
+
+
+@pytest.mark.asyncio
+async def test_no_role_denies(
+    rbac_fixture: RbacFixture,
+) -> None:
+    principal, context = _principal(rbac_fixture)
+    service = AuthorizationService()
+    assert (
+        await service.authorize(
+            principal, context, PermissionId(Permission.TENANT_ROLES_READ.value)
+        )
+        is AuthorizationDecision.DENY
+    )
+
+
+@pytest.mark.asyncio
+async def test_ungranted_permission_denies(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    principal, context = _principal(rbac_fixture)
+    assert (
+        await AuthorizationService().authorize(
+            principal,
+            context,
+            PermissionId(Permission.TENANT_MEMBERSHIPS_MANAGE.value),
+        )
+        is AuthorizationDecision.DENY
+    )
+
+
+@pytest.mark.asyncio
+async def test_inactive_role_and_live_role_changes_are_not_cached(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    principal, context = _principal(rbac_fixture)
+    service = AuthorizationService()
+    permission = PermissionId(Permission.TENANT_ROLES_READ.value)
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.ALLOW
+    _set_tenant(app_connection, rbac_fixture.tenant_a)
+    app_connection.execute(
+        text("UPDATE auth.roles SET status='inactive' WHERE id=:role"),
+        {"role": rbac_fixture.role_a},
+    )
+    app_connection.commit()
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.DENY
+
+
+@pytest.mark.asyncio
+async def test_removed_permission_and_assignment_take_effect_immediately(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    principal, context = _principal(rbac_fixture)
+    service = AuthorizationService()
+    permission = PermissionId(Permission.TENANT_ROLES_READ.value)
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.ALLOW
+    _set_tenant(app_connection, rbac_fixture.tenant_a)
+    app_connection.execute(
+        text("DELETE FROM auth.role_permissions WHERE role_id=:role"),
+        {"role": rbac_fixture.role_a},
+    )
+    app_connection.commit()
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.DENY
+    _set_tenant(app_connection, rbac_fixture.tenant_a)
+    app_connection.execute(
+        text(
+            "INSERT INTO auth.role_permissions(tenant_id,role_id,permission_id) "
+            "VALUES (:tenant,:role,:permission)"
+        ),
+        {
+            "tenant": rbac_fixture.tenant_a,
+            "role": rbac_fixture.role_a,
+            "permission": permission,
+        },
+    )
+    app_connection.commit()
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.ALLOW
+    _set_tenant(app_connection, rbac_fixture.tenant_a)
+    app_connection.execute(
+        text("DELETE FROM auth.membership_roles WHERE membership_id=:membership"),
+        {"membership": rbac_fixture.membership_a},
+    )
+    app_connection.commit()
+    assert await service.authorize(principal, context, permission) is AuthorizationDecision.DENY
+
+
+@pytest.mark.asyncio
+async def test_stale_and_cross_tenant_principals_deny(
+    app_connection: Connection, rbac_fixture: RbacFixture
+) -> None:
+    _grant(app_connection, rbac_fixture, Permission.TENANT_ROLES_READ)
+    _set_tenant(app_connection, rbac_fixture.tenant_b)
+    app_connection.execute(
+        text(
+            "INSERT INTO auth.role_permissions(tenant_id,role_id,permission_id) "
+            "VALUES (:tenant,:role,:permission)"
+        ),
+        {
+            "tenant": rbac_fixture.tenant_b,
+            "role": rbac_fixture.role_b,
+            "permission": Permission.TENANT_ROLES_READ.value,
+        },
+    )
+    app_connection.execute(
+        text(
+            "INSERT INTO auth.membership_roles(tenant_id,membership_id,role_id) "
+            "VALUES (:tenant,:membership,:role)"
+        ),
+        {
+            "tenant": rbac_fixture.tenant_b,
+            "membership": rbac_fixture.membership_b,
+            "role": rbac_fixture.role_b,
+        },
+    )
+    app_connection.commit()
+    principal_a, context_a = _principal(rbac_fixture)
+    stale, _ = _principal(rbac_fixture, version=2)
+    principal_b, context_b = _principal(rbac_fixture, tenant_b=True)
+    permission = PermissionId(Permission.TENANT_ROLES_READ.value)
+    service = AuthorizationService()
+    assert await service.authorize(stale, context_a, permission) is AuthorizationDecision.DENY
+    assert await service.authorize(principal_b, context_a, permission) is AuthorizationDecision.DENY
+    assert await service.authorize(principal_a, context_b, permission) is AuthorizationDecision.DENY
