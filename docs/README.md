@@ -26,9 +26,15 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `phase-1b-3.md` | عقود الجداول والطباعة وعيّنتاهما، وإغلاق Phase 1B |
 | `pre-phase-2.md` | قبول الأساس الهندسي السابق لـPhase 2 |
 | `phase-2a.md` | خطة أساس الجهات، قبول المجموعة الثالثة، ونطاق RLS والمنح ومصفوفة Group 4 |
+| `phase-2b.md` | نطاق الهوية والمصادقة والجلسات ومجموعات التنفيذ وحالة القبول |
 | `adr/ADR-0015-tenant-context-and-transactions.md` | سياق الجهة وحدّ المعاملة؛ المجموعة الثالثة المقبولة |
 | `adr/ADR-0016-tenant-rls-enforcement.md` | إنفاذ RLS وبرهان probe وعقد اكتشاف الجداول |
 | `adr/ADR-0017-database-role-separation.md` | فصل الأدوار وحدود المنح ومهاجرة 0004 |
+| `adr/ADR-0018-identity-membership-security-boundary.md` | حد الهوية والعضوية قبل إنشاء سياق الجهة |
+| `adr/ADR-0019-password-hashing-and-recovery.md` | Argon2id وسياسة كلمات المرور وأساس الاستعادة |
+| `adr/ADR-0020-postgresql-server-side-sessions.md` | جلسات PostgreSQL ودورتها وإبطالها وتبديل الجهة |
+| `adr/ADR-0021-auth-cookies-csrf-and-throttling.md` | cookies وCSRF وحدود محاولات المصادقة |
+| `adr/ADR-0022-authentication-events-and-privacy.md` | أحداث المصادقة والخصوصية والاحتفاظ |
 | `design-system.md` | قواعد نظام التصميم وحُرّاسه الآلية |
 | `environment-baseline.md` | خط أساس البيئة، الانحرافات المسجَّلة، والدين التقني |
 | `../تقرير_جاهزية_بدء_المشروع.md` | تقرير الجاهزية المعتمد قبل بدء التنفيذ |
