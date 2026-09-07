@@ -250,7 +250,7 @@ class AuthSession(Base):
         CheckConstraint(
             "(revoked_at IS NULL AND revoked_reason IS NULL) OR "
             "(revoked_at IS NOT NULL AND revoked_reason IN "
-            "('logout','revoke_all','concurrent_limit'))",
+            "('logout','revoke_all','concurrent_limit','password_reset'))",
             name="session_revocation_state",
         ),
         CheckConstraint("octet_length(bearer_digest) = 32", name="bearer_digest_length"),
