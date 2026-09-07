@@ -22,7 +22,7 @@ def test_only_the_migration_role_can_create_database_schemas(
     assert actual is expected
 
 
-@pytest.mark.parametrize("schema", ["public", "app"])
+@pytest.mark.parametrize("schema", ["public", "app", "auth"])
 def test_foundation_schemas_belong_to_migrator_and_runtime_cannot_create(
     app_connection: Connection, migration_role: str, schema: str
 ) -> None:

@@ -76,3 +76,10 @@ def test_role_validation_uses_alembics_transaction(
     else:
         assert migration_calls == [True]
         assert transactions == ["begin", "commit"]
+
+
+def test_migration_comparison_includes_non_default_schemas() -> None:
+    """The auth schema must not look absent to Alembic autogenerate/check."""
+    source = (MIGRATIONS / "env.py").read_text(encoding="utf-8")
+
+    assert source.count("include_schemas=True") == 2
