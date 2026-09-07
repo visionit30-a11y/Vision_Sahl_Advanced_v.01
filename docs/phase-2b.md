@@ -1,6 +1,6 @@
 # Phase 2B — Identity, Authentication, Memberships and Server-Side Sessions
 
-**الحالة:** Group 3 — اعتماد كلمة المرور وArgon2id منفذ محليًا؛ ينتظر قبول المالك.
+**الحالة:** Group 4 — جلسات PostgreSQL وcookies وCSRF منفذة محليًا؛ تنتظر قبول المالك.
 
 **الأساس:** `phase-2a-baseline` عند `cc58409f13573b5269d740f63e8f801295eb7ea1`.
 
@@ -42,8 +42,8 @@ valid credentials/session
 |---|---|---|
 | G1 | ADRs والقرارات الأمنية | مقبول للمتابعة عند `afdf2cd` |
 | G2 | users + tenant_memberships + schema | مقبول للمتابعة عند `cb3b09d` |
-| G3 | password credentials + Argon2id | منفذ محليًا؛ ينتظر قبول المالك |
-| G4 | sessions + cookies + CSRF | لم يبدأ |
+| G3 | password credentials + Argon2id | مقبول للمتابعة عند `617441d` |
+| G4 | sessions + cookies + CSRF | منفذ محليًا؛ ينتظر قبول المالك |
 | G5 | trusted membership resolution → TenantContext | لم يبدأ |
 | G6 | throttling + reset foundation + security events | لم يبدأ |
 | G7 | frontend auth client + browser/security gates | لم يبدأ |
@@ -102,3 +102,20 @@ valid credentials/session
   وعمليتا hash متوازيتان 150.78 ms.
 - نجحت دورة `0006 → 0005 → 0006` و`alembic check`، وبقي head
   `0006_password_credentials`.
+
+## تنفيذ وبوابة G4
+
+- أضيفت migration العكوسة `0007_server_side_sessions` بجدولي `auth.sessions` و
+  `auth.preauth_csrf_states`. تخزن القاعدة SHA-256 digests فقط للـbearer وCSRF/state.
+- bearer وCSRF عشوائيان 256-bit. الجلسة خادمية بالكامل في PostgreSQL، بوقت PostgreSQL
+  مرجعًا تشغيليًا، وقفل advisory transaction-local يجعل حد الجلسات وإبطال الأقدم ذريين.
+- idle 30 دقيقة، absolute 8 ساعات، حد 5 جلسات، وتحديث last_seen كل 60 ثانية كحد أدنى.
+  logout والإبطال الحالي/الشامل والدوران تلغي bearer القديم بلا grace.
+- cookie هي `__Host-sahl_session; Secure; HttpOnly; SameSite=Lax; Path=/` بلا Domain،
+  ولا تخزين bearer في localStorage/sessionStorage.
+- unsafe requests تتطلب synchronizer token صحيحًا مرتبطًا بالجلسة وOrigin HTTPS معتمدًا.
+  pre-auth state منفصلة، digest-only، بعمر 10 دقائق وأحادية الاستخدام لمنع login CSRF.
+- منح runtime محددة إلى SELECT/INSERT/UPDATE على جدولي G4 وUSAGE فقط على مخطط auth؛
+  يبقى CREATE وDELETE ووصول users/password_credentials مرفوضًا.
+- نجحت دورة `0007 → 0006 → 0007` و`alembic check`، وبقي head
+  `0007_server_side_sessions`.
