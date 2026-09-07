@@ -176,6 +176,12 @@ jobs:
       - name: Vitest
         run: npm run test
 
+      - name: Install Chromium for the blocking browser security gate
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright browser security gate
+        run: npm run test:browser
+
       - name: Build
         run: npm run build
 
