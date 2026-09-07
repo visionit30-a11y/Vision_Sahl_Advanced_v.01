@@ -23,6 +23,10 @@ class MigrationDatabaseUrlMissingError(RuntimeError):
     """Raised when migrations are attempted without a migration role URL."""
 
 
+class AuthHmacKeyMissingError(RuntimeError):
+    """Raised when authentication key digests cannot be generated safely."""
+
+
 class Settings(BaseSettings):
     """Runtime settings for the API."""
 
@@ -66,6 +70,8 @@ class Settings(BaseSettings):
     max_concurrent_sessions: int = 5
     session_last_seen_interval_seconds: int = 60
     preauth_csrf_lifetime_minutes: int = 10
+    auth_hmac_key: str | None = None
+    auth_hmac_key_id: int = 1
 
     @field_validator("password_hash_concurrency")
     @classmethod
@@ -104,6 +110,15 @@ class Settings(BaseSettings):
                 "migration role's connection string. There is no fallback to DATABASE_URL."
             )
         return self.migration_database_url
+
+    @property
+    def required_auth_hmac_key(self) -> bytes:
+        """Return the configured HMAC key, rejecting missing or short secrets."""
+        if self.auth_hmac_key is None or len(self.auth_hmac_key.encode()) < 32:
+            raise AuthHmacKeyMissingError(
+                "AUTH_HMAC_KEY must contain at least 32 bytes; there is no insecure fallback."
+            )
+        return self.auth_hmac_key.encode()
 
 
 @lru_cache

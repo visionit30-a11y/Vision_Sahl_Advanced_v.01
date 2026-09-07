@@ -39,6 +39,11 @@ SENSITIVE_KEYS = frozenset(
         "apikey",
         "private_key",
         "national_id",
+        "email",
+        "normalized_email",
+        "ip",
+        "ip_address",
+        "subject_key",
         "iban",
         "bank_account",
     }
