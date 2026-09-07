@@ -80,3 +80,22 @@ def test_the_two_urls_are_separate_settings() -> None:
     )
 
     assert settings.database_url != settings.required_migration_database_url
+
+
+@pytest.mark.parametrize("value", [0, 5])
+def test_password_hash_concurrency_is_bounded(value: int) -> None:
+    with pytest.raises(ValueError, match="concurrency"):
+        IsolatedSettings(password_hash_concurrency=value)
+
+
+def test_password_hash_concurrency_defaults_to_two() -> None:
+    assert IsolatedSettings().password_hash_concurrency == 2
+
+
+def test_g4_session_policy_defaults() -> None:
+    settings = IsolatedSettings()
+    assert settings.session_idle_timeout_minutes == 30
+    assert settings.session_absolute_timeout_hours == 8
+    assert settings.max_concurrent_sessions == 5
+    assert settings.session_last_seen_interval_seconds == 60
+    assert settings.preauth_csrf_lifetime_minutes == 10

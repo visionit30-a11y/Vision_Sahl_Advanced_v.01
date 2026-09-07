@@ -17,7 +17,7 @@ $webDir = Join-Path $root 'apps\web'
 $logDir = Join-Path $root '_logs'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
-$API_PORT = 8000
+$API_PORT = 8010
 $WEB_PORT = 5173
 
 function Wait-ForUrl {

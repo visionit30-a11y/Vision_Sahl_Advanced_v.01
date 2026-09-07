@@ -15,7 +15,8 @@ from app.tenancy.context import TenantContext
 
 
 @pytest.mark.parametrize(
-    "source", ["missing", "body", "query", "header", "x-tenant-id", "host", "all"]
+    "source",
+    ["missing", "body", "query", "header", "x-tenant-id", "membership", "host", "all"],
 )
 async def test_request_data_never_establishes_tenant_context(
     app: FastAPI, client: AsyncClient, source: str
@@ -38,6 +39,10 @@ async def test_request_data_never_establishes_tenant_context(
         options["json"] = {"tenant_id": identity, "tenant": {"id": identity}}
     if source in {"query", "all"}:
         options["params"] = {"tenant_id": identity, "tenant": identity}
+    if source == "membership":
+        options["json"] = {"membership_id": identity}
+        options["params"] = {"membership_id": identity}
+        headers["Cookie"] = f"membership_id={identity}"
     if source in {"header", "all"}:
         headers["Tenant-ID"] = identity
     if source in {"x-tenant-id", "all"}:

@@ -100,6 +100,22 @@ def test_every_table_in_the_public_schema_is_owned_by_the_migration_role(
     assert foreign == []
 
 
+def test_every_table_in_the_auth_schema_is_owned_by_the_migration_role(
+    app_connection: Connection, migration_role: str
+) -> None:
+    foreign = app_connection.execute(
+        text(
+            "SELECT c.relname, pg_get_userbyid(c.relowner) AS owner "
+            "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'auth' AND c.relkind IN ('r', 'p') "
+            "AND pg_get_userbyid(c.relowner) <> :migration_role ORDER BY c.relname"
+        ),
+        {"migration_role": migration_role},
+    ).all()
+
+    assert foreign == []
+
+
 def test_the_application_role_is_neither_superuser_nor_bypassrls(
     app_connection: Connection,
 ) -> None:

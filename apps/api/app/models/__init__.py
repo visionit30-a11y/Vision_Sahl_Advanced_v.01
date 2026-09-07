@@ -7,6 +7,28 @@ is invisible to autogenerate.
 
 from __future__ import annotations
 
+from app.models.auth_security import PasswordResetToken, SecurityEvent, ThrottleBucket
+from app.models.identity import (
+    AuthSession,
+    MembershipStatus,
+    PasswordCredential,
+    PreAuthCsrfState,
+    TenantMembership,
+    User,
+    UserStatus,
+)
 from app.models.tenant import Tenant
 
-__all__ = ["Tenant"]
+__all__ = [
+    "AuthSession",
+    "MembershipStatus",
+    "PasswordCredential",
+    "PasswordResetToken",
+    "PreAuthCsrfState",
+    "SecurityEvent",
+    "Tenant",
+    "TenantMembership",
+    "ThrottleBucket",
+    "User",
+    "UserStatus",
+]

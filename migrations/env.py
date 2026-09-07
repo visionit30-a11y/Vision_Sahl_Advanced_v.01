@@ -31,9 +31,9 @@ if str(API_DIR) not in sys.path:
 
 # Importing the models registers them on Base.metadata; a model that is not
 # reachable from here is invisible to autogenerate.
-import app.models  # noqa: E402,F401
-from app.core.config import get_settings  # noqa: E402
-from app.db.base import Base  # noqa: E402
+import app.models  # noqa: F401
+from app.core.config import get_settings
+from app.db.base import Base
 
 config = context.config
 
@@ -86,6 +86,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        include_schemas=True,
         dialect_opts={"paramstyle": "named"},
     )
     with context.begin_transaction():
@@ -106,6 +107,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            include_schemas=True,
         )
         with context.begin_transaction():
             # The role check is the first statement in Alembic's own transaction.

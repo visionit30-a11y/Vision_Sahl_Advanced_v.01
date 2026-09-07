@@ -192,6 +192,9 @@ try {
     Write-Section 'Frontend - vitest'
     Add-Result 'vitest' (Invoke-Native -File $npmExe -Arguments @('run', 'test') -WorkingDirectory $webDir -AllowFailure)
 
+    Write-Section 'Frontend - browser security gate'
+    Add-Result 'playwright chromium' (Invoke-Native -File $npmExe -Arguments @('run', 'test:browser') -WorkingDirectory $webDir -AllowFailure)
+
     Write-Section 'Frontend - production build'
     Add-Result 'vite build' (Invoke-Native -File $npmExe -Arguments @('run', 'build') -WorkingDirectory $webDir -AllowFailure)
 

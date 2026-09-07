@@ -43,6 +43,22 @@ class AppError(Exception):
         super().__init__(self.message)
 
 
+_SENSITIVE_DETAIL_KEYS = frozenset(
+    {"password", "password_hash", "bearer", "csrf", "csrf_token", "secret", "token", "input", "ctx"}
+)
+
+
+def _safe_error_details(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "***" if str(key).lower() in _SENSITIVE_DETAIL_KEYS else _safe_error_details(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_safe_error_details(item) for item in value]
+    return value
+
+
 def build_error_payload(code: str, message: str, details: Any = None) -> dict[str, Any]:
     """Build the canonical error body."""
     error: dict[str, Any] = {
@@ -51,7 +67,7 @@ def build_error_payload(code: str, message: str, details: Any = None) -> dict[st
         "correlation_id": get_correlation_id(),
     }
     if details is not None:
-        error["details"] = details
+        error["details"] = _safe_error_details(details)
     return {"error": error}
 
 
@@ -105,7 +121,6 @@ def register_exception_handlers(app: FastAPI) -> None:
             path=request.url.path,
             method=request.method,
             error=type(exc).__name__,
-            exc_info=exc,
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

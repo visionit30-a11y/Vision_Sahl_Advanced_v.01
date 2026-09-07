@@ -23,6 +23,10 @@ class MigrationDatabaseUrlMissingError(RuntimeError):
     """Raised when migrations are attempted without a migration role URL."""
 
 
+class AuthHmacKeyMissingError(RuntimeError):
+    """Raised when authentication key digests cannot be generated safely."""
+
+
 class Settings(BaseSettings):
     """Runtime settings for the API."""
 
@@ -41,7 +45,7 @@ class Settings(BaseSettings):
     log_format: Literal["console", "json"] = "console"
 
     api_host: str = "127.0.0.1"
-    api_port: int = 8000
+    api_port: int = 8010
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     # The runtime URL. It must name the application role, which owns nothing and
@@ -59,6 +63,22 @@ class Settings(BaseSettings):
 
     redis_enabled: bool = False
     redis_url: str = "redis://127.0.0.1:6379/0"
+
+    password_hash_concurrency: int = 2
+    session_idle_timeout_minutes: int = 30
+    session_absolute_timeout_hours: int = 8
+    max_concurrent_sessions: int = 5
+    session_last_seen_interval_seconds: int = 60
+    preauth_csrf_lifetime_minutes: int = 10
+    auth_hmac_key: str | None = None
+    auth_hmac_key_id: int = 1
+
+    @field_validator("password_hash_concurrency")
+    @classmethod
+    def _validate_password_hash_concurrency(cls, value: int) -> int:
+        if not 1 <= value <= 4:
+            raise ValueError("Password hashing concurrency must be between 1 and 4.")
+        return value
 
     @field_validator("log_level")
     @classmethod
@@ -90,6 +110,15 @@ class Settings(BaseSettings):
                 "migration role's connection string. There is no fallback to DATABASE_URL."
             )
         return self.migration_database_url
+
+    @property
+    def required_auth_hmac_key(self) -> bytes:
+        """Return the configured HMAC key, rejecting missing or short secrets."""
+        if self.auth_hmac_key is None or len(self.auth_hmac_key.encode()) < 32:
+            raise AuthHmacKeyMissingError(
+                "AUTH_HMAC_KEY must contain at least 32 bytes; there is no insecure fallback."
+            )
+        return self.auth_hmac_key.encode()
 
 
 @lru_cache
