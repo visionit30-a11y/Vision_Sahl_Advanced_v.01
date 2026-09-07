@@ -1,3 +1,5 @@
+test-results
+playwright-report
 dist
 coverage
-node_modules
+.vite

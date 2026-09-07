@@ -25,6 +25,8 @@ dist/
 .vite/
 *.tsbuildinfo
 npm-debug.log*
+playwright-report/
+test-results/
 
 # ── Local runtime & logs ─────────────────────────────────
 _logs/
