@@ -49,7 +49,7 @@ def assert_tenant_catalog(
 
     The membership catalogue has one approved identity-security exception. It
     remains discovered and is checked against a narrower no-direct-access
-    contract; every other table follows the Phase 2A tenant-owned contract.
+    contract; RBAC and every other table follow the Phase 2A tenant-owned contract.
     """
     version = connection.scalar(text("SELECT current_setting('server_version_num')::int"))
     assert version // 10000 == 17, "The security catalogue gate requires PostgreSQL 17."
