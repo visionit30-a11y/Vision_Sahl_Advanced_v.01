@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -256,6 +257,19 @@ class AuthSession(Base):
         CheckConstraint("octet_length(csrf_digest) = 32", name="csrf_digest_length"),
         UniqueConstraint("bearer_digest", name="uq_sessions_bearer_digest"),
         Index("ix_sessions_user_active", "user_id", "revoked_at", "created_at"),
+        CheckConstraint(
+            "(selected_membership_id IS NULL) = (selected_membership_version IS NULL)",
+            name="selected_membership_pair",
+        ),
+        CheckConstraint(
+            "selected_membership_version IS NULL OR selected_membership_version > 0",
+            name="selected_membership_version_positive",
+        ),
+        ForeignKeyConstraint(
+            ["selected_membership_id", "user_id"],
+            ["auth.tenant_memberships.id", "auth.tenant_memberships.user_id"],
+            ondelete="RESTRICT",
+        ),
         {"schema": "auth"},
     )
     id: Mapped[uuid.UUID] = mapped_column(
@@ -274,6 +288,8 @@ class AuthSession(Base):
     absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_reason: Mapped[str | None] = mapped_column(String(32))
+    selected_membership_id: Mapped[uuid.UUID | None] = mapped_column(PostgresUUID(as_uuid=True))
+    selected_membership_version: Mapped[int | None] = mapped_column(Integer)
 
     def __repr__(self) -> str:
         return f"<AuthSession id={self.id} user_id={self.user_id}>"

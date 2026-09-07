@@ -19,6 +19,7 @@
 | `0005_auth_identity_foundation` | مخطط الهوية العالمي وجدولا المستخدمين والعضويات وحدود الوصول |
 | `0006_password_credentials` | اعتماد Argon2id المنفصل ونسخة الاعتماد وتاريخ تغييره |
 | `0007_server_side_sessions` | جلسات PostgreSQL digest-only وحالة pre-auth CSRF |
+| `0008_trusted_membership` | اختيار العضوية في الجلسة ووظيفة تحقق bootstrap محددة |
 
 حل `0004_runtime_privilege_boundary` محل اسم `0004_tenant_isolation_policies` المخطط
 سابقًا، بعد اعتماد أن `public.tenants` جدول منصّة بلا tenant RLS وبلا منح runtime.
