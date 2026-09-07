@@ -6,7 +6,14 @@ from dataclasses import dataclass
 
 from app.auth.tenants import AuthenticatedPrincipal
 from app.authorization.permissions import PermissionId
+from app.core.errors import AppError
 from app.tenancy.context import TenantContext
+
+
+class AuthorizationBoundaryRequiredError(AppError):
+    code = "forbidden"
+    status_code = 403
+    message = "The requested resource is not available."
 
 
 @dataclass(frozen=True, slots=True)

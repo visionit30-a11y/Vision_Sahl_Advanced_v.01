@@ -5,12 +5,8 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from app.authorization.contracts import AuthorizationGrant
+from app.authorization.contracts import AuthorizationBoundaryRequiredError, AuthorizationGrant
 from app.core.errors import AppError
-
-
-class AuthorizationBoundaryRequiredError(AppError):
-    message = "An authorization grant is required."
 
 
 class MembershipResourceNotFoundError(AppError):
