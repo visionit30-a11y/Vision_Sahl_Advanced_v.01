@@ -1,0 +1,83 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  AuthClient,
+  CsrfUnavailableError,
+  SessionInvalidError,
+  TenantContextChangedError,
+} from '../auth/client';
+
+afterEach(() => vi.restoreAllMocks());
+
+function reply(body: unknown = {}, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), { status: 200, ...init });
+}
+
+describe('AuthClient', () => {
+  it('uses cookie credentials and no-store without exposing a bearer', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(reply({ id: 'u', selectedMembershipId: null }));
+    const client = new AuthClient({ fetcher });
+    await client.me();
+    const [, init] = fetcher.mock.calls[0] ?? [];
+    expect(init).toMatchObject({ credentials: 'include', cache: 'no-store' });
+    expect(new Headers(init?.headers).has('Authorization')).toBe(false);
+  });
+
+  it('keeps CSRF in memory and sends it only for unsafe methods', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'memory-token' } }))
+      .mockResolvedValueOnce(reply());
+    const client = new AuthClient({ fetcher });
+    await client.bootstrapCsrf();
+    await client.request('/unsafe', { method: 'POST' });
+    expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).get('X-CSRF-Token')).toBe(
+      'memory-token',
+    );
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it('rejects unsafe requests before CSRF bootstrap', async () => {
+    const client = new AuthClient({ fetcher: vi.fn() });
+    await expect(client.request('/unsafe', { method: 'POST' })).rejects.toBeInstanceOf(
+      CsrfUnavailableError,
+    );
+  });
+
+  it('clears trusted state for invalid sessions and changed tenant context', async () => {
+    const unauthorized = new AuthClient({
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 401 })),
+    });
+    await expect(unauthorized.me()).rejects.toBeInstanceOf(SessionInvalidError);
+
+    const changed = new AuthClient({
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(null, {
+          status: 409,
+          headers: { 'X-Auth-Error': 'tenant_context_changed' },
+        }),
+      ),
+    });
+    await expect(changed.me()).rejects.toBeInstanceOf(TenantContextChangedError);
+  });
+
+  it('treats membership id as a selector and refreshes state after rotation', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'old' } }))
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'new' } }))
+      .mockResolvedValueOnce(reply({ id: 'u', selectedMembershipId: 'm2' }))
+      .mockResolvedValueOnce(reply());
+    const client = new AuthClient({ fetcher });
+    await client.bootstrapCsrf();
+    const user = await client.switchTenant('m2');
+    expect(user.selectedMembershipId).toBe('m2');
+    expect(fetcher.mock.calls[2]?.[0]).toBe('/auth/me');
+    expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).has('Authorization')).toBe(false);
+    await client.request('/unsafe', { method: 'POST' });
+    expect(new Headers(fetcher.mock.calls[3]?.[1]?.headers).get('X-CSRF-Token')).toBe('new');
+  });
+});
