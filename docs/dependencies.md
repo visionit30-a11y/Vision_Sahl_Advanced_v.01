@@ -15,6 +15,7 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 |---|---|---|
 | fastapi | إطار الـ API | TS-02 مقفل |
 | uvicorn[standard] | خادم ASGI | تشغيل FastAPI محليًا وفي الحاويات |
+| @playwright/test | اختبار Chromium حقيقي | بوابة أمان browser blocking في G7/G8 |
 | pydantic-settings | الإعدادات من متغيرات البيئة | TS-10: لا أسرار في الكود |
 | SQLAlchemy 2.x | طبقة الوصول للبيانات | ADR-0005 |
 | alembic | المهاجرات المتسلسلة | SRS §10 يوجب Migration لكل تغيير Schema |

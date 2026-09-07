@@ -1,6 +1,6 @@
 # Phase 2B — Identity, Authentication, Memberships and Server-Side Sessions
 
-**الحالة:** Group 5 — trusted membership resolution منفذ محليًا؛ ينتظر قبول المالك.
+**الحالة:** Groups 1–8 منفذة محليًا؛ التحقق النهائي ناجح وينتظر قبول المالك.
 
 **الأساس:** `phase-2a-baseline` عند `cc58409f13573b5269d740f63e8f801295eb7ea1`.
 
@@ -44,10 +44,10 @@ valid credentials/session
 | G2 | users + tenant_memberships + schema | مقبول للمتابعة عند `cb3b09d` |
 | G3 | password credentials + Argon2id | مقبول للمتابعة عند `617441d` |
 | G4 | sessions + cookies + CSRF | مقبول للمتابعة عند `2e5d79c` |
-| G5 | trusted membership resolution → TenantContext | منفذ محليًا؛ ينتظر قبول المالك |
-| G6 | throttling + reset foundation + security events | لم يبدأ |
-| G7 | frontend auth client + browser/security gates | لم يبدأ |
-| G8 | التحقق النهائي والتوثيق | لم يبدأ |
+| G5 | trusted membership resolution → TenantContext | مقبول للمتابعة عند `2d43269` |
+| G6 | throttling + reset foundation + security events | مقبول للمتابعة عند `deee3b2` |
+| G7 | frontend auth client + browser/security gates | مقبول للمتابعة عند `4a8d894` |
+| G8 | التحقق النهائي والتوثيق | منفذ محليًا؛ ينتظر قبول المالك |
 
 ## القرارات
 
@@ -136,3 +136,43 @@ valid credentials/session
   على `public.tenants` و`auth.tenant_memberships` مرفوضًا.
 - نجحت دورة `0008 → 0007 → 0008` و`alembic check`؛ head هو
   `0008_trusted_membership`.
+
+## تنفيذ وبوابة G6
+
+- أضافت `0009_auth_security_controls` عدادات PostgreSQL fixed-window ذرية باستخدام
+  `INSERT ... ON CONFLICT DO UPDATE`، ومفاتيح HMAC-SHA256 مفصولة حسب الغرض، بلا Redis
+  أو in-memory fallback. فشل PostgreSQL يغلق الطلب.
+- reset token عشوائي 256-bit وتخزينه digest-only لمدة 15 دقيقة. token جديد يبطل السابق،
+  والاستخدام أحادي وذري. النجاح يغير Argon2id credential ويرفع نسختي credential/security
+  ويبطل الجلسات وبقية tokens، بلا auto-login أو delivery عام.
+- سجل الأحداث يقبل الأنواع الأمنية المحددة فقط، ويحفظ IDs موثوقة وdigests بلا كلمات مرور
+  أو bearer أو reset/CSRF tokens. فشل الحدث الإلزامي يلغي العملية الأمنية في transaction نفسها.
+- نجحت دورة `0009 → 0008 → 0009` و`alembic check` واختبارات التزامن والفائز الواحد؛
+  head هو `0009_auth_security_controls`.
+
+## تنفيذ وبوابة G7
+
+- عميل الواجهة يستخدم `credentials: include` و`cache: no-store` وHttpOnly session cookie فقط؛
+  لا Authorization bearer ولا localStorage أو sessionStorage أو IndexedDB.
+- CSRF token يبقى في الذاكرة، ويرسل للطرق unsafe فقط. tenant switch يعيد تحميل الحالة من
+  الخادم ويعتمد CSRF الجديد بعد دوران cookie، ولا يعود إلى عضوية سابقة.
+- `BroadcastChannel` يبطل CSRF والعضوية المخزنين في التبويبات القديمة فور تبدل السياق، مع
+  expected-membership guard على الطلبات unsafe.
+- Playwright/Chromium الحقيقي يثبت cookie flags وCSRF وOrigin والتدوير والتبويبات القديمة
+  وتجاهل header مزور وlogout وعدم ظهور الأسرار في التخزين أو console. البوابة blocking محليًا
+  وفي GitHub Actions، بلا skip أو `continue-on-error` أو artifacts حساسة.
+
+## تنفيذ وبوابة G8
+
+- منفذ سهل المحلي الثابت هو API ‏`127.0.0.1:8010` والواجهة `localhost:5173` ونظام التصميم
+  `localhost:5173/design-system`. لا fallback إلى 8000 ولا اختيار تلقائي أو عشوائي لمنفذ آخر.
+- `06-update-and-run.ps1` يفحص 8010 قبل التشغيل. إذا كان مشغولًا، لا يسمح بالتنظيف إلا بعد
+  إثبات أن executable أو command line تابعان لمسار هذا checkout؛ وإلا يفشل برسالة واضحة
+  ويترك العملية كما هي. يعيد `02-run.ps1` الفحص لحماية السباق قبل بدء الخدمات.
+- بقيت معمارية الإنتاج قابلة للضبط من البيئة؛ التغيير يخص defaults وجسر التشغيل المحلي فقط.
+- بوابة القبول النهائية تشمل Ruff وMypy وPostgreSQL migrations/pytest، وESLint وTypeScript
+  وVitest وPlaywright Chromium وPrettier وproduction build، وحراس فصل الأدوار والأسرار.
+- نتيجة القبول المحلية النهائية: **18/18 PASS** وخروج 0؛ Backend **325 passed**، Frontend
+  **218 passed / 29 files**، وPlaywright Chromium **4/4 passed**. Migration head هو
+  `0009_auth_security_controls` بعد دورة `head → base → head`، وحارس قاعدة البيانات أثبت
+  عدم بقاء artifacts وأن `sahl_app` لا يملك كائنات ولا يملك bypass RLS.
