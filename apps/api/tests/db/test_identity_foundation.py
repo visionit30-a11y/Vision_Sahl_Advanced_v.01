@@ -30,9 +30,12 @@ def test_auth_schema_and_tables_are_migrator_owned(
     ).all()
     assert [(row.relname, row.owner) for row in owners] == [
         ("password_credentials", migration_role),
+        ("password_reset_tokens", migration_role),
         ("preauth_csrf_states", migration_role),
+        ("security_events", migration_role),
         ("sessions", migration_role),
         ("tenant_memberships", migration_role),
+        ("throttle_buckets", migration_role),
         ("users", migration_role),
     ]
 
