@@ -1,6 +1,6 @@
 # Phase 2C — RBAC and Central Authorization Service
 
-**الحالة:** Groups 1–3 معتمدة؛ Group 4 منفذ محليًا وينتظر اعتماد المالك.
+**الحالة:** Groups 1–4 معتمدة؛ Group 5 منفذ محليًا وبوابة Phase 2C جاهزة للمراجعة.
 
 **الأساس:** `phase-2b-baseline` عند
 `297eeaaaa40a9d66a42876505804699fd1e920ca`، و`main = develop` عند نقطة البدء.
@@ -105,3 +105,48 @@ UI permissions implementation أو Phase 2D.
   Phase 2A/2B/G2/G3، ولم يضف Business Module.
 - بوابة G4 المستهدفة: **112 passed**. نجحت Ruff وMypy وAlembic check وحراس PostgreSQL
   والتنظيف والملكية والمنح، وبقي head `0010_tenant_rbac_foundation`.
+
+## تنفيذ وبوابة G5
+
+- أضيفت خدمة `RoleAdministrationService` كحد الكتابة الوحيد لجداول RBAC. تنشئ الأدوار
+  وتحدث أسماءها وتعطلها، وتربط/تفك Permission IDs typed، وتربط/تفك الأدوار بالعضويات.
+  routes لا تصل إلى الجداول مباشرة، وكل عملية تحتاج `AuthorizationGrant` ناتجًا من
+  `require_permission(Permission)` المركزي.
+- كل كتابة تفتح `tenant_transaction()` واحدة وتبقى تحت FORCE RLS. تستخدم إضافة
+  assignments `ON CONFLICT DO NOTHING` لتكون idempotent وآمنة عند التزامن، بينما تستخدم
+  تغييرات الدور `version` متفائلة وترفض النسخة القديمة دون فقد تحديث.
+- أضافت migration العكوسة `0011_role_administration_guards` عمود نسخة الدور ودالة
+  `auth.is_active_membership_in_tenant(uuid,uuid)` الضيقة. الدالة `SECURITY DEFINER`
+  مملوكة لـ`sahl_migrator`، و`search_path=pg_catalog`، بلا dynamic SQL أو PUBLIC EXECUTE،
+  ولا تضبط TenantContext أو تمنح وصولًا عامًا للجداول.
+- UUIDs المقدمة من العميل selectors فقط. يتحقق الخادم من الدور والعضوية النشطين داخل
+  الجهة؛ RLS يخفي الدور الأجنبي، والدالة الضيقة ترفض العضوية الأجنبية أو غير النشطة،
+  وتعود أخطاء 404/403 عامة بلا كشف وجود المورد.
+- إزالة permission وتعطيل الدور يظهران في قرار `AuthorizationService` التالي فورًا؛ لا
+  cache أو Redis أو fallback. صلاحية `platform.*` لا تقبلها خدمة إدارة tenant roles.
+- Platform Admin لم يحصل على bypass أو وصول عالمي. العقد المستقبلي فقط:
+  `trusted tenant selection → one TenantContext → AuthorizationService →`
+  `tenant_transaction() → RLS`، مع حظر BYPASSRLS و`row_security=off` وsuperuser والمعاملة
+  العابرة للجهات.
+- نجحت دورة migration `0011 → 0010 → 0011` و`alembic check`. بوابة Phase 2C المستهدفة
+  شغلت **162 passed**: 88 لعقود catalog/service/HTTP وإدارة الأدوار، و74 لحراس RLS
+  وSQL/ORM والعزل والملكية والمنح وPhase 2A/2B. نجحت Ruff وMypy، وحارس التنظيف أثبت
+  4 جداول tenant production وبلا test artifacts.
+
+## Exit Criteria المحلية لـPhase 2C
+
+- [x] Permission IDs typed ومركزية ولا توجد raw literals خارج catalog.
+- [x] لا role-name checks ولا AuthorizationService بديلة أو قرارات متناثرة.
+- [x] الأدوار والروابط tenant-owned بقيود مركبة وENABLE + FORCE RLS.
+- [x] ALLOW/DENY يفشل مغلقًا ويقرأ الحالة الحالية بلا cache أمني.
+- [x] API enforcement يسبق تنفيذ الخدمة ويستخدم principal وTenantContext موثوقين.
+- [x] إنشاء وتحديث وتعطيل الدور محمي ومتزامن بأمان.
+- [x] ربط وفك permissions والأدوار idempotent ولا ينشئ duplicates.
+- [x] IDOR وcross-tenant selectors مرفوضة دون كشف وجود المورد.
+- [x] إزالة permission وتعطيل role ينعكسان فورًا على القرار التالي.
+- [x] Platform Admin لا يملك tenant bypass أو مسارًا يعطل RLS.
+- [x] migration عكوسة وhead هو `0011_role_administration_guards`.
+- [x] حراس Phase 2A/2B والملكية والمنح والتنظيف باقية ناجحة.
+
+النتيجة المحلية: **12/12 PASS**. Phase 2C جاهزة لمراجعة المالك وإنشاء PR بعد اعتماده؛
+لم يبدأ Phase 2D أو Business Modules أو UI permissions implementation.

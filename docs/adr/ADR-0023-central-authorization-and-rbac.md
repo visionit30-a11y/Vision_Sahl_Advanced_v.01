@@ -129,6 +129,15 @@ Permission IDs لا تحتاج جدول runtime مصدر حقيقة؛ الكتا
 تظل ENABLE وFORCE RLS و`app.current_tenant_id()` فعالة. لا `BYPASSRLS`، ولا اتصال migrator،
 ولا تعطيل policy، ولا loop عبر جميع الجهات في معاملة بلا سياق. هذا المسار ليس منفذًا في G1.
 
+العقد الملزم لأي تنفيذ مستقبلي هو:
+
+`Platform Admin → trusted tenant selection → one TenantContext → AuthorizationService →`
+`tenant_transaction() → PostgreSQL RLS`.
+
+لا تمنح G5 وصول Platform Admin إلى بيانات الجهات؛ تظل الآلية الإدارية الموثوقة لاختيار
+الجهة خارج نطاق Phase 2C. ويحظر `SET row_security=off` ومسار superuser وأي معاملة عامة
+تعبر أكثر من جهة.
+
 ### 7. تسجيل القرار والخصوصية
 
 كل رفض يعود باستجابة موحدة لا تميز بين مورد مفقود ومورد في جهة أخرى وعدم الصلاحية. تسجل
