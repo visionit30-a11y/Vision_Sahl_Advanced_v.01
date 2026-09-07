@@ -41,12 +41,16 @@ def test_production_flag() -> None:
     assert IsolatedSettings(app_env="development").is_production is False
 
 
-def test_the_migration_url_has_no_default() -> None:
+def test_the_migration_url_has_no_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """A default would silently reunite the two database roles."""
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
     assert IsolatedSettings().migration_database_url is None
 
 
-def test_asking_for_a_missing_migration_url_fails_rather_than_falling_back() -> None:
+def test_asking_for_a_missing_migration_url_fails_rather_than_falling_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
     settings = IsolatedSettings(
         database_url="postgresql+psycopg://sahl_app:x@127.0.0.1:5433/sahl_dev"
     )
