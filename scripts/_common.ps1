@@ -288,6 +288,21 @@ function Get-PortOwner {
     return (Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue)
 }
 
+function Test-ProcessBelongsToProject {
+    <# A process is owned only when its executable or command line names this checkout. #>
+    param([Parameter(Mandatory = $true)][int] $ProcessId)
+
+    $info = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+    if ($null -eq $info) { return $false }
+    $root = [System.IO.Path]::GetFullPath((Get-ProjectRoot)).TrimEnd('\')
+    $prefix = $root + '\'
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $executable = [string]$info.ExecutablePath
+    $commandLine = [string]$info.CommandLine
+    return (($executable -and $executable.StartsWith($prefix, $comparison)) -or
+        ($commandLine -and $commandLine.IndexOf($root, $comparison) -ge 0))
+}
+
 function Get-OwnedTreeRoot {
     <#
         Walks up from a process while its parent is still one of this project's
@@ -337,7 +352,8 @@ function Clear-DevelopmentPort {
             return $true
         }
 
-        if ($OwnedProcessNames -notcontains $owner.ProcessName) {
+        if (($OwnedProcessNames -notcontains $owner.ProcessName) -or
+            (-not (Test-ProcessBelongsToProject -ProcessId $owner.Id))) {
             Write-Fail ("Port {0} is held by {1} (pid {2}), which this project did not start." -f $Port, $owner.ProcessName, $owner.Id)
             Write-Warn 'Close that program yourself, then run this script again. Nothing was stopped.'
             return $false

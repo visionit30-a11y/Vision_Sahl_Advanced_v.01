@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     log_format: Literal["console", "json"] = "console"
 
     api_host: str = "127.0.0.1"
-    api_port: int = 8000
+    api_port: int = 8010
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     # The runtime URL. It must name the application role, which owns nothing and
