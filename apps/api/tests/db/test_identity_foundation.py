@@ -29,9 +29,12 @@ def test_auth_schema_and_tables_are_migrator_owned(
         )
     ).all()
     assert [(row.relname, row.owner) for row in owners] == [
+        ("membership_roles", migration_role),
         ("password_credentials", migration_role),
         ("password_reset_tokens", migration_role),
         ("preauth_csrf_states", migration_role),
+        ("role_permissions", migration_role),
+        ("roles", migration_role),
         ("security_events", migration_role),
         ("sessions", migration_role),
         ("tenant_memberships", migration_role),
@@ -164,6 +167,8 @@ def test_auth_enums_match_the_domain_contract(app_connection: Connection) -> Non
         ("membership_status", "active"),
         ("membership_status", "suspended"),
         ("membership_status", "left"),
+        ("role_status", "active"),
+        ("role_status", "inactive"),
         ("user_status", "pending"),
         ("user_status", "active"),
         ("user_status", "suspended"),

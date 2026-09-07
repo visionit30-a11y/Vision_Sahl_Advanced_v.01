@@ -8,6 +8,7 @@ is invisible to autogenerate.
 from __future__ import annotations
 
 from app.models.auth_security import PasswordResetToken, SecurityEvent, ThrottleBucket
+from app.models.authorization import MembershipRole, Role, RolePermission, RoleStatus
 from app.models.identity import (
     AuthSession,
     MembershipStatus,
@@ -21,10 +22,14 @@ from app.models.tenant import Tenant
 
 __all__ = [
     "AuthSession",
+    "MembershipRole",
     "MembershipStatus",
     "PasswordCredential",
     "PasswordResetToken",
     "PreAuthCsrfState",
+    "Role",
+    "RolePermission",
+    "RoleStatus",
     "SecurityEvent",
     "Tenant",
     "TenantMembership",
