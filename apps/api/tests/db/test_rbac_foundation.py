@@ -320,10 +320,16 @@ def test_orm_cannot_read_another_tenant(
                 update(Role)
                 .where(Role.id == rbac_fixture.role_b)
                 .values(display_name="Compromised")
-            ).rowcount
-            == 0
+                .returning(Role.id)
+            ).scalar_one_or_none()
+            is None
         )
-        assert session.execute(delete(Role).where(Role.id == rbac_fixture.role_b)).rowcount == 0
+        assert (
+            session.execute(
+                delete(Role).where(Role.id == rbac_fixture.role_b).returning(Role.id)
+            ).scalar_one_or_none()
+            is None
+        )
 
 
 def test_orm_cannot_write_another_tenant(
