@@ -28,6 +28,7 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `phase-2a.md` | خطة أساس الجهات، قبول المجموعة الثالثة، ونطاق RLS والمنح ومصفوفة Group 4 |
 | `phase-2b.md` | نطاق الهوية والمصادقة والجلسات ومجموعات التنفيذ وحالة القبول |
 | `phase-2c.md` | نطاق RBAC وخدمة التفويض المركزية وقرارات وخطة Group 1 |
+| `phase-2d.md` | تخزين إعدادات الواجهة في Backend وربطها بصلاحيات Phase 2C |
 | `adr/ADR-0015-tenant-context-and-transactions.md` | سياق الجهة وحدّ المعاملة؛ المجموعة الثالثة المقبولة |
 | `adr/ADR-0016-tenant-rls-enforcement.md` | إنفاذ RLS وبرهان probe وعقد اكتشاف الجداول |
 | `adr/ADR-0017-database-role-separation.md` | فصل الأدوار وحدود المنح ومهاجرة 0004 |
@@ -37,6 +38,7 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `adr/ADR-0021-auth-cookies-csrf-and-throttling.md` | cookies وCSRF وحدود محاولات المصادقة |
 | `adr/ADR-0022-authentication-events-and-privacy.md` | أحداث المصادقة والخصوصية والاحتفاظ |
 | `adr/ADR-0023-central-authorization-and-rbac.md` | Permission IDs والأدوار وخدمة التفويض وPlatform Admin دون تجاوز RLS |
+| `adr/ADR-0024-backend-persisted-ui-settings.md` | طبقات UI Settings وملكيتها وRLS وAPI وحد Platform Admin |
 | `design-system.md` | قواعد نظام التصميم وحُرّاسه الآلية |
 | `environment-baseline.md` | خط أساس البيئة، الانحرافات المسجَّلة، والدين التقني |
 | `../تقرير_جاهزية_بدء_المشروع.md` | تقرير الجاهزية المعتمد قبل بدء التنفيذ |
