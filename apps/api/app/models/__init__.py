@@ -7,7 +7,20 @@ is invisible to autogenerate.
 
 from __future__ import annotations
 
-from app.models.identity import MembershipStatus, TenantMembership, User, UserStatus
+from app.models.identity import (
+    MembershipStatus,
+    PasswordCredential,
+    TenantMembership,
+    User,
+    UserStatus,
+)
 from app.models.tenant import Tenant
 
-__all__ = ["MembershipStatus", "Tenant", "TenantMembership", "User", "UserStatus"]
+__all__ = [
+    "MembershipStatus",
+    "PasswordCredential",
+    "Tenant",
+    "TenantMembership",
+    "User",
+    "UserStatus",
+]

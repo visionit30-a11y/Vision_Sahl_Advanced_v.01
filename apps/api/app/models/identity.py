@@ -17,6 +17,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
     text,
@@ -206,3 +207,33 @@ class TenantMembership(Base):
 
     def __repr__(self) -> str:
         return f"<TenantMembership id={self.id} user_id={self.user_id} status={self.status.value}>"
+
+
+class PasswordCredential(Base):
+    """One non-reversible Argon2id credential per platform user."""
+
+    __tablename__ = "password_credentials"
+    __table_args__ = (
+        CheckConstraint("credential_version > 0", name="credential_version_positive"),
+        CheckConstraint("password_hash LIKE '$argon2id$%'", name="password_hash_argon2id"),
+        {"schema": "auth"},
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PostgresUUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    credential_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<PasswordCredential user_id={self.user_id} "
+            f"credential_version={self.credential_version}>"
+        )

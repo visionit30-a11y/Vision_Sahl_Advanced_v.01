@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     redis_enabled: bool = False
     redis_url: str = "redis://127.0.0.1:6379/0"
 
+    password_hash_concurrency: int = 2
+
+    @field_validator("password_hash_concurrency")
+    @classmethod
+    def _validate_password_hash_concurrency(cls, value: int) -> int:
+        if not 1 <= value <= 4:
+            raise ValueError("Password hashing concurrency must be between 1 and 4.")
+        return value
+
     @field_validator("log_level")
     @classmethod
     def _normalise_log_level(cls, value: str) -> str:
