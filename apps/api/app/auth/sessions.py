@@ -52,6 +52,8 @@ class SessionRecord:
     absolute_expires_at: datetime
     revoked_at: datetime | None = None
     revoked_reason: str | None = None
+    selected_membership_id: uuid.UUID | None = None
+    selected_membership_version: int | None = None
 
     def is_valid(self, *, now: datetime, security_version: int) -> bool:
         return (
@@ -206,6 +208,31 @@ class SessionService:
             await self.store.replace(replace(record, revoked_at=now, revoked_reason="revoke_all"))
             count += 1
         return count
+
+    async def rotate_to_membership(
+        self,
+        bearer: str,
+        security_version: int,
+        membership_id: uuid.UUID,
+        membership_version: int,
+        *,
+        now: datetime | None = None,
+    ) -> IssuedSession | None:
+        now = now or await self.store.current_time()
+        old = await self.resolve(bearer, security_version, now=now)
+        if old is None:
+            return None
+        new_bearer, new_csrf = _token(), _token()
+        rotated = replace(
+            old,
+            bearer_digest=token_digest(new_bearer),
+            csrf_digest=token_digest(new_csrf),
+            selected_membership_id=membership_id,
+            selected_membership_version=membership_version,
+            last_seen_at=now,
+        )
+        await self.store.replace(rotated)
+        return IssuedSession(rotated, SessionSecrets(new_bearer, new_csrf))
 
     async def rotate(
         self, bearer: str, security_version: int, *, now: datetime | None = None

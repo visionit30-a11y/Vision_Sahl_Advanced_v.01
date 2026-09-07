@@ -36,6 +36,8 @@ class PostgresSessionStore:
             absolute_expires_at=row.absolute_expires_at,
             revoked_at=row.revoked_at,
             revoked_reason=row.revoked_reason,
+            selected_membership_id=row.selected_membership_id,
+            selected_membership_version=row.selected_membership_version,
         )
 
     async def save(self, record: SessionRecord) -> None:
@@ -43,10 +45,11 @@ class PostgresSessionStore:
             text("""
             INSERT INTO auth.sessions
               (id,user_id,bearer_digest,csrf_digest,security_version,created_at,authenticated_at,
-               last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason)
+               last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason,
+               selected_membership_id,selected_membership_version)
             VALUES (:id,:user_id,:bearer_digest,:csrf_digest,:security_version,:created_at,
               :authenticated_at,:last_seen_at,:idle_expires_at,:absolute_expires_at,:revoked_at,
-              :revoked_reason)
+              :revoked_reason,:selected_membership_id,:selected_membership_version)
         """),
             record.__dict__
             if hasattr(record, "__dict__")
@@ -90,7 +93,9 @@ class PostgresSessionStore:
             text("""
             UPDATE auth.sessions SET bearer_digest=:bearer_digest,csrf_digest=:csrf_digest,
               last_seen_at=:last_seen_at,idle_expires_at=:idle_expires_at,
-              revoked_at=:revoked_at,revoked_reason=:revoked_reason WHERE id=:id
+              revoked_at=:revoked_at,revoked_reason=:revoked_reason,
+              selected_membership_id=:selected_membership_id,
+              selected_membership_version=:selected_membership_version WHERE id=:id
         """),
             values,
         )
