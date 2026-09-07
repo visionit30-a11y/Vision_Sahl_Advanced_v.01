@@ -21,10 +21,7 @@ from app.models.tenant import (
 )
 
 MIGRATION = (
-    Path(__file__).resolve().parents[3]
-    / "migrations"
-    / "versions"
-    / "0002_tenant_foundation.py"
+    Path(__file__).resolve().parents[3] / "migrations" / "versions" / "0002_tenant_foundation.py"
 )
 
 
@@ -32,9 +29,7 @@ def migration_constant(name: str) -> str:
     """The literal assigned to a module level constant in the migration."""
     source = MIGRATION.read_text(encoding="utf-8")
     # The name may carry a type annotation, as down_revision does.
-    found = re.search(
-        rf"^{name}(?::[^=]+)? = r?[\"'](?P<value>.*)[\"']$", source, re.MULTILINE
-    )
+    found = re.search(rf"^{name}(?::[^=]+)? = r?[\"'](?P<value>.*)[\"']$", source, re.MULTILINE)
     assert found, f"{name} is not defined in {MIGRATION.name}"
     return found.group("value")
 

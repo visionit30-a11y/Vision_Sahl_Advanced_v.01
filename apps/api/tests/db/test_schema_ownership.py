@@ -115,8 +115,6 @@ def test_the_application_role_is_neither_superuser_nor_bypassrls(
     assert flags.rolbypassrls is False
 
 
-def test_the_two_roles_are_not_the_same_role(
-    application_role: str, migration_role: str
-) -> None:
+def test_the_two_roles_are_not_the_same_role(application_role: str, migration_role: str) -> None:
     """A single role doing both jobs would satisfy several tests above by accident."""
     assert application_role != migration_role
