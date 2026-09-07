@@ -29,14 +29,20 @@ def test_importing_the_application_emits_no_starlette_deprecation() -> None:
     Starlette name reached from our own modules fails here, so the next one is
     caught when it appears rather than when it is removed.
     """
-    import importlib
+    import runpy
     import warnings
 
     import app.core.errors
 
+    original_error_class = app.core.errors.AppError
+    module_path = app.core.errors.__file__
+    assert module_path is not None
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        importlib.reload(app.core.errors)
+        # Execute an isolated namespace: reloading the live module would replace
+        # AppError underneath subclasses imported by other tests.
+        runpy.run_path(module_path)
+    assert app.core.errors.AppError is original_error_class
 
     offenders = [
         str(entry.message)

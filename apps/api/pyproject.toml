@@ -65,3 +65,8 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q"
+# "db" marks the tests that need a real PostgreSQL. It exists so a developer can
+# run `pytest -m "not db"` while iterating; no quality gate uses that filter -
+# 03-test.ps1 and CI both run the whole suite, and a database that is not there
+# is a failure, not a skip.
+markers = ["db: needs a real PostgreSQL database"]
