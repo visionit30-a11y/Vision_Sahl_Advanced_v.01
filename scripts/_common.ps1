@@ -326,6 +326,7 @@ function Get-OwnedTreeRoot {
         $parent = Get-Process -Id $parentId -ErrorAction SilentlyContinue
         if ($null -eq $parent) { break }
         if ($OwnedProcessNames -notcontains $parent.ProcessName) { break }
+        if (-not (Test-ProcessBelongsToProject -ProcessId $parentId)) { break }
 
         $currentId = $parentId
     }

@@ -32,5 +32,7 @@ def test_guarded_launcher_fails_closed_without_killing_foreign_owner() -> None:
 def test_port_cleanup_requires_checkout_ownership_proof() -> None:
     source = (ROOT / "scripts/_common.ps1").read_text(encoding="utf-8")
     assert "function Test-ProcessBelongsToProject" in source
+    tree_root = source[source.index("function Get-OwnedTreeRoot") :]
+    assert "Test-ProcessBelongsToProject -ProcessId $parentId" in tree_root
     clear_port = source[source.index("function Clear-DevelopmentPort") :]
     assert "Test-ProcessBelongsToProject -ProcessId $owner.Id" in clear_port
