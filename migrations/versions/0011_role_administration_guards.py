@@ -51,5 +51,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(f"DROP FUNCTION {FUNCTION_SIGNATURE}")
-    op.drop_constraint("ck_roles_version_positive", "roles", schema="auth", type_="check")
+    op.drop_constraint("version_positive", "roles", schema="auth", type_="check")
     op.drop_column("roles", "version", schema="auth")
