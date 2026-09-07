@@ -20,5 +20,7 @@
 
 ## أثره على RLS (Phase 2)
 
-جلسة SQLAlchemy تسمح بتنفيذ `SET LOCAL app.tenant_id = ...` داخل حدود المعاملة قبل أي
-استعلام، وهو ما يتطلبه FR-MT-04. لا شيء في قرار Phase 0 يمنع ذلك.
+**استُبدلت هذه التوصية في [ADR-0015](ADR-0015-tenant-context-and-transactions.md).**
+يُضبط السياق داخل حد المعاملة عبر `SELECT set_config('app.tenant_id', :tenant_id, true)`
+بمعامل مربوط، بدل صيغة `SET LOCAL` التي لا تقبل معامل قيمة مربوطًا. يبقى قرار SQLAlchemy
+غير المتزامن وAlembic قائمًا؛ هذا الاستبدال يخص آلية سياق الجهة فقط.
