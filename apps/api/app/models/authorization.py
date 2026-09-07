@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -59,6 +60,7 @@ class Role(Base):
         UniqueConstraint("tenant_id", "id", name="uq_roles_tenant_id"),
         UniqueConstraint("tenant_id", "key", name="uq_roles_tenant_key"),
         CheckConstraint("key ~ '^[a-z][a-z0-9_]{0,62}$'", name="key_format"),
+        CheckConstraint("version > 0", name="version_positive"),
         {"schema": "auth"},
     )
 
@@ -80,6 +82,7 @@ class Role(Base):
         nullable=False,
         server_default=text("'active'::auth.role_status"),
     )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
