@@ -12,7 +12,7 @@ and the application shared one role every isolation policy would be one missing
 FORCE away from being inert - and its tests would pass for the wrong reason.
 The runtime URL is therefore never used as the migration URL, there is no
 fallback between them, and the role actually connected is verified before a
-single statement runs (ADR-0017).
+single migration statement runs (ADR-0017).
 """
 
 from __future__ import annotations
@@ -29,12 +29,11 @@ API_DIR = Path(__file__).resolve().parents[1] / "apps" / "api"
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from app.core.config import get_settings  # noqa: E402
-from app.db.base import Base  # noqa: E402
-
 # Importing the models registers them on Base.metadata; a model that is not
 # reachable from here is invisible to autogenerate.
 import app.models  # noqa: E402,F401
+from app.core.config import get_settings  # noqa: E402
+from app.db.base import Base  # noqa: E402
 
 config = context.config
 
@@ -101,13 +100,17 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        assert_not_running_as_the_application_role(connection)
+        # Configure before executing SQL: SQLAlchemy 2 would otherwise autobegin
+        # a transaction that Alembic treats as externally owned and never commits.
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
         )
         with context.begin_transaction():
+            # The role check is the first statement in Alembic's own transaction.
+            # A rejection rolls it back; a successful migration commits on exit.
+            assert_not_running_as_the_application_role(connection)
             context.run_migrations()
 
 
