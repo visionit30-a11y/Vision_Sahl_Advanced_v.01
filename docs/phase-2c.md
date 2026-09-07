@@ -1,6 +1,6 @@
 # Phase 2C — RBAC and Central Authorization Service
 
-**الحالة:** Groups 1–2 معتمدة؛ Group 3 منفذ محليًا وينتظر اعتماد المالك.
+**الحالة:** Groups 1–3 معتمدة؛ Group 4 منفذ محليًا وينتظر اعتماد المالك.
 
 **الأساس:** `phase-2b-baseline` عند
 `297eeaaaa40a9d66a42876505804699fd1e920ca`، و`main = develop` عند نقطة البدء.
@@ -89,3 +89,19 @@ UI permissions implementation أو Phase 2D.
 - بوابة G3 المستهدفة: **88 passed**. نجحت Ruff وMypy وحراس PostgreSQL وPhase 2A/2B/G2،
   وأثبت حارس التنظيف أربع جداول production تحمل `tenant_id` وبلا artifacts. بقي migration
   head هو `0010_tenant_rbac_foundation` بلا migration جديدة في G3.
+
+## تنفيذ وبوابة G4
+
+- أضيف `require_permission(Permission)` كحد FastAPI مركزي. يقرأ جلسة HttpOnly عبر resolver
+  Phase 2B، ويحصل على `AuthenticatedPrincipal` و`TenantContext` المثبتين، ثم يستدعي
+  `AuthorizationService`. لا route تقرأ role أو permission string أو تتخذ القرار.
+- ينتج ALLOW فقط `AuthorizationGrant` typed، وإنشاء هذا العقد محصور بحارس static في
+  dependency المركزية. DENY يعيد 403 عامة قبل استدعاء الخدمة، وغياب session يعيد 401.
+- أضيفت واجهتا قراءة محدودتان لمورد العضوية الموجود: العضوية الحالية والعضوية المحددة بـUUID.
+  لا تقبل الخدمة استدعاءً دون grant. UUID هو selector فقط؛ أي UUID غير العضوية المثبتة يعيد
+  404 موحدة لا تكشف هل المورد موجود أو تابع لجهة أخرى.
+- لا يمنح header أو frontend hint أي authority. يبقى قرار التفويض داخل الخدمة المركزية،
+  وقراءة RBAC الفعلية داخل `tenant_transaction()` وتحت RLS. لم تتغير سياسات RLS أو عقود
+  Phase 2A/2B/G2/G3، ولم يضف Business Module.
+- بوابة G4 المستهدفة: **112 passed**. نجحت Ruff وMypy وAlembic check وحراس PostgreSQL
+  والتنظيف والملكية والمنح، وبقي head `0010_tenant_rbac_foundation`.
