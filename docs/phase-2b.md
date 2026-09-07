@@ -1,6 +1,6 @@
 # Phase 2B — Identity, Authentication, Memberships and Server-Side Sessions
 
-**الحالة:** Group 4 — جلسات PostgreSQL وcookies وCSRF منفذة محليًا؛ تنتظر قبول المالك.
+**الحالة:** Group 5 — trusted membership resolution منفذ محليًا؛ ينتظر قبول المالك.
 
 **الأساس:** `phase-2a-baseline` عند `cc58409f13573b5269d740f63e8f801295eb7ea1`.
 
@@ -43,8 +43,8 @@ valid credentials/session
 | G1 | ADRs والقرارات الأمنية | مقبول للمتابعة عند `afdf2cd` |
 | G2 | users + tenant_memberships + schema | مقبول للمتابعة عند `cb3b09d` |
 | G3 | password credentials + Argon2id | مقبول للمتابعة عند `617441d` |
-| G4 | sessions + cookies + CSRF | منفذ محليًا؛ ينتظر قبول المالك |
-| G5 | trusted membership resolution → TenantContext | لم يبدأ |
+| G4 | sessions + cookies + CSRF | مقبول للمتابعة عند `2e5d79c` |
+| G5 | trusted membership resolution → TenantContext | منفذ محليًا؛ ينتظر قبول المالك |
 | G6 | throttling + reset foundation + security events | لم يبدأ |
 | G7 | frontend auth client + browser/security gates | لم يبدأ |
 | G8 | التحقق النهائي والتوثيق | لم يبدأ |
@@ -119,3 +119,20 @@ valid credentials/session
   يبقى CREATE وDELETE ووصول users/password_credentials مرفوضًا.
 - نجحت دورة `0007 → 0006 → 0007` و`alembic check`، وبقي head
   `0007_server_side_sessions`.
+
+## تنفيذ وبوابة G5
+
+- أضيف إلى session اختيار عضوية اختياري مزدوج `(selected_membership_id, version)` مع FK
+  مركب يثبت ملكيتها للمستخدم، بلا default tenant أو fallback لأول عضوية.
+- ينشئ المسار الموثوق `AuthenticatedPrincipal` ثم `TenantContext` بعد صلاحية session،
+  وحالة user، وملكية العضوية ونشاطها ونسختها، ونشاط tenant. كل selector من الطلب يبقى
+  selector فقط ولا يدخل في إنشاء السياق.
+- تبديل الجهة يعيد إثبات العضوية والجهة ثم يحدّث الاختيار ويدور bearer وCSRF في transaction؛
+  لا grace للقيم السابقة.
+- أضافت `0008_trusted_membership` وظيفة واحدة
+  `auth.resolve_active_membership(uuid,uuid,integer,integer)` بصلاحية `SECURITY DEFINER`،
+  وowner هو `sahl_migrator` و`search_path=pg_catalog`، بلا dynamic SQL أو `set_config`،
+  وبلا PUBLIC EXECUTE. منح `sahl_app` هو EXECUTE للتوقيع المحدد فقط؛ بقي SELECT المباشر
+  على `public.tenants` و`auth.tenant_memberships` مرفوضًا.
+- نجحت دورة `0008 → 0007 → 0008` و`alembic check`؛ head هو
+  `0008_trusted_membership`.
