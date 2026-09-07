@@ -420,10 +420,11 @@ ALTER SCHEMA public OWNER TO $migratorUser;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO $dbUser;
 
+-- Every table grants only the runtime operations it actually needs.
 ALTER DEFAULT PRIVILEGES FOR ROLE $migratorUser IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO $dbUser;
+    REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLES FROM $dbUser;
 ALTER DEFAULT PRIVILEGES FOR ROLE $migratorUser IN SCHEMA public
-    GRANT USAGE, SELECT ON SEQUENCES TO $dbUser;
+    REVOKE USAGE, SELECT ON SEQUENCES FROM $dbUser;
 "@
         [System.IO.File]::WriteAllText($grantPath, ($grantSql -replace "`r`n", "`n"), $utf8NoBom)
         Invoke-Native -File $psqlExe -Arguments @(
