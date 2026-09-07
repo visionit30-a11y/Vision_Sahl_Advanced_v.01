@@ -1,10 +1,9 @@
 """Fixtures for tests that talk to a real PostgreSQL database.
 
-Every test in this package connects as the *application* role. That is the
-whole point: row level security and object ownership can only be observed from
-the role the application actually uses, and a test that ran as the migration
-role would pass for the wrong reason. The connection is checked before it is
-handed over, so this cannot happen by accident.
+Access-control proofs connect as the application role. The migration role is
+used only for fixture DDL and rollback-only catalogue mutation checks; it must
+never stand in for runtime access. The effective application role is checked
+before a connection is handed to a test.
 
 There is no SQLite here and nothing is mocked. These tests fail when the
 database is unreachable rather than skipping, because a green suite that
@@ -22,6 +21,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.pool import NullPool
 
 from app.core.config import Settings, get_settings
+from tests.db.rls_probe import probe  # noqa: F401 - register the scoped fixture
 
 DB_TESTS_DIRECTORY = Path(__file__).resolve().parent
 
@@ -86,6 +86,10 @@ def app_connection(application_engine: Engine, application_role: str) -> Iterato
             f"These tests must run as the application role {application_role!r}, "
             f"but this connection is {current_user!r}. Running them as any other role - "
             "the migration role above all - would prove nothing about isolation."
+        )
+        assert (
+            connection.scalar(text("SELECT current_setting('server_version_num')::int")) // 10000
+            == 17
         )
         yield connection
         connection.rollback()
