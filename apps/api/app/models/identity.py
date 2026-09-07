@@ -22,6 +22,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import BYTEA
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -237,3 +238,62 @@ class PasswordCredential(Base):
             f"<PasswordCredential user_id={self.user_id} "
             f"credential_version={self.credential_version}>"
         )
+
+
+class AuthSession(Base):
+    """A PostgreSQL server-side session containing digests only."""
+
+    __tablename__ = "sessions"
+    __table_args__ = (
+        CheckConstraint("idle_expires_at <= absolute_expires_at", name="session_expiry_order"),
+        CheckConstraint(
+            "(revoked_at IS NULL AND revoked_reason IS NULL) OR "
+            "(revoked_at IS NOT NULL AND revoked_reason IN "
+            "('logout','revoke_all','concurrent_limit'))",
+            name="session_revocation_state",
+        ),
+        CheckConstraint("octet_length(bearer_digest) = 32", name="bearer_digest_length"),
+        CheckConstraint("octet_length(csrf_digest) = 32", name="csrf_digest_length"),
+        UniqueConstraint("bearer_digest", name="uq_sessions_bearer_digest"),
+        Index("ix_sessions_user_active", "user_id", "revoked_at", "created_at"),
+        {"schema": "auth"},
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        PostgresUUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PostgresUUID(as_uuid=True), ForeignKey("auth.users.id", ondelete="CASCADE"), nullable=False
+    )
+    bearer_digest: Mapped[bytes] = mapped_column(BYTEA, nullable=False)
+    csrf_digest: Mapped[bytes] = mapped_column(BYTEA, nullable=False)
+    security_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    authenticated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_reason: Mapped[str | None] = mapped_column(String(32))
+
+    def __repr__(self) -> str:
+        return f"<AuthSession id={self.id} user_id={self.user_id}>"
+
+
+class PreAuthCsrfState(Base):
+    """Short-lived digest-only state protecting pre-authentication mutations."""
+
+    __tablename__ = "preauth_csrf_states"
+    __table_args__ = (
+        CheckConstraint("octet_length(state_digest) = 32", name="state_digest_length"),
+        CheckConstraint("octet_length(csrf_digest) = 32", name="csrf_digest_length"),
+        CheckConstraint("expires_at > created_at", name="preauth_expiry_order"),
+        {"schema": "auth"},
+    )
+    state_digest: Mapped[bytes] = mapped_column(BYTEA, primary_key=True)
+    csrf_digest: Mapped[bytes] = mapped_column(BYTEA, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    def __repr__(self) -> str:
+        return f"<PreAuthCsrfState expires_at={self.expires_at!r}>"

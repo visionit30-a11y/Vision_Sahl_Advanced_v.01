@@ -8,8 +8,10 @@ is invisible to autogenerate.
 from __future__ import annotations
 
 from app.models.identity import (
+    AuthSession,
     MembershipStatus,
     PasswordCredential,
+    PreAuthCsrfState,
     TenantMembership,
     User,
     UserStatus,
@@ -17,8 +19,10 @@ from app.models.identity import (
 from app.models.tenant import Tenant
 
 __all__ = [
+    "AuthSession",
     "MembershipStatus",
     "PasswordCredential",
+    "PreAuthCsrfState",
     "Tenant",
     "TenantMembership",
     "User",

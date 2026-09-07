@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:6379/0"
 
     password_hash_concurrency: int = 2
+    session_idle_timeout_minutes: int = 30
+    session_absolute_timeout_hours: int = 8
+    max_concurrent_sessions: int = 5
+    session_last_seen_interval_seconds: int = 60
+    preauth_csrf_lifetime_minutes: int = 10
 
     @field_validator("password_hash_concurrency")
     @classmethod
