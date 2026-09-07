@@ -54,11 +54,11 @@ def test_predicate_normalization_preserves_function_calls_and_extra_clauses(
 def test_discovered_production_tenant_tables_obey_the_contract(
     app_connection: Connection, application_role: str, migration_role: str
 ) -> None:
-    """Zero production tenant-owned tables is valid; the probe test is nonvacuous."""
+    """The approved membership exception stays visible to the catalogue guard."""
     discovered = assert_tenant_catalog(
         app_connection, application_role=application_role, migration_role=migration_role
     )
-    assert "public.tenants" not in discovered
+    assert discovered == ["auth.tenant_memberships"]
 
 
 def test_discovery_enforces_the_contract_on_a_real_tenant_owned_table(
@@ -67,6 +67,7 @@ def test_discovery_enforces_the_contract_on_a_real_tenant_owned_table(
     discovered = assert_tenant_catalog(
         app_connection, application_role=application_role, migration_role=migration_role
     )
+    assert "auth.tenant_memberships" in discovered
     assert "public.tenant_scoped_probe" in discovered
     assert "public.tenants" not in discovered
 
@@ -150,6 +151,49 @@ def test_catalog_guard_rejects_weakened_probe_metadata(
     # them through this same owner connection, then the fixture rolls them back.
     for statement in statements:
         migration_connection.exec_driver_sql(statement)
+    with pytest.raises(AssertionError, match=reason):
+        assert_tenant_catalog(
+            migration_connection,
+            application_role=application_role,
+            migration_role=migration_role,
+        )
+
+
+@pytest.mark.parametrize(
+    ("statement", "reason"),
+    [
+        (
+            "ALTER TABLE auth.tenant_memberships ENABLE ROW LEVEL SECURITY",
+            "must not declare tenant RLS",
+        ),
+        (
+            "ALTER TABLE auth.tenant_memberships "
+            "DROP CONSTRAINT fk_tenant_memberships_tenant_id_tenants",
+            "must reference public.tenants",
+        ),
+        (
+            "ALTER TABLE auth.tenant_memberships ADD COLUMN business_payload text",
+            "columns must match",
+        ),
+        (
+            "GRANT SELECT ON auth.tenant_memberships TO sahl_app",
+            "runtime must have no direct data privileges",
+        ),
+        (
+            "GRANT SELECT ON auth.tenant_memberships TO PUBLIC",
+            "PUBLIC must have no direct data privileges",
+        ),
+    ],
+    ids=["rls-added", "tenant-fk-dropped", "business-column", "runtime-grant", "public-grant"],
+)
+def test_catalog_guard_rejects_a_broadened_membership_exception(
+    migration_connection: Connection,
+    application_role: str,
+    migration_role: str,
+    statement: str,
+    reason: str,
+) -> None:
+    migration_connection.exec_driver_sql(statement)
     with pytest.raises(AssertionError, match=reason):
         assert_tenant_catalog(
             migration_connection,

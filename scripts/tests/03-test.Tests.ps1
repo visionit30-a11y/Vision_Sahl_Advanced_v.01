@@ -42,6 +42,7 @@ if ($Scenario) {
         if ($Scenario -eq 'format_failure' -and $command -eq '-m ruff format --check .') { return 1 }
         if ($Scenario -eq 'autoformat_failure' -and $command -eq 'run format') { return 1 }
         if ($Scenario -eq 'prettier_failure' -and $command -eq 'run format:check') { return 1 }
+        if ($Scenario -eq 'browser_failure' -and $command -eq 'run test:browser') { return 1 }
         return 0
     }
 
@@ -135,7 +136,7 @@ $scenarios = @(
     'initial_upgrade_failure', 'downgrade_failure', 'downgrade_no_effect',
     'base_current_failure', 'final_upgrade_failure',
     'database_unavailable', 'sync_failure', 'lock_failure', 'pytest_failure', 'post_test_guard_failure',
-    'format_failure', 'autoformat_failure', 'prettier_failure', 'role_failure',
+    'format_failure', 'autoformat_failure', 'prettier_failure', 'browser_failure', 'role_failure',
     'exception', 'git_failure', 'final_git_failure'
 )
 $noPytest = @(

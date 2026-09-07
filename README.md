@@ -50,11 +50,20 @@ _logs/           سجلات التشغيل المحلية (خارج Git)
 scripts\00-check.ps1    # تقرير عن البيئة — لا يغيّر شيئًا
 scripts\01-setup.ps1    # تهيئة البيئة والحزم وقاعدة البيانات والمهاجرات
 scripts\02-run.ps1      # تشغيل الخلفية والواجهة
+scripts\06-update-and-run.ps1 # تشغيل محروس على المنافذ المحلية الثابتة
 scripts\03-test.ps1     # تشغيل بوابات الجودة كاملة
 scripts\05-stop.ps1     # إيقاف الخدمات
 ```
 
-بعد `02-run.ps1` افتح: **http://localhost:5173**
+روابط التشغيل المحلية المعتمدة:
+
+- Backend: **http://127.0.0.1:8010**
+- Health: **http://127.0.0.1:8010/health**، **/health/db**، **/health/redis**
+- Frontend: **http://localhost:5173**
+- Design System: **http://localhost:5173/design-system**
+
+المنفذ `8010` ثابت لسهل محليًا. لا تستخدم scripts المنفذ `8000` كـfallback ولا توقف
+عملية أخرى تحتجز منفذًا إلا عندما تثبت أن العملية تابعة لهذا checkout.
 
 كل سكربت يكتب سجلًا كاملًا في `_logs\`. التفاصيل وضمانات السلامة في `scripts/README.md`.
 

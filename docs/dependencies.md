@@ -15,6 +15,7 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 |---|---|---|
 | fastapi | إطار الـ API | TS-02 مقفل |
 | uvicorn[standard] | خادم ASGI | تشغيل FastAPI محليًا وفي الحاويات |
+| @playwright/test | اختبار Chromium حقيقي | بوابة أمان browser blocking في G7/G8 |
 | pydantic-settings | الإعدادات من متغيرات البيئة | TS-10: لا أسرار في الكود |
 | SQLAlchemy 2.x | طبقة الوصول للبيانات | ADR-0005 |
 | alembic | المهاجرات المتسلسلة | SRS §10 يوجب Migration لكل تغيير Schema |
@@ -42,6 +43,12 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 
 **ملاحظة:** uv **أداة تطوير وبناء**، لا تبعية من تبعيات المنتج ولا تدخل وقت التشغيل. وصورة
 الإنتاج لاحقًا تستطيع التثبيت بـ`pip` من ملف مصدَّر من القفل نفسه.
+
+## الخلفية — Phase 2B (معتمد)
+
+| المكتبة | الدور | المبرر |
+|---|---|---|
+| `argon2-cffi` 25.1.0 | تجزئة كلمات المرور والتحقق منها بـArgon2id | ADR-0019 · يثبت معاملات الذاكرة والزمن والتوازي صراحة، ويدعم PHC والتحقق من الحاجة إلى rehash؛ لا fallback إلى خوارزمية أضعف |
 
 ## الواجهة — Phase 1 (معتمد)
 

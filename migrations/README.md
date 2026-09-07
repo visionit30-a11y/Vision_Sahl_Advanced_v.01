@@ -16,6 +16,11 @@
 | `0002_tenant_foundation` | أساس الجهة ومخطط `app` |
 | `0003_tenant_context_function` | قارئ السياق transaction-local ومنحه المحددة |
 | `0004_runtime_privilege_boundary` | سحب المنح القديمة من `tenants` وdefault grants الواسعة |
+| `0005_auth_identity_foundation` | مخطط الهوية العالمي وجدولا المستخدمين والعضويات وحدود الوصول |
+| `0006_password_credentials` | اعتماد Argon2id المنفصل ونسخة الاعتماد وتاريخ تغييره |
+| `0007_server_side_sessions` | جلسات PostgreSQL digest-only وحالة pre-auth CSRF |
+| `0008_trusted_membership` | اختيار العضوية في الجلسة ووظيفة تحقق bootstrap محددة |
+| `0009_auth_security_controls` | عدادات PostgreSQL الذرية، reset tokens digest-only، وسجل أحداث الأمان |
 
 حل `0004_runtime_privilege_boundary` محل اسم `0004_tenant_isolation_policies` المخطط
 سابقًا، بعد اعتماد أن `public.tenants` جدول منصّة بلا tenant RLS وبلا منح runtime.
