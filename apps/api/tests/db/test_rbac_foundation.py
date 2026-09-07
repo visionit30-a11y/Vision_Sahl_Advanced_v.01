@@ -111,13 +111,13 @@ def rbac_fixture(
             {
                 "sa": session_a,
                 "ua": user_a,
-                "ba": bytes([1]) * 32,
-                "ca": bytes([2]) * 32,
+                "ba": tenant_a.bytes + session_a.bytes,
+                "ca": membership_a.bytes + user_a.bytes,
                 "ma": membership_a,
                 "sb": session_b,
                 "ub": user_b,
-                "bb": bytes([3]) * 32,
-                "cb": bytes([4]) * 32,
+                "bb": tenant_b.bytes + session_b.bytes,
+                "cb": membership_b.bytes + user_b.bytes,
                 "mb": membership_b,
             },
         )
