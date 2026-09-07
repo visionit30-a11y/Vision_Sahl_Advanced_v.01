@@ -140,8 +140,12 @@ jobs:
           echo "objects owned by sahl_app: $owned"
           test "$owned" = "0"
 
-      - name: Pytest
-        run: uv run pytest
+      - name: Pytest (all tests, no skipped security proof)
+        run: uv run pytest --strict-security-gates --tb=short
+
+      - name: Post-test artifact and RLS guard
+        if: always()
+        run: uv run python -m tests.db.verify_clean_database
 
   web:
     name: Web (lint, types, tests, build)

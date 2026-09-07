@@ -11,6 +11,8 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import create_app
 
+pytest_plugins = ["tests.security_gate"]
+
 
 def pytest_asyncio_loop_factories() -> dict[str, Callable[[], asyncio.AbstractEventLoop]]:
     """Use Psycopg-compatible loops without deprecated event-loop policies.

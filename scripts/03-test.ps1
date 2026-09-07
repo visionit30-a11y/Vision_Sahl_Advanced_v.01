@@ -172,12 +172,16 @@ try {
 
     Write-Section 'Backend - pytest'
     if ($migrationExit -eq 0) {
-        Add-Result 'pytest' (Invoke-Native -File $venvPython -Arguments @('-m', 'pytest') -WorkingDirectory $apiDir -AllowFailure)
+        Add-Result 'pytest' (Invoke-Native -File $venvPython -Arguments @('-m', 'pytest', '--strict-security-gates', '--tb=short') -WorkingDirectory $apiDir -AllowFailure)
     }
     else {
         Write-Fail 'pytest prerequisite failed: the migration round trip did not verify the current schema. No tests were run against an older schema.'
         Add-Result 'pytest (migration prerequisite)' 1
     }
+
+    # Runs after pytest even when a test failed: a failed teardown is blocking.
+    Write-Section 'Database - post-test artifact and RLS guard'
+    Add-Result 'post-test database guard' (Invoke-Native -File $venvPython -Arguments @('-m', 'tests.db.verify_clean_database') -WorkingDirectory $apiDir -AllowFailure)
 
     Write-Section 'Frontend - eslint'
     Add-Result 'eslint' (Invoke-Native -File $npmExe -Arguments @('run', 'lint') -WorkingDirectory $webDir -AllowFailure)

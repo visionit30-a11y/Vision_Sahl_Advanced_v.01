@@ -37,7 +37,8 @@ if ($Scenario) {
         Write-Host ('SIMULATED native: ' + $command)
         if ($Scenario -eq 'sync_failure' -and $command -eq 'sync --frozen') { return 1 }
         if ($Scenario -eq 'lock_failure' -and $command -eq 'lock --check') { return 1 }
-        if ($Scenario -eq 'pytest_failure' -and $command -eq '-m pytest') { return 1 }
+        if ($Scenario -eq 'pytest_failure' -and $command -eq '-m pytest --strict-security-gates --tb=short') { return 1 }
+        if ($Scenario -eq 'post_test_guard_failure' -and $command -eq '-m tests.db.verify_clean_database') { return 1 }
         if ($Scenario -eq 'format_failure' -and $command -eq '-m ruff format --check .') { return 1 }
         if ($Scenario -eq 'autoformat_failure' -and $command -eq 'run format') { return 1 }
         if ($Scenario -eq 'prettier_failure' -and $command -eq 'run format:check') { return 1 }
@@ -133,7 +134,7 @@ $scenarios = @(
     'empty_revision', 'multiple_heads', 'heads_failure', 'current_failure',
     'initial_upgrade_failure', 'downgrade_failure', 'downgrade_no_effect',
     'base_current_failure', 'final_upgrade_failure',
-    'database_unavailable', 'sync_failure', 'lock_failure', 'pytest_failure',
+    'database_unavailable', 'sync_failure', 'lock_failure', 'pytest_failure', 'post_test_guard_failure',
     'format_failure', 'autoformat_failure', 'prettier_failure', 'role_failure',
     'exception', 'git_failure', 'final_git_failure'
 )
@@ -158,6 +159,11 @@ foreach ($case in $scenarios) {
         $problems += 'pytest ran without a verified current schema'
     }
     if ($text -match 'SKIP|WARN') { $problems += 'a gate was downgraded to skip/warning' }
+    if ($case -in @('pass', 'pytest_failure', 'post_test_guard_failure')) {
+        if ($text -notmatch 'SIMULATED native: -m tests.db.verify_clean_database') {
+            $problems += 'post-test database guard did not run'
+        }
+    }
     if ($case -eq 'pass') {
         $sequence = @($output | Where-Object { "$_" -match '^SIMULATED (alembic:|native: -m pytest)' })
         $expectedSequence = @(
@@ -168,7 +174,7 @@ foreach ($case in $scenarios) {
             'SIMULATED alembic: current',
             'SIMULATED alembic: upgrade head',
             'SIMULATED alembic: current',
-            'SIMULATED native: -m pytest'
+            'SIMULATED native: -m pytest --strict-security-gates --tb=short'
         )
         if (($sequence -join '|') -ne ($expectedSequence -join '|')) { $problems += 'migration/pytest sequence was wrong' }
         if ($text -notmatch 'Actual Alembic revision: \(base / no revision\)') { $problems += 'downgrade state evidence was absent' }
