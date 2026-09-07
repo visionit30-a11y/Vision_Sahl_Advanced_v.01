@@ -1,4 +1,4 @@
-"""Production authentication composition that exposes only trusted typed access."""
+"""Database composition for resolving trusted authenticated tenant access."""
 
 from __future__ import annotations
 

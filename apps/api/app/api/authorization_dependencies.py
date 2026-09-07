@@ -8,12 +8,12 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.api.auth_dependencies import session_bearer_from_cookie
-from app.auth.runtime import trusted_access_from_bearer
 from app.auth.tenants import TrustedTenantAccess
 from app.authorization.contracts import AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
 from app.authorization.service import AuthorizationDecision, AuthorizationService
 from app.core.errors import AppError
+from app.db.authenticated_access import trusted_access_from_bearer
 
 
 class AuthorizationDeniedError(AppError):
