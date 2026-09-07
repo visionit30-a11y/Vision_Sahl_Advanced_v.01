@@ -19,6 +19,11 @@ SENSITIVE_KEYS = frozenset(
     {
         "password",
         "password_hash",
+        "bearer",
+        "session_bearer",
+        "state_token",
+        "csrf",
+        "x-csrf-token",
         "session_token",
         "reset_token",
         "csrf_token",

@@ -43,7 +43,9 @@ class AppError(Exception):
         super().__init__(self.message)
 
 
-_SENSITIVE_DETAIL_KEYS = frozenset({"password", "password_hash", "secret", "token", "input", "ctx"})
+_SENSITIVE_DETAIL_KEYS = frozenset(
+    {"password", "password_hash", "bearer", "csrf", "csrf_token", "secret", "token", "input", "ctx"}
+)
 
 
 def _safe_error_details(value: Any) -> Any:
