@@ -21,8 +21,8 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     """Base class for every ORM model.
 
-    No domain model exists in Phase 0. Tenant owned models arrive in Phase 2
-    together with PostgreSQL Row-Level Security.
+    Models are registered on this metadata by importing app.models, which is
+    what Alembic compares the database against.
     """
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)

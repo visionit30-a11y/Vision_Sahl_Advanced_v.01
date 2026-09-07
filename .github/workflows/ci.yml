@@ -111,9 +111,12 @@ jobs:
 
       # A full round trip, not just a forward run: a migration that cannot be
       # reversed is found here rather than during an incident.
+      # No DATABASE_URL override here any more. Alembic reads
+      # MIGRATION_DATABASE_URL from the job environment, so this step runs as
+      # the migration role because the code says so, not because the workflow
+      # swapped one variable for another - and the runtime URL stays pointed at
+      # the application role throughout, exactly as it is at run time.
       - name: Alembic migration round trip
-        env:
-          DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
         run: |
           set -euo pipefail
           uv run alembic upgrade head
@@ -122,8 +125,27 @@ jobs:
           uv run alembic current | tee "$RUNNER_TEMP/alembic-current.txt"
           grep -q '(head)' "$RUNNER_TEMP/alembic-current.txt"
 
-      - name: Pytest
-        run: uv run pytest
+      # Blocking, and only meaningful after the migrations have run: an object
+      # owned by the application role bypasses row level security unless the
+      # table forces it, so ownership is checked rather than assumed.
+      - name: The application role owns nothing
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          owned=$(psql -tAX -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci \
+            -c "SELECT count(*) FROM pg_class c
+                JOIN pg_roles r ON r.oid = c.relowner
+                WHERE r.rolname = 'sahl_app' AND c.relkind IN ('r','p','v','m','S');")
+          echo "objects owned by sahl_app: $owned"
+          test "$owned" = "0"
+
+      - name: Pytest (all tests, no skipped security proof)
+        run: uv run pytest --strict-security-gates --tb=short
+
+      - name: Post-test artifact and RLS guard
+        if: always()
+        run: uv run python -m tests.db.verify_clean_database
 
   web:
     name: Web (lint, types, tests, build)
