@@ -249,6 +249,76 @@ def test_nonexistent_reset_is_indistinguishable_at_database_boundary(
     app_connection.rollback()
 
 
+@pytest.mark.parametrize("state", ["expired", "revoked"])
+def test_expired_and_revoked_reset_tokens_are_rejected(
+    state: str, app_connection: Connection, settings: Settings
+) -> None:
+    user_id, reset_id = uuid.uuid7(), uuid.uuid7()
+    raw = uuid.uuid4().hex * 2
+    migration = create_engine(settings.required_migration_database_url, poolclass=NullPool)
+    try:
+        with migration.begin() as connection:
+            email = f"{state}-{user_id.hex}@example.test"
+            connection.execute(
+                text(
+                    "INSERT INTO auth.users(id,email,normalized_email,status) "
+                    "VALUES(:id,:e,:e,'active')"
+                ),
+                {"id": user_id, "e": email},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                    "VALUES(:id,'$argon2id$test')"
+                ),
+                {"id": user_id},
+            )
+            connection.execute(
+                text("""
+                INSERT INTO auth.password_reset_tokens
+                  (id,user_id,token_digest,created_at,expires_at,revoked_at)
+                VALUES(:id,:user,:digest,clock_timestamp()-interval '20 minutes',
+                  CASE WHEN :state='expired' THEN clock_timestamp()-interval '5 minutes'
+                       ELSE clock_timestamp()+interval '10 minutes' END,
+                  CASE WHEN :state='revoked' THEN clock_timestamp() END)
+                """),
+                {"id": reset_id, "user": user_id, "digest": token_digest(raw), "state": state},
+            )
+        assert (
+            app_connection.scalar(
+                text("SELECT auth.complete_password_reset(:d,'$argon2id$new',:v,'state')"),
+                {"d": token_digest(raw), "v": uuid.uuid7()},
+            )
+            is False
+        )
+        app_connection.rollback()
+    finally:
+        with migration.begin() as connection:
+            connection.execute(
+                text("DELETE FROM auth.password_credentials WHERE user_id=:id"), {"id": user_id}
+            )
+            connection.execute(text("DELETE FROM auth.users WHERE id=:id"), {"id": user_id})
+        migration.dispose()
+
+
+def test_g6_tables_cannot_persist_raw_secrets(app_connection: Connection) -> None:
+    columns = set(
+        app_connection.execute(
+            text("""
+            SELECT a.attname FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='auth'
+              AND c.relname IN ('throttle_buckets','password_reset_tokens','security_events')
+              AND a.attnum>0 AND NOT a.attisdropped
+            """)
+        ).scalars()
+    )
+    assert not columns.intersection(
+        {"email", "ip", "username", "password", "password_hash", "token", "bearer", "csrf"}
+    )
+    assert {"key_digest", "token_digest", "subject_digest"} <= columns
+
+
 async def test_reset_token_concurrent_use_has_exactly_one_winner(settings: Settings) -> None:
     passwords = PasswordService()
     old_hash = await passwords.hash_password(PASSWORD)
