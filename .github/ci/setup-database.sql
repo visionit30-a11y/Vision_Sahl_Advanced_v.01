@@ -20,6 +20,11 @@ CREATE ROLE sahl_app LOGIN PASSWORD 'ci_app_password'
 
 GRANT CONNECT ON DATABASE sahl_ci TO sahl_migrator, sahl_app;
 
+-- CREATE on this database permits schemas, not new databases or role changes.
+-- Runtime never receives this privilege, directly or through PUBLIC.
+REVOKE CREATE ON DATABASE sahl_ci FROM PUBLIC, sahl_app;
+GRANT CREATE ON DATABASE sahl_ci TO sahl_migrator;
+
 -- The migrator owns the schema so Alembic can create objects in it.
 ALTER SCHEMA public OWNER TO sahl_migrator;
 

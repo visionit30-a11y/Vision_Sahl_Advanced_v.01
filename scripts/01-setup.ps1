@@ -410,6 +410,9 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
         $grantSql = @"
 ALTER DATABASE $dbName OWNER TO $superUser;
 GRANT CONNECT ON DATABASE $dbName TO $migratorUser, $dbUser;
+-- CREATE on this database permits schemas; it is not the CREATEDB role flag.
+REVOKE CREATE ON DATABASE $dbName FROM PUBLIC, $dbUser;
+GRANT CREATE ON DATABASE $dbName TO $migratorUser;
 
 REASSIGN OWNED BY $dbUser TO $migratorUser;
 
@@ -428,6 +431,18 @@ ALTER DEFAULT PRIVILEGES FOR ROLE $migratorUser IN SCHEMA public
             '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', $dbName, '-f', $grantPath
         ) | Out-Null
         Write-Ok ('Schema "public" is owned by "' + $migratorUser + '"; "' + $dbUser + '" may use it and owns nothing')
+
+        # Read the effective privileges back, including grants inherited from PUBLIC.
+        # The migration role can create schemas in this database only; the
+        # application role must remain unable to create a schema.
+        $schemaCreate = Invoke-NativeCapture -File $psqlExe -Arguments @(
+            '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', $dbName, '-tAXc',
+            ("SELECT has_database_privilege('" + $migratorUser + "', current_database(), 'CREATE')::text || ' ' || has_database_privilege('" + $dbUser + "', current_database(), 'CREATE')::text;")
+        )
+        if ($schemaCreate.ExitCode -ne 0 -or $schemaCreate.Text.Trim() -ne 'true false') {
+            throw ('Database CREATE privileges must be migrator=true, application=false; received: ' + $schemaCreate.Text.Trim())
+        }
+        Write-Ok ('Database CREATE: ' + $migratorUser + '=true; ' + $dbUser + '=false')
 
         Write-Info 'Role privileges (is_superuser and bypasses_rls must both be f):'
         Invoke-Native -File $psqlExe -Arguments @(
