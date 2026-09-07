@@ -159,6 +159,7 @@ class TenantMembership(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "tenant_id", name="uq_tenant_memberships_user_tenant"),
         UniqueConstraint("id", "user_id", name="uq_tenant_memberships_id_user"),
+        UniqueConstraint("tenant_id", "id", name="uq_tenant_memberships_tenant_id"),
         CheckConstraint("version > 0", name="version_positive"),
         CheckConstraint(
             "(status = 'active' AND joined_at IS NOT NULL AND left_at IS NULL) OR "

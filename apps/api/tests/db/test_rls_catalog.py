@@ -58,7 +58,12 @@ def test_discovered_production_tenant_tables_obey_the_contract(
     discovered = assert_tenant_catalog(
         app_connection, application_role=application_role, migration_role=migration_role
     )
-    assert discovered == ["auth.tenant_memberships"]
+    assert discovered == [
+        "auth.membership_roles",
+        "auth.role_permissions",
+        "auth.roles",
+        "auth.tenant_memberships",
+    ]
 
 
 def test_discovery_enforces_the_contract_on_a_real_tenant_owned_table(
