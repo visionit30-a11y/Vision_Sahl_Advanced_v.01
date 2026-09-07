@@ -1,6 +1,6 @@
 # Phase 2C — RBAC and Central Authorization Service
 
-**الحالة:** Group 1 معتمد؛ Group 2 منفذ محليًا وينتظر اعتماد المالك.
+**الحالة:** Groups 1–2 معتمدة؛ Group 3 منفذ محليًا وينتظر اعتماد المالك.
 
 **الأساس:** `phase-2b-baseline` عند
 `297eeaaaa40a9d66a42876505804699fd1e920ca`، و`main = develop` عند نقطة البدء.
@@ -70,3 +70,22 @@ UI permissions implementation أو Phase 2D.
   والقيود المركبة، وحراس RLS والملكية والمنح، وحراس Phase 2A/2B المرتبطة. أثبت حارس
   التنظيف أربع جداول production تحمل `tenant_id` وبلا artifacts. النتيجة: **73 passed**،
   وRuff وMypy وAlembic check ناجحة.
+
+## تنفيذ وبوابة G3
+
+- أضيفت `AuthorizationService` كنقطة القرار الوحيدة بعقد typed يعيد `ALLOW` أو `DENY`
+  فقط من `AuthenticatedPrincipal` و`TenantContext` و`PermissionId`.
+- repository داخلي لا يصدر session أو جداول RBAC. يفتح `tenant_transaction()` بالسياق
+  المثبت، ويتحقق من الجلسة الحالية ونسخة العضوية وحالة المستخدم والعضوية والجهة عبر
+  resolver الموثوق في Phase 2B، ثم يحسب الصلاحية من `membership_roles` واتحاد
+  `role_permissions` للأدوار النشطة فقط.
+- لا cache أو Redis أو fallback. كل قرار يقرأ الحالة الحالية، لذلك يظهر تعطيل الدور أو حذف
+  permission أو assignment في القرار التالي مباشرة.
+- المدخل المفقود أو المزور، mismatch الجهة، membership قديمة، غياب الدور أو الصلاحية،
+  الدور غير النشط، وأي فشل dependency تنتج `DENY`. Permission ID صحيحة الصيغة لكنها غير
+  موجودة في catalog ترفض قبل فتح قاعدة البيانات.
+- حارس static يمنع قرار `authorize` ثانٍ أو وصولًا إلى جداول RBAC من ملفات التطبيق خارج
+  الخدمة المركزية وتعريفات النماذج، ويستمر حارسا permission literals وrole-name checks.
+- بوابة G3 المستهدفة: **88 passed**. نجحت Ruff وMypy وحراس PostgreSQL وPhase 2A/2B/G2،
+  وأثبت حارس التنظيف أربع جداول production تحمل `tenant_id` وبلا artifacts. بقي migration
+  head هو `0010_tenant_rbac_foundation` بلا migration جديدة في G3.
