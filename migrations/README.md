@@ -16,6 +16,7 @@
 | `0002_tenant_foundation` | أساس الجهة ومخطط `app` |
 | `0003_tenant_context_function` | قارئ السياق transaction-local ومنحه المحددة |
 | `0004_runtime_privilege_boundary` | سحب المنح القديمة من `tenants` وdefault grants الواسعة |
+| `0005_auth_identity_foundation` | مخطط الهوية العالمي وجدولا المستخدمين والعضويات وحدود الوصول |
 
 حل `0004_runtime_privilege_boundary` محل اسم `0004_tenant_isolation_policies` المخطط
 سابقًا، بعد اعتماد أن `public.tenants` جدول منصّة بلا tenant RLS وبلا منح runtime.

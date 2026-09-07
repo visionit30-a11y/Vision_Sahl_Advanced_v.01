@@ -1,6 +1,6 @@
 # Phase 2B — Identity, Authentication, Memberships and Server-Side Sessions
 
-**الحالة:** Group 1 — القرارات الأمنية موثقة؛ لا schema أو code منفذ بعد.
+**الحالة:** Group 2 — أساس الهوية والعضويات منفذ محليًا؛ ينتظر قبول المالك.
 
 **الأساس:** `phase-2a-baseline` عند `cc58409f13573b5269d740f63e8f801295eb7ea1`.
 
@@ -40,8 +40,8 @@ valid credentials/session
 
 | Group | المحتوى | الحالة |
 |---|---|---|
-| G1 | ADRs والقرارات الأمنية | منفذ توثيقيًا؛ ينتظر قبول المالك |
-| G2 | users + tenant_memberships + schema | لم يبدأ |
+| G1 | ADRs والقرارات الأمنية | مقبول للمتابعة عند `afdf2cd` |
+| G2 | users + tenant_memberships + schema | منفذ محليًا؛ ينتظر قبول المالك |
 | G3 | password credentials + Argon2id | لم يبدأ |
 | G4 | sessions + cookies + CSRF | لم يبدأ |
 | G5 | trusted membership resolution → TenantContext | لم يبدأ |
@@ -74,3 +74,17 @@ valid credentials/session
 - عقود Phase 2A محفوظة نصًا: مكتمل.
 - قرارات كلمات المرور والجلسات وCSRF والحدود والخصوصية موثقة: مكتمل.
 - لا code أو migration أو dependency في G1: ملتزم.
+
+## تنفيذ وبوابة G2
+
+- أنشأت Migration `0005_auth_identity_foundation` مخطط `auth` ونوعي الحالة وجدولي
+  `users` و`tenant_memberships` بملكية `sahl_migrator`.
+- المستخدم عالمي بلا `tenant_id`، والعضوية تحمل FK صريحًا إلى المستخدم والجهة، وقيدي
+  التفرد `(user_id, tenant_id)` و`(id, user_id)` استعدادًا لمرجع الجلسة المركب.
+- لا role/permission placeholder، ولا grants بيانات لـ`sahl_app` أو `PUBLIC`.
+- بقيت العضوية مرئية لحارس `tenant_id`. يطبق الحارس استثناء ADR-0018 المحدد، ويرفض
+  RLS غير المعتمد، أو حذف FK، أو إضافة عمود أعمال، أو منح runtime/PUBLIC.
+- دورة المهاجرة الجديدة فقط نجحت: `0005 → 0004 → 0005`. بقيت Phase 2A دون downgrade.
+- اختبارات القبول المستهدفة: **60 passed** مع strict security gates، ثم حارس التنظيف PASS
+  وأثبت جدول tenant-id إنتاجيًا واحدًا هو العضوية المعتمدة.
+- Migration head بعد التحقق: `0005_auth_identity_foundation`.
