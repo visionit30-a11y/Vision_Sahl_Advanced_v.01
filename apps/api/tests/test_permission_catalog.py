@@ -19,6 +19,8 @@ from app.models.authorization import InvalidRoleKeyError, RoleKey, RoleStatus, n
 
 APP_ROOT = Path(__file__).resolve().parents[1] / "app"
 CATALOG_FILE = APP_ROOT / "authorization" / "permissions.py"
+SERVICE_FILE = APP_ROOT / "authorization" / "service.py"
+RBAC_MODEL_FILE = APP_ROOT / "models" / "authorization.py"
 
 
 def test_catalog_is_complete_typed_and_unique() -> None:
@@ -81,4 +83,26 @@ def test_application_code_contains_no_role_name_decisions() -> None:
                 for item in operands
             ):
                 violations.append(f"{path.relative_to(APP_ROOT)}:{node.lineno}")
+    assert violations == []
+
+
+def test_authorization_service_is_the_only_decision_path() -> None:
+    violations: list[str] = []
+    protected_tables = {"auth.roles", "auth.role_permissions", "auth.membership_roles"}
+    for path in APP_ROOT.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if (
+                path not in {SERVICE_FILE, RBAC_MODEL_FILE}
+                and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "authorize"
+            ):
+                violations.append(f"decision:{path.relative_to(APP_ROOT)}:{node.lineno}")
+            if (
+                path not in {SERVICE_FILE, RBAC_MODEL_FILE}
+                and isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and any(table in node.value for table in protected_tables)
+            ):
+                violations.append(f"table:{path.relative_to(APP_ROOT)}:{node.lineno}")
     assert violations == []
