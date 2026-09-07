@@ -80,3 +80,13 @@ def test_the_two_urls_are_separate_settings() -> None:
     )
 
     assert settings.database_url != settings.required_migration_database_url
+
+
+@pytest.mark.parametrize("value", [0, 5])
+def test_password_hash_concurrency_is_bounded(value: int) -> None:
+    with pytest.raises(ValueError, match="concurrency"):
+        IsolatedSettings(password_hash_concurrency=value)
+
+
+def test_password_hash_concurrency_defaults_to_two() -> None:
+    assert IsolatedSettings().password_hash_concurrency == 2

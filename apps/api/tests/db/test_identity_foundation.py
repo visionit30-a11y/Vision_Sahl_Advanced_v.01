@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import Connection, text
 
-TABLES = ("users", "tenant_memberships")
+TABLES = ("users", "tenant_memberships", "password_credentials")
 
 
 def test_auth_schema_and_tables_are_migrator_owned(
@@ -29,6 +29,7 @@ def test_auth_schema_and_tables_are_migrator_owned(
         )
     ).all()
     assert [(row.relname, row.owner) for row in owners] == [
+        ("password_credentials", migration_role),
         ("tenant_memberships", migration_role),
         ("users", migration_role),
     ]

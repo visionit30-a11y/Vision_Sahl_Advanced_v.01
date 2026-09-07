@@ -1,6 +1,6 @@
 # Phase 2B — Identity, Authentication, Memberships and Server-Side Sessions
 
-**الحالة:** Group 2 — أساس الهوية والعضويات منفذ محليًا؛ ينتظر قبول المالك.
+**الحالة:** Group 3 — اعتماد كلمة المرور وArgon2id منفذ محليًا؛ ينتظر قبول المالك.
 
 **الأساس:** `phase-2a-baseline` عند `cc58409f13573b5269d740f63e8f801295eb7ea1`.
 
@@ -41,8 +41,8 @@ valid credentials/session
 | Group | المحتوى | الحالة |
 |---|---|---|
 | G1 | ADRs والقرارات الأمنية | مقبول للمتابعة عند `afdf2cd` |
-| G2 | users + tenant_memberships + schema | منفذ محليًا؛ ينتظر قبول المالك |
-| G3 | password credentials + Argon2id | لم يبدأ |
+| G2 | users + tenant_memberships + schema | مقبول للمتابعة عند `cb3b09d` |
+| G3 | password credentials + Argon2id | منفذ محليًا؛ ينتظر قبول المالك |
 | G4 | sessions + cookies + CSRF | لم يبدأ |
 | G5 | trusted membership resolution → TenantContext | لم يبدأ |
 | G6 | throttling + reset foundation + security events | لم يبدأ |
@@ -88,3 +88,17 @@ valid credentials/session
 - اختبارات القبول المستهدفة: **60 passed** مع strict security gates، ثم حارس التنظيف PASS
   وأثبت جدول tenant-id إنتاجيًا واحدًا هو العضوية المعتمدة.
 - Migration head بعد التحقق: `0005_auth_identity_foundation`.
+
+## تنفيذ وبوابة G3
+
+- أضيف `auth.password_credentials` في migration مستقلة وعكوسة
+  `0006_password_credentials` بعد 0005، بلا tenant_id أو RLS أو منح runtime/PUBLIC.
+- يخزن الجدول PHC لـArgon2id فقط، مع `credential_version` موجب و`changed_at`، ولا عمود
+  plaintext أو تشفير عكوس. لا يظهر hash في `repr` أو تفاصيل الخطأ أو السجلات.
+- تنفذ خدمة كلمة المرور NFC وسياسة 15–128 code points دون trim أو case folding، وتحسب
+  Argon2 خارج event loop وتحت semaphore؛ لا تستورد طبقة قاعدة البيانات ولا تفتح transaction.
+- القيم المقبولة بعد benchmark: memory 65536 KiB، time 3، parallelism 4، salt 16 bytes،
+  hash 32 bytes. النتائج: hash median/max 79.89/97.82 ms، verify 79.42/127.88 ms،
+  وعمليتا hash متوازيتان 150.78 ms.
+- نجحت دورة `0006 → 0005 → 0006` و`alembic check`، وبقي head
+  `0006_password_credentials`.
