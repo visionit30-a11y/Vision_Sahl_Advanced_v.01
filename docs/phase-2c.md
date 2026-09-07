@@ -1,6 +1,6 @@
 # Phase 2C — RBAC and Central Authorization Service
 
-**الحالة:** Group 1 — قرارات التصميم فقط.
+**الحالة:** Group 1 معتمد؛ Group 2 منفذ محليًا وينتظر اعتماد المالك.
 
 **الأساس:** `phase-2b-baseline` عند
 `297eeaaaa40a9d66a42876505804699fd1e920ca`، و`main = develop` عند نقطة البدء.
@@ -49,3 +49,24 @@ UI permissions implementation أو Phase 2D.
 - [x] RLS وFORCE وTenantContext وعقود Phase 2A/2B محفوظة.
 - [x] مصفوفة اختبارات IDOR وcross-tenant محددة للمجموعات اللاحقة.
 - [x] لا schema أو migration أو authorization implementation في G1.
+
+## تنفيذ وبوابة G2
+
+- أضيف catalog typed وحيد لست Permission IDs تخص الهوية والأدوار والجهات، مع تحقق
+  `<scope>.<resource>.<action>` ورفض المعرفات المكررة أو غير الصالحة وحارس يمنع نسخها في
+  ملفات التطبيق الأخرى.
+- أضيفت عقود `RoleId` و`RoleKey` و`RoleStatus` ونماذج `Role` و`RolePermission` و
+  `MembershipRole`. لا توجد خدمة قرار أو HTTP enforcement في هذه المجموعة.
+- أضافت migration العكوسة `0010_tenant_rbac_foundation` الجداول `auth.roles` و
+  `auth.role_permissions` و`auth.membership_roles`، والقيود المركبة التي تمنع ربط دور أو
+  عضوية من جهة أخرى.
+- تحمل الجداول الثلاثة `tenant_id UUID NOT NULL`، ويملكها `sahl_migrator`، وتطبق
+  `ENABLE` و`FORCE RLS` وسياسة واحدة محددة لـ`sahl_app` مع `USING` و`WITH CHECK`.
+  منح runtime هي CRUD غير قابلة للمنح اللازمة لإثبات RLS، بلا ownership أو DDL أو
+  `BYPASSRLS` أو منح لـPUBLIC.
+- نجحت دورة `0010 → 0009 → 0010` و`alembic check`، وبقي head
+  `0010_tenant_rbac_foundation`.
+- بوابة G2 المستهدفة تشمل domain/catalog، وSQL وORM، وغياب السياق، وعمليات cross-tenant،
+  والقيود المركبة، وحراس RLS والملكية والمنح، وحراس Phase 2A/2B المرتبطة. أثبت حارس
+  التنظيف أربع جداول production تحمل `tenant_id` وبلا artifacts. النتيجة: **73 passed**،
+  وRuff وMypy وAlembic check ناجحة.
