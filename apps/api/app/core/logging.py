@@ -18,6 +18,12 @@ import structlog
 SENSITIVE_KEYS = frozenset(
     {
         "password",
+        "password_hash",
+        "session_token",
+        "reset_token",
+        "csrf_token",
+        "cookie",
+        "set-cookie",
         "passwd",
         "secret",
         "token",
@@ -42,10 +48,20 @@ def _redact_sensitive(
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
     """Mask values whose key is known to be sensitive."""
-    for key in list(event_dict):
-        if key.lower() in SENSITIVE_KEYS:
-            event_dict[key] = MASK
-    return event_dict
+
+    def redact(value: Any) -> Any:
+        if isinstance(value, MutableMapping):
+            return {
+                key: MASK if str(key).lower() in SENSITIVE_KEYS else redact(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [redact(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(redact(item) for item in value)
+        return value
+
+    return redact(event_dict)
 
 
 def configure_logging(level: str = "INFO", log_format: str = "console") -> None:
