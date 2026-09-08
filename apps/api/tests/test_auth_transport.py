@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI, Request
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 
 from app.api import authorization_dependencies
@@ -111,7 +111,10 @@ async def test_me_serializes_only_identity_projection(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     identity = SessionIdentity(uuid.uuid7(), "member@example.test", uuid.uuid7())
-    monkeypatch.setattr(auth_http_service, "me", AsyncMock(return_value=identity))
+    identity_response = AsyncMock(return_value=identity)
+    monkeypatch.setattr(
+        type(auth_http_service), "me", lambda self, bearer: identity_response(bearer)
+    )
     response = await client.get("/auth/me", headers={"Cookie": f"__Host-sahl_session={BEARER}"})
     assert response.status_code == 200
     assert response.json() == {
@@ -179,7 +182,9 @@ async def test_csrf_rejects_foreign_origin_before_bootstrap(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     bootstrap = AsyncMock()
-    monkeypatch.setattr(auth_http_service, "bootstrap_csrf", bootstrap)
+    monkeypatch.setattr(
+        type(auth_http_service), "bootstrap_csrf", lambda self, *args: bootstrap(*args)
+    )
     response = await client.get(
         "/auth/csrf",
         headers={
@@ -197,7 +202,7 @@ async def test_switch_rejects_extra_selectors_and_redacts_validation_input(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     switch = AsyncMock()
-    monkeypatch.setattr(auth_http_service, "switch", switch)
+    monkeypatch.setattr(type(auth_http_service), "switch", lambda self, *args: switch(*args))
     response = await client.post(
         "/auth/tenant/switch",
         headers={"Cookie": f"__Host-sahl_session={BEARER}"},
@@ -285,7 +290,10 @@ async def test_real_ui_settings_dependency_enforces_csrf_origin_and_stale_tab_be
 async def test_logout_clears_secure_cookie(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(auth_http_service, "logout", AsyncMock(return_value=None))
+    logout_response = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        type(auth_http_service), "logout", lambda self, *args: logout_response(*args)
+    )
     response = await client.post(
         "/auth/logout", headers={"Cookie": f"__Host-sahl_session={BEARER}"}
     )
@@ -319,3 +327,31 @@ def test_startup_validation_error_does_not_echo_auth_hmac_key() -> None:
         )
     assert key not in str(caught.value)
     assert "input_value=" not in str(caught.value)
+
+
+@pytest.mark.parametrize("path", ["/auth/me", "/ui-settings/effective"])
+async def test_unexpected_errors_are_sanitized_and_not_cacheable(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    private_detail = "internal-test-detail-not-for-response"
+
+    async def fail_dependency() -> TrustedTenantAccess:
+        raise RuntimeError(private_detail)
+
+    async def fail_identity(self: object, bearer: str) -> SessionIdentity:
+        raise RuntimeError(private_detail)
+
+    app.dependency_overrides[authorization_dependencies.require_authenticated_access] = (
+        fail_dependency
+    )
+    monkeypatch.setattr(type(auth_http_service), "me", fail_identity)
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get(path, headers={"Cookie": f"__Host-sahl_session={BEARER}"})
+    assert response.status_code == 500
+    assert response.headers.get("Cache-Control") == "no-store"
+    assert response.json()["error"]["code"] == "internal_error"
+    assert private_detail not in response.text
+    assert BEARER not in response.text
