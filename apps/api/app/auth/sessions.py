@@ -11,6 +11,13 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
+from app.audit.contracts import (
+    SecurityAuditEvent,
+    SecurityEventResult,
+    SecurityEventType,
+    SecurityReasonCode,
+)
+
 BEARER_BYTES = 32
 CSRF_BYTES = 32
 IDLE_TIMEOUT = timedelta(minutes=30)
@@ -88,6 +95,7 @@ class IssuedPreAuth:
 
 class SessionStore(Protocol):
     async def current_time(self) -> datetime: ...
+    async def write_security_event(self, event: SecurityAuditEvent) -> None: ...
     async def save(self, record: SessionRecord) -> None: ...
     async def get_by_digest(self, digest: bytes) -> SessionRecord | None: ...
     async def active_for_user(self, user_id: uuid.UUID) -> list[SessionRecord]: ...
@@ -103,9 +111,14 @@ class MemorySessionStore:
     def __init__(self) -> None:
         self.sessions: dict[bytes, SessionRecord] = {}
         self.preauth: dict[bytes, PreAuthState] = {}
+        self.security_events: list[SecurityAuditEvent] = []
 
     async def current_time(self) -> datetime:
         return datetime.now(UTC)
+
+    async def write_security_event(self, event: SecurityAuditEvent) -> None:
+        # Contract-test evidence only; production uses the PostgreSQL writer.
+        self.security_events.append(event)
 
     async def save(self, record: SessionRecord) -> None:
         self.sessions[record.bearer_digest] = record
@@ -157,6 +170,15 @@ class SessionService:
             await self.store.replace(
                 replace(oldest, revoked_at=now, revoked_reason="concurrent_limit")
             )
+            await self.store.write_security_event(
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.SESSION_REVOKED,
+                    result=SecurityEventResult.SUCCESS,
+                    reason_code=SecurityReasonCode.CONCURRENT_LIMIT,
+                    user_id=oldest.user_id,
+                    session_id=oldest.id,
+                )
+            )
         bearer, csrf = _token(BEARER_BYTES), _token(CSRF_BYTES)
         record = SessionRecord(
             uuid.uuid7(),
@@ -189,17 +211,31 @@ class SessionService:
             await self.store.replace(record)
         return record
 
-    async def logout(self, bearer: str, *, now: datetime | None = None) -> bool:
+    async def _revoke(
+        self, bearer: str, event_type: SecurityEventType, *, now: datetime | None = None
+    ) -> bool:
         record = await self.store.get_by_digest(token_digest(bearer))
         if record is None or record.revoked_at is not None:
             return False
         await self.store.replace(
             replace(record, revoked_at=now or datetime.now(UTC), revoked_reason="logout")
         )
+        await self.store.write_security_event(
+            SecurityAuditEvent(
+                event_type=event_type,
+                result=SecurityEventResult.SUCCESS,
+                reason_code=SecurityReasonCode.LOGOUT,
+                user_id=record.user_id,
+                session_id=record.id,
+            )
+        )
         return True
 
+    async def logout(self, bearer: str, *, now: datetime | None = None) -> bool:
+        return await self._revoke(bearer, SecurityEventType.LOGOUT, now=now)
+
     async def revoke_current(self, bearer: str, *, now: datetime | None = None) -> bool:
-        return await self.logout(bearer, now=now)
+        return await self._revoke(bearer, SecurityEventType.SESSION_REVOKED, now=now)
 
     async def revoke_all(self, user_id: uuid.UUID, *, now: datetime | None = None) -> int:
         now = now or await self.store.current_time()
@@ -207,6 +243,15 @@ class SessionService:
         for record in await self.store.active_for_user(user_id):
             await self.store.replace(replace(record, revoked_at=now, revoked_reason="revoke_all"))
             count += 1
+        if count:
+            await self.store.write_security_event(
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.ALL_SESSIONS_REVOKED,
+                    result=SecurityEventResult.SUCCESS,
+                    reason_code=SecurityReasonCode.REVOKE_ALL,
+                    user_id=user_id,
+                )
+            )
         return count
 
     async def rotate_to_membership(

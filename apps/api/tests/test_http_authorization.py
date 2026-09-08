@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ from httpx import AsyncClient
 
 from app.api.authorization_dependencies import (
     get_authorization_service,
+    get_security_denial_auditor,
     require_authenticated_access,
     require_permission,
 )
@@ -80,6 +82,7 @@ def _authorize(
 
     app.dependency_overrides[require_authenticated_access] = trusted
     app.dependency_overrides[get_authorization_service] = lambda: authorizer
+    app.dependency_overrides[get_security_denial_auditor] = lambda: AsyncMock()
     return authorizer
 
 
@@ -155,9 +158,7 @@ async def test_role_administration_requires_the_typed_permission_before_executio
         )
 
     monkeypatch.setattr(type(role_administration_service), "create_role", create)
-    response = await client.post(
-        "/auth/roles", json={"key": "auditor", "display_name": "Auditor"}
-    )
+    response = await client.post("/auth/roles", json={"key": "auditor", "display_name": "Auditor"})
     assert response.status_code == 200
     assert response.json()["tenant_id"] == str(access.context.tenant_id)
     assert authorizer.calls[0][2] == PermissionId(Permission.TENANT_ROLES_MANAGE.value)
@@ -173,9 +174,7 @@ async def test_role_administration_denial_never_calls_the_service(
         raise AssertionError("service must not execute")
 
     monkeypatch.setattr(type(role_administration_service), "create_role", forbidden)
-    response = await client.post(
-        "/auth/roles", json={"key": "admin", "display_name": "Admin"}
-    )
+    response = await client.post("/auth/roles", json={"key": "admin", "display_name": "Admin"})
     assert response.status_code == 403
     assert response.json()["error"]["message"] == "The requested resource is not available."
 

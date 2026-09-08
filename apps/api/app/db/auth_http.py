@@ -16,8 +16,8 @@ from app.audit.contracts import (
     SecurityAuditEvent,
     SecurityEventResult,
     SecurityEventType,
-    SecurityReasonCode,
 )
+from app.audit.request_events import audited_auth_transaction
 from app.auth.controls import (
     PostgresThrottleStore,
     SecurityEventWriter,
@@ -34,7 +34,6 @@ from app.auth.sessions import IssuedSession, SessionRecord, SessionService, toke
 from app.auth.tenants import (
     PostgresMembershipAuthority,
     SessionRejectedError,
-    TenantAccessDeniedError,
     TrustedTenantService,
 )
 from app.core.config import get_settings
@@ -109,8 +108,9 @@ class AuthHttpService:
     """Own database transactions; expose identity projections and opaque session operations."""
 
     async def me(self, bearer: str) -> SessionIdentity:
-        async with _engine.begin() as connection:
+        async with audited_auth_transaction(_engine) as (connection, audit):
             sessions, record, identity = await _active_session(connection, bearer)
+            audit.session = record
             if record.selected_membership_id is not None:
                 await TrustedTenantService(
                     sessions, PostgresMembershipAuthority(connection)
@@ -141,14 +141,6 @@ class AuthHttpService:
                 settings.required_auth_hmac_key,
                 key_id=settings.auth_hmac_key_id,
             ).consume(ThrottleScope.CSRF_IP, request.client.host if request.client else "unknown")
-            if not decision.allowed:
-                await SecurityEventWriter(connection).write(
-                    SecurityAuditEvent(
-                        event_type=SecurityEventType.THROTTLING_TRIGGERED,
-                        result=SecurityEventResult.DENIED,
-                        reason_code=SecurityReasonCode.CSRF_BOOTSTRAP,
-                    )
-                )
         if not decision.allowed:
             raise AuthThrottledError()
         async with _engine.begin() as connection:
@@ -162,62 +154,38 @@ class AuthHttpService:
     async def switch(
         self, bearer: str, membership_selector: uuid.UUID, request: Request
     ) -> IssuedSession:
-        denied = False
-        async with _engine.begin() as connection:
+        async with audited_auth_transaction(_engine, request) as (connection, audit):
             sessions, record, _ = await _active_session(connection, bearer)
+            audit.session = record
             _validate_unsafe(request, record)
-            writer = SecurityEventWriter(connection)
             trusted = TrustedTenantService(sessions, PostgresMembershipAuthority(connection))
-            try:
-                switched = await trusted.switch(bearer, membership_selector)
-            except TenantAccessDeniedError:
-                denied = True
-                await writer.write(
-                    SecurityAuditEvent(
-                        event_type=SecurityEventType.MEMBERSHIP_DENIED,
-                        result=SecurityEventResult.DENIED,
-                        user_id=record.user_id,
-                        session_id=record.id,
-                        reason_code=SecurityReasonCode.MEMBERSHIP_UNAVAILABLE,
-                    )
+            switched = await trusted.switch(bearer, membership_selector)
+            issued = switched.issued_session
+            csrf = _bootstrap_token(issued.secrets.bearer)
+            issued = replace(
+                issued,
+                record=replace(issued.record, csrf_digest=token_digest(csrf)),
+                secrets=replace(issued.secrets, csrf_token=csrf),
+            )
+            await sessions.store.replace(issued.record)
+            await SecurityEventWriter(connection).write(
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.TENANT_SWITCH,
+                    result=SecurityEventResult.SUCCESS,
+                    user_id=issued.record.user_id,
+                    session_id=issued.record.id,
+                    membership_id=switched.access.principal.membership_id,
                 )
-            else:
-                issued = switched.issued_session
-                # Bootstrap and tenant rotation share one stable per-bearer token contract.
-                csrf = _bootstrap_token(issued.secrets.bearer)
-                issued = replace(
-                    issued,
-                    record=replace(issued.record, csrf_digest=token_digest(csrf)),
-                    secrets=replace(issued.secrets, csrf_token=csrf),
-                )
-                await sessions.store.replace(issued.record)
-                await writer.write(
-                    SecurityAuditEvent(
-                        event_type=SecurityEventType.TENANT_SWITCH,
-                        result=SecurityEventResult.SUCCESS,
-                        user_id=issued.record.user_id,
-                        session_id=issued.record.id,
-                        membership_id=switched.access.principal.membership_id,
-                    )
-                )
-        if denied:
-            raise TenantAccessDeniedError()
+            )
         return issued
 
     async def logout(self, bearer: str, request: Request) -> None:
-        async with _engine.begin() as connection:
+        async with audited_auth_transaction(_engine, request) as (connection, audit):
             sessions, record, _ = await _active_session(connection, bearer)
+            audit.session = record
             _validate_unsafe(request, record)
             if not await sessions.logout(bearer, now=await sessions.store.current_time()):
                 raise SessionRejectedError()
-            await SecurityEventWriter(connection).write(
-                SecurityAuditEvent(
-                    event_type=SecurityEventType.LOGOUT,
-                    result=SecurityEventResult.SUCCESS,
-                    user_id=record.user_id,
-                    session_id=record.id,
-                )
-            )
 
 
 auth_http_service = AuthHttpService()

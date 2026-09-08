@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -88,3 +89,26 @@ class SecurityEvent(Base):
 
     def __repr__(self) -> str:
         return "<SecurityEvent>"
+
+
+class _RoleSecurityEventIntent(Base):
+    """Private transaction proof, unreachable through runtime table grants."""
+
+    __tablename__ = "role_security_event_intents"
+    __table_args__ = ({"schema": "auth"},)
+    transaction_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    backend_pid: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    membership_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    target_membership_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    permission_id: Mapped[str | None] = mapped_column(String(120))
+    correlation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    attested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    def __repr__(self) -> str:
+        return "<RoleSecurityEventIntent>"

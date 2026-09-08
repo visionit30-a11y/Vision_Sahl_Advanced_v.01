@@ -219,7 +219,7 @@ async def test_reset_lifecycle_is_atomic_and_invalidates_credentials_and_session
                     text("SELECT count(*) FROM auth.security_events WHERE user_id=:id"),
                     {"id": user_id},
                 )
-                == 3
+                == 5
             )
     finally:
         with migration.begin() as connection:

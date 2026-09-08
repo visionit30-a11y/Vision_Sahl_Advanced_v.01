@@ -14,6 +14,12 @@ from typing import Protocol
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.audit.contracts import (
+    SecurityAuditEvent,
+    SecurityEventResult,
+    SecurityEventType,
+    SecurityReasonCode,
+)
 from app.audit.writer import SecurityEventWriter as SecurityEventWriter
 from app.security.passwords import PasswordService
 
@@ -88,6 +94,22 @@ class PostgresThrottleStore:
                 },
             )
         ).one()
+        if not row.allowed:
+            reasons = {
+                ThrottleScope.LOGIN_USERNAME: SecurityReasonCode.LOGIN_USERNAME,
+                ThrottleScope.LOGIN_IP: SecurityReasonCode.LOGIN_IP,
+                ThrottleScope.LOGIN_IP_USERNAME: SecurityReasonCode.LOGIN_IP_USERNAME,
+                ThrottleScope.RESET_USERNAME: SecurityReasonCode.RESET_USERNAME,
+                ThrottleScope.RESET_IP: SecurityReasonCode.RESET_IP,
+                ThrottleScope.CSRF_IP: SecurityReasonCode.CSRF_BOOTSTRAP,
+            }
+            await SecurityEventWriter(self.connection).write(
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.THROTTLING_TRIGGERED,
+                    result=SecurityEventResult.DENIED,
+                    reason_code=reasons[scope],
+                )
+            )
         return ThrottleDecision(row.allowed, row.request_count, row.retry_after_seconds)
 
 

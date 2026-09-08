@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict
 
 from app.api.auth_dependencies import session_bearer_from_cookie
+from app.api.authorization_dependencies import get_security_denial_auditor
 from app.auth.http import (
+    CsrfRejectedError,
     clear_session_cookie,
     expose_csrf_token,
     set_session_cookie,
@@ -71,11 +73,16 @@ async def memberships(bearer: SessionBearer) -> list[SessionMembershipResponse]:
 @router.get("/csrf", status_code=204)
 async def csrf(request: Request, response: Response, bearer: SessionBearer) -> None:
     settings = get_settings()
-    validate_csrf_bootstrap_origin(
-        request,
-        set(settings.auth_origin_list),
-        local_http_origin=settings.auth_local_http_origin,
-    )
+    try:
+        validate_csrf_bootstrap_origin(
+            request,
+            set(settings.auth_origin_list),
+            local_http_origin=settings.auth_local_http_origin,
+        )
+    except CsrfRejectedError as error:
+        await get_security_denial_auditor().request_denied(error, request, origin_failure=True)
+        raise
+
     expose_csrf_token(response, await auth_http_service.bootstrap_csrf(bearer, request))
 
 

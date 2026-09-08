@@ -63,6 +63,7 @@ def test_discovered_production_tenant_tables_obey_the_contract(
         "app.user_ui_settings",
         "auth.membership_roles",
         "auth.role_permissions",
+        "auth.role_security_event_intents",
         "auth.roles",
         "auth.tenant_memberships",
     ]

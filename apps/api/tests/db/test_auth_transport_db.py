@@ -15,6 +15,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.audit import request_events
 from app.auth.controls import SecurityEventWriter, ThrottleScope, sensitive_key_digest
 from app.auth.http import CsrfRejectedError, TenantContextChangedError
 from app.auth.postgres import PostgresSessionStore
@@ -74,6 +75,7 @@ async def transport_fixture(
     runtime = create_async_engine(settings.database_url, poolclass=NullPool)
     monkeypatch.setattr(auth_http, "_engine", runtime)
     monkeypatch.setattr(auth_http, "get_settings", lambda: config)
+    monkeypatch.setattr(request_events, "get_settings", lambda: config)
     user = uuid.uuid7()
     tenants = (uuid.uuid7(), uuid.uuid7())
     memberships = (uuid.uuid7(), uuid.uuid7())
@@ -216,11 +218,18 @@ async def test_tenant_switch_rotates_bearer_csrf_and_records_trusted_event(
             rotated.secrets.bearer, data.request(rotated.secrets.csrf_token, data.memberships[0])
         )
     with data.migrator.connect() as db:
-        event = db.execute(
-            text("SELECT event_type,membership_id FROM auth.security_events WHERE user_id=:user"),
+        events = db.execute(
+            text(
+                "SELECT event_type,membership_id FROM auth.security_events "
+                "WHERE user_id=:user ORDER BY id"
+            ),
             {"user": data.user},
-        ).one()
-        assert tuple(event) == ("tenant_switch", data.memberships[1])
+        ).all()
+        assert [tuple(event) for event in events] == [
+            ("tenant_switch", data.memberships[1]),
+            ("csrf_rejected", None),
+            ("membership_denied", None),
+        ]
 
 
 async def test_forged_membership_is_denied_without_recording_selector_as_proof(

@@ -241,6 +241,9 @@ async def test_real_ui_settings_dependency_enforces_csrf_origin_and_stale_tab_be
     )
     local = Settings(app_env="test", auth_local_http_origin=LOCAL_ORIGIN)
     monkeypatch.setattr(authorization_dependencies, "get_settings", lambda: local)
+    app.dependency_overrides[authorization_dependencies.get_security_denial_auditor] = lambda: (
+        AsyncMock()
+    )
     authorizer = AsyncMock()
     authorizer.authorize.return_value = (
         AuthorizationDecision.DENY
