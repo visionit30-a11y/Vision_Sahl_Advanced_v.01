@@ -6,14 +6,16 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.api.auth_dependencies import session_bearer_from_cookie
 from app.api.authorization_dependencies import get_security_denial_auditor
 from app.auth.http import (
     CsrfRejectedError,
+    clear_preauth_cookie,
     clear_session_cookie,
     expose_csrf_token,
+    set_preauth_cookie,
     set_session_cookie,
     validate_csrf_bootstrap_origin,
 )
@@ -99,3 +101,32 @@ async def switch_tenant(
 async def logout(request: Request, response: Response, bearer: SessionBearer) -> None:
     await auth_http_service.logout(bearer, request)
     clear_session_cookie(response)
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    email: str = Field(max_length=320, repr=False)
+    password: SecretStr = Field(max_length=1024, repr=False)
+
+
+@router.get("/preauth", status_code=204)
+async def preauth(request: Request, response: Response) -> None:
+    settings = get_settings()
+    validate_csrf_bootstrap_origin(
+        request,
+        set(settings.auth_origin_list),
+        local_http_origin=settings.auth_local_http_origin,
+    )
+    issued = await auth_http_service.bootstrap_preauth(request)
+    set_preauth_cookie(response, issued.state_token)
+    expose_csrf_token(response, issued.csrf_token)
+
+
+@router.post("/login", status_code=204)
+async def login(payload: LoginRequest, request: Request, response: Response) -> None:
+    issued = await auth_http_service.login(
+        payload.email, payload.password.get_secret_value(), request
+    )
+    clear_preauth_cookie(response)
+    set_session_cookie(response, issued.secrets.bearer)
+    expose_csrf_token(response, issued.secrets.csrf_token)

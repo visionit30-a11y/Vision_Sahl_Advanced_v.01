@@ -91,10 +91,11 @@ def test_auth_session_routes_are_registered_on_real_application(app: FastAPI) ->
         ("/auth/csrf", "get"),
         ("/auth/tenant/switch", "post"),
         ("/auth/logout", "post"),
+        ("/auth/login", "post"),
+        ("/auth/preauth", "get"),
     ):
         assert method in paths[path]
     assert not any("/auth/test/" in path for path in paths)
-    assert "/auth/login" not in paths
     assert "/auth/password/reset" not in paths
 
 

@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import uuid
 from dataclasses import dataclass, replace
+from functools import lru_cache
 
 from fastapi import Request
 from sqlalchemy import text
@@ -25,12 +26,23 @@ from app.auth.controls import (
     ThrottleService,
 )
 from app.auth.http import (
+    CSRF_HEADER,
+    PREAUTH_COOKIE,
+    CsrfRejectedError,
     require_session_bearer,
     validate_expected_membership,
+    validate_origin,
     validate_session_csrf,
 )
+from app.auth.password_authentication import PasswordAuthenticationService
 from app.auth.postgres import PostgresSessionStore
-from app.auth.sessions import IssuedSession, SessionRecord, SessionService, token_digest
+from app.auth.sessions import (
+    IssuedPreAuth,
+    IssuedSession,
+    SessionRecord,
+    SessionService,
+    token_digest,
+)
 from app.auth.tenants import (
     PostgresMembershipAuthority,
     SessionRejectedError,
@@ -39,6 +51,7 @@ from app.auth.tenants import (
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import _engine
+from app.security.passwords import PasswordService
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,8 +117,73 @@ class AuthThrottledError(AppError):
     message = "The request could not be completed. Try again later."
 
 
+@lru_cache
+def _password_authentication() -> PasswordAuthenticationService:
+    settings = get_settings()
+    return PasswordAuthenticationService(
+        _engine,
+        PasswordService(max_concurrency=settings.password_hash_concurrency),
+        settings.required_auth_hmac_key,
+        hmac_key_id=settings.auth_hmac_key_id,
+    )
+
+
 class AuthHttpService:
     """Own database transactions; expose identity projections and opaque session operations."""
+
+    async def bootstrap_preauth(self, request: Request) -> IssuedPreAuth:
+        settings = get_settings()
+        async with _engine.begin() as connection:
+            decision = await ThrottleService(
+                PostgresThrottleStore(connection),
+                settings.required_auth_hmac_key,
+                key_id=settings.auth_hmac_key_id,
+            ).consume(ThrottleScope.CSRF_IP, request.client.host if request.client else "unknown")
+        if not decision.allowed:
+            raise AuthThrottledError()
+        async with _engine.begin() as connection:
+            return await SessionService(PostgresSessionStore(connection)).issue_preauth()
+
+    async def login(self, email: str, password: str, request: Request) -> IssuedSession:
+        settings = get_settings()
+        validate_origin(
+            request,
+            set(settings.auth_origin_list),
+            local_http_origin=settings.auth_local_http_origin,
+        )
+        state = request.cookies.get(PREAUTH_COOKIE, "")
+        csrf = request.headers.get(CSRF_HEADER, "")
+        try:
+            require_session_bearer(state)
+            require_session_bearer(csrf)
+        except SessionRejectedError:
+            raise CsrfRejectedError() from None
+        # Consume once under the existing row lock, before Argon2 work. No DB
+        # transaction remains open during hashing. Every retry needs fresh preauth.
+        async with _engine.begin() as connection:
+            valid = await SessionService(PostgresSessionStore(connection)).consume_preauth(
+                state, csrf
+            )
+        if not valid:
+            raise CsrfRejectedError()
+        issued = await _password_authentication().login(
+            email, password, request.client.host if request.client else "unknown"
+        )
+        if issued is None:
+            raise SessionRejectedError()
+        # Use the established refresh-stable HTTP synchronizer token from issuance,
+        # so concurrent settings/bootstrap reads do not invalidate the new client state.
+        csrf = _bootstrap_token(issued.secrets.bearer)
+        issued = replace(
+            issued,
+            record=replace(issued.record, csrf_digest=token_digest(csrf)),
+            secrets=replace(issued.secrets, csrf_token=csrf),
+        )
+        async with _engine.begin() as connection:
+            sessions, current, _ = await _active_session(connection, issued.secrets.bearer)
+            issued = replace(issued, record=replace(current, csrf_digest=token_digest(csrf)))
+            await sessions.store.replace(issued.record)
+        return issued
 
     async def me(self, bearer: str) -> SessionIdentity:
         async with audited_auth_transaction(_engine) as (connection, audit):

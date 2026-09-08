@@ -14,10 +14,13 @@ type Account = Record<
   | 'membership_c'
   | 'role_a'
   | 'role_b'
-  | 'bearer',
+  | 'bearer'
+  | 'email'
+  | 'password',
   string
 >;
-const origin = 'http://localhost:5187';
+const origin =
+  process.env.SAHL_VERIFY_LOCAL_DEV === '1' ? 'http://localhost:5173' : 'http://localhost:5187';
 const testSecrets = new Set<string>();
 const CSRF_WINDOW_MS = 60_000;
 const CSRF_SCENARIO_BUDGET = 20;
@@ -528,5 +531,84 @@ test('real backend wins over legacy storage and network failure stays visible', 
       localStorage.removeItem('sahl.ui.platform');
       localStorage.removeItem('sahl.ui.tenant.preview-tenant');
     });
+  }
+});
+
+test('real login form establishes a fresh PostgreSQL session and selected tenant', async ({
+  page,
+  context,
+}) => {
+  const account = await database('seed_login');
+  rememberSecret(account.password);
+  try {
+    expect((await context.cookies()).length).toBe(0);
+    await page.goto('/login');
+    await page.locator('input[name="email"]').fill(account.email);
+    await page.locator('input[name="password"]').fill(account.password);
+    const loginResponse = page.waitForResponse((response) =>
+      response.url().endsWith('/auth/login'),
+    );
+    await page.locator('button[type="submit"]').click();
+    const loginHeaders = await (await loginResponse).allHeaders();
+    const cookieHeader = loginHeaders['set-cookie'] ?? '';
+    expect(
+      cookieHeader.includes('__Host-sahl_session=') &&
+        /HttpOnly/i.test(cookieHeader) &&
+        /Secure/i.test(cookieHeader) &&
+        /SameSite=Lax/i.test(cookieHeader) &&
+        /Path=\//i.test(cookieHeader) &&
+        !/Domain=/i.test(cookieHeader),
+    ).toBe(true);
+    await expect(page.getByRole('button', { name: 'A', exact: true })).toBeVisible();
+    const cookies = await context.cookies();
+    const cookie = cookies.find((item) => item.name === '__Host-sahl_session');
+    expect(Boolean(cookie)).toBe(true);
+    expect(
+      cookie?.secure && cookie.httpOnly && cookie.sameSite === 'Lax' && cookie.path === '/',
+    ).toBe(true);
+    await page.getByRole('button', { name: 'A', exact: true }).click();
+    await expect
+      .poll(async () =>
+        page.evaluate(async () => {
+          const me = await fetch('/auth/me', { cache: 'no-store' });
+          const data = await me.json();
+          return Boolean(data.selectedMembershipId);
+        }),
+      )
+      .toBe(true);
+    const proof = await page.evaluate(async () => {
+      const response = await fetch('/ui-settings/effective', { cache: 'no-store' });
+      return response.status;
+    });
+    expect(proof).toBe(200);
+    await page.reload();
+    expect((await protectedApi(() => page.request.get('/auth/me'))).status()).toBe(200);
+    await expect(page.getByRole('button', { name: 'B', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'B', exact: true }).click();
+    await expect
+      .poll(async () =>
+        page.evaluate(async () => {
+          const response = await fetch('/ui-settings/effective', { cache: 'no-store' });
+          return (await response.json()).settings?.theme;
+        }),
+      )
+      .toBe('green-institutional');
+    await page.evaluate(async () => {
+      const path = '/src/auth/client.ts';
+      const { authClient } = await import(path);
+      await authClient.me();
+      await authClient.bootstrapCsrf();
+      await authClient.request('/ui-settings/user', {
+        method: 'PUT',
+        body: JSON.stringify({ settings: { theme: 'sand-warm' }, expected_version: null }),
+      });
+      await authClient.logout();
+    });
+    expect((await protectedApi(() => page.request.get('/auth/me'))).status()).toBe(401);
+    expect((await context.cookies()).some((item) => item.name === '__Host-sahl_session')).toBe(
+      false,
+    );
+  } finally {
+    await database('cleanup', account);
   }
 });

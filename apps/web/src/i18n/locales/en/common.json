@@ -39,5 +39,15 @@
   "notFound": {
     "title": "Page not found",
     "description": "The address you opened is not valid or is no longer available."
+  },
+  "login": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "failure": "Unable to sign in or complete the request. Please try again.",
+    "ready": "Signed in with a selected tenant.",
+    "selectTenant": "Select a tenant to continue.",
+    "logout": "Sign out"
   }
 }

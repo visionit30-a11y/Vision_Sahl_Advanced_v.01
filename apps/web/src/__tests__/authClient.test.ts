@@ -126,3 +126,24 @@ describe('AuthClient settings invalidation events', () => {
     client.close();
   });
 });
+
+it('bootstraps preauth before password login and uses rotated session CSRF', async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'preauth' } }))
+    .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'session-csrf' } }))
+    .mockResolvedValueOnce(reply({ id: 'u', selectedMembershipId: null }))
+    .mockResolvedValueOnce(reply());
+  const client = new AuthClient({ fetcher });
+  await client.login('test@example.test', 'test password input');
+  expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+    '/auth/preauth',
+    '/auth/login',
+    '/auth/me',
+  ]);
+  expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).get('X-CSRF-Token')).toBe('preauth');
+  await client.request('/auth/logout', { method: 'POST' });
+  expect(new Headers(fetcher.mock.calls[3]?.[1]?.headers).get('X-CSRF-Token')).toBe('session-csrf');
+  expect(localStorage.length + sessionStorage.length).toBe(0);
+  client.close();
+});
