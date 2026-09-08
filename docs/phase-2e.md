@@ -253,3 +253,11 @@ PASS، بلا advisories. لا تغيير لكود التطبيق أو RLS/RBAC/
 التفاصيل والإصدارات والأوامر وحدود الإثبات في [تقرير G5](phase-2e-g5-verification.md).
 الحالة المحلية19 PASS /3 PARTIAL؛ لا ادعاء بتشغيل GitHub CI أو اعتماد production controls.
 G6 والإغلاق النهائي ينتظران موافقة المالك، ولا push/PR/deployment في هذه المجموعة.
+
+
+## G6 — final review
+
+The owner approved G6 only. Accepted G5 local evidence is retained without unnecessary reruns.
+The item-by-item review and production boundaries are recorded in
+[the G6 report](phase-2e-g6-verification.md). Final remote CI and required-check enforcement
+remain explicit acceptance requirements; no merge or Phase3 work is authorized.

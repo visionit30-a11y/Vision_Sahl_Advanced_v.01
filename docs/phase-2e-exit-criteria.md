@@ -1,6 +1,6 @@
 # Phase 2E — Exit Criteria
 
-**الحالة:** إثبات G5 المحلي بتاريخ 2026-09-08؛ الإغلاق النهائي وGitHub CI ينتظران الاعتماد.
+**الحالة:** مراجعة G6 بتاريخ 2026-09-08؛ الأدلة المحلية معتمدة، وGitHub required checks وCI النهائي قيد الإغلاق.
 **الأساس:** `phase-2d-baseline` — `1677d114c5736c4032b862ddf0b58517490d1317`.
 **Migration الحالية:** `0016_security_audit_retention`؛ أُثبتت على PostgreSQL معزول.
 
@@ -24,7 +24,7 @@
 | 12 | SQLAlchemy/driver/config لا يكشف أسرارًا | hide_parameters/echo/DSN repr guards وDB failure canaries | PASS — G3 |
 | 13 | metadata وcontext آمنان | route template، internal correlation، request-ID compatibility وfinally/concurrency | PASS — G3 |
 | 14 | retention وpurge محدودتان | cutoff وTTL وbatches والتزامن وrollback event failure في DB disposable | PASS — G4 |
-| 15 | حدود التشغيل والنسخ موثقة ومثبتة بقدر البيئة | maintenance grants، DB/proxy log settings، restore/backup retention واعتماد التشغيل | PARTIAL — G4 |
+| 15 | حدود التشغيل والنسخ موثقة ومثبتة بقدر البيئة | maintenance grants، DB/proxy log settings، restore/backup retention واعتماد التشغيل | PASS — G6، حدود البيئة موثقة؛ لا ادعاء production |
 | 16 | لا أسرار في تاريخ Git أو snapshot المتتبع | Gitleaks + nested env guards + redacted scanner output tests | PASS — G5 |
 | 17 | تبعيات Python/npm مدققة بالكامل | frozen inventories، markers/dev/optional coverage، كل advisory بلا استثناء تفشل | PASS — G5 |
 | 18 | scanners fail closed والاستثناءات ضيقة | outage/invalid output/missing lock/skip ورفض كل استثناء غير معتمد | PASS — G5 |
@@ -33,7 +33,7 @@
 | 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PASS — G5 |
 | 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G5 |
 
-**النتيجة الحالية:** 19 معيارًا مثبتًا محليًا و3 جزئية؛ Phase 2E لم تُغلق نهائيًا.
+**النتيجة الحالية:** 20 معيارًا PASS و2 قيد الإثبات الخارجي (#19 و#22)؛ لم تكتمل موافقة PR بعد.
 
 دليل G5: **996 Backend PASS /225 Frontend PASS (29files) /7 Playwright PASS**، بلا SKIP/XFAIL.
 Gitleaks على453 ملفًا متتبعًا والتاريخ/merge diffs و26 text artifacts PASS؛ pip-audit على50
@@ -41,7 +41,7 @@ project +1 build +28 scanner، وnpm على350 nodes بلاadvisories.
 Ruff/Mypy/ESLint/TypeScript/Prettier/build/Alembic/head→base→head/RLS/ownership/cleanup
 وG4 retention PASS. [التفاصيل](phase-2e-g5-verification.md).
 
-- معيار15 جزئي: capability/runner/DB logs المعزولة مثبتة؛ production proxy/backup/job خارج التنفيذ.
+- معيار15 PASS ضمن البيئة المصرح بها: capability/runner/DB logs المعزولة مثبتة، وحدود production proxy/backup/job وخطوات الاعتماد قبل النشر موثقة في تقرير G6. هذا لا يثبت إعدادات production أو سياسة النسخ الفعلية.
 - معيار19 جزئي: workflow/scanner contracts مثبتة محليًا؛ GitHub run وربط required checks
   بالـSHA الفعلي يُثبتان في الإغلاق المصرح لاحقًا. لا تعديل لإعدادات GitHub هنا.
 - معيار22 جزئي: النطاق والتقريرين المستثنيين وملفات المنتج ثابتة في G5؛ مراجعة المرحلة وCI/PR
@@ -62,3 +62,7 @@ PASS. لا تُجمع هذه الأعداد على996 لأنها داخلة في
 - تحفظ الأدلة المنقحة فقط، ويرتبط تقرير CI بالـSHA والفرع والحدث الفعلي؛ source/PR/merge مستقلة.
 - يبقى اعتماد production retention/backup/log sink configuration صريحًا؛ لا يمكن لاختبار محلي
   أن يثبت سياسة نسخ أو إعداد proxy لم تتم مراجعتهما.
+
+## مراجعة G6
+
+راجع [تقرير الإغلاق](phase-2e-g6-verification.md) لأدلة كل مجموعة وحدود التشغيل وحالة GitHub الفعلية.
