@@ -2,7 +2,7 @@
 
 **الحالة:** مراجعة G6 بتاريخ 2026-09-08؛ الأدلة المحلية معتمدة، وGitHub required checks وCI النهائي قيد الإغلاق.
 **الأساس:** `phase-2d-baseline` — `1677d114c5736c4032b862ddf0b58517490d1317`.
-**Migration الحالية:** `0016_security_audit_retention`؛ أُثبتت على PostgreSQL معزول.
+**Migration الحالية:** `0017_foundation_fk_indexes`؛ أُثبتت على PostgreSQL معزول.
 
 المرجع: [ADR-0025](adr/ADR-0025-security-audit-and-hardening.md) و[خطة Phase 2E](phase-2e.md).
 
@@ -28,12 +28,12 @@
 | 16 | لا أسرار في تاريخ Git أو snapshot المتتبع | Gitleaks + nested env guards + redacted scanner output tests | PASS — G5 |
 | 17 | تبعيات Python/npm مدققة بالكامل | frozen inventories، markers/dev/optional coverage، كل advisory بلا استثناء تفشل | PASS — G5 |
 | 18 | scanners fail closed والاستثناءات ضيقة | outage/invalid output/missing lock/skip ورفض كل استثناء غير معتمد | PASS — G5 |
-| 19 | CI أقل صلاحيات وبوابات حاجزة فعلًا | SHA pins/timeouts/contents:read، required checks verified للنطاق المصرح | PARTIAL — G5 |
+| 19 | CI أقل صلاحيات وبوابات حاجزة فعلًا | SHA pins/timeouts/contents:read، required checks verified للنطاق المصرح | PASS — خمس required checks وstrict على main/develop |
 | 20 | browser proof وعدم تغير Design System | Playwright حقيقي: 5187 → FastAPI8010 → PostgreSQL، لا secrets storage/console/artifacts | PASS — G5 |
 | 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PASS — G5 |
-| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G5 |
+| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — GitHub promotion evidence |
 
-**النتيجة الحالية:** 20 معيارًا PASS و2 قيد الإثبات الخارجي (#19 و#22)؛ لم تكتمل موافقة PR بعد.
+**النتيجة الحالية:** 21 معيارًا PASS و1 قيد الإثبات الخارجي (#22)؛ لم تكتمل موافقة PR بعد.
 
 دليل G5: **996 Backend PASS /225 Frontend PASS (29files) /7 Playwright PASS**، بلا SKIP/XFAIL.
 Gitleaks على453 ملفًا متتبعًا والتاريخ/merge diffs و26 text artifacts PASS؛ pip-audit على50
@@ -66,3 +66,8 @@ PASS. لا تُجمع هذه الأعداد على996 لأنها داخلة في
 ## مراجعة G6
 
 راجع [تقرير الإغلاق](phase-2e-g6-verification.md) لأدلة كل مجموعة وحدود التشغيل وحالة GitHub الفعلية.
+
+
+## Foundation closure addendum
+
+The owner authorized minimal public password login, explicit localhost:5173 development auth, obsolete browser-spec retirement and three reviewed FK indexes before Phase 3A. See [the bounded closure record](foundation-pre-phase3-closure.md) for current counts, the real login proof on both origins and index decisions. Historical G5 counts above remain historical; the current local evidence is Backend 1002 / Frontend 226 / Chromium 8 plus the separate 5173 journey. Final GitHub acceptance is recorded in the protected PR and merge-commit CI history; local success never substitutes for those runs.
