@@ -81,3 +81,13 @@ Jobs · Next.js/Angular/Vue · Django/Flask/NestJS · MySQL/SQLite/MongoDB كق�
 | مجموعة أيقونات مفتوحة الترخيص | بانتظار الاعتماد | ADR-0009 |
 
 أنماط معتمدة للواجهة: **CSS Modules + Design Tokens + CSS Variables**.
+
+## أدوات الفحص الأمني — Phase 2E G5
+
+Gitleaks8.30.1 وpip-audit2.10.1 وnpm11.11.0 أدوات CI محلية معزولة وحاجزة.
+Gitleaks/npm لهما archive checksums ثابتة؛ pip-audit وتوابعه مقفلة بالـhashes في
+`.github/ci/pip-audit.lock.txt`. النسخة الموجودة سابقًا `setuptools84.0.0` مثبتة في
+`.github/ci/python-build.lock.txt`، مع إعداد `[extra-build-dependencies]` في `uv-build.toml`
+ليفرضها CI عند بناء sahl-api. أُثبت تطبيق القيد باختبار إيجابي وسلبي.
+لا تعديل لـuv.lock أوpackage-lock أوdependencies المنتج.
+انظر [سياسة الفحص والنتائج](phase-2e-g5-verification.md).

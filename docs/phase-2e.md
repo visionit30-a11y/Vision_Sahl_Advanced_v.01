@@ -228,3 +228,28 @@ cleanup و0016→0015→0016 PASS. PostgreSQL المعزول أُوقف وحُذ
 لم يُشغّل GitHub CI أو scanners. التفاصيل في [عقد G4 وأدلة التحقق](phase-2e-g4-retention.md).
 
 G4 operationally verified محليًا، بلا blocker. G5 لم تبدأ، وPhase2E لم تُغلق نهائيًا.
+
+## G5 — الفحوص الأمنية الحاجزة والإثبات المحلي
+
+أضيف Gitleaks8.30.1 وpip-audit2.10.1 وnpm11.11.0 ببوابات fail-closed وتثبيت أدوات مستقل
+عن المنتج. حصر Python شامل للـmarkers/dev/build/scanner، وحصر npm كامل للقفل، دون upgrade
+أو تعديل uv.lock/package-lock. قيد setuptools84.0.0 الموجود سابقًا مثبت خارجيًا بالطريقة
+المدعومة في uv0.12.10، مع إثبات sync إيجابي وسلبي على بيئة معزولة.
+
+مسار Python المنفذ في G5 يستخدم pylock export مع --frozen --all-groups --all-extras
+--no-emit-project، ومطابقة دقيقة لجميع name/version، بدل اقتراح requirements القديم أعلاه
+الذي قد يسقط markers. تفاصيل الطريقة الفعلية مثبتة في تقرير G5.
+
+كل advisory أو scanner outage/skip/malformed result/incomplete inventory تفشل البوابة؛ سجل
+الاستثناءات فارغ. مصدر Git والتاريخ بما فيه merge diffs، وartifacts النصية المعتمدة، ومخرجات
+commands في الذاكرة، كلها تُفحص دون نشر raw logs. أضيفت صلاحيات workflow محدودة وSHA pins
+وtimeouts، وفحوص سالبة لعدّ الاختبارات وعمليات child/grandchild والتقرير المنقح.
+
+**Backend996 PASS / Frontend225 PASS (29files) / Playwright7 PASS**. جميع quality/database/
+RLS/ownership/cleanup وG4 retention وmigration round-trip PASS. Gitleaks/pip-audit/npm audit
+PASS، بلا advisories. لا تغيير لكود التطبيق أو RLS/RBAC/Auth/UI/retention في G5. صُحح فقط
+تصنيف حارس المصدر لأداة صيانة G4 المستقلة مع20 حارسًا إضافيًا؛ لا استثناء شامل للخدمات.
+
+التفاصيل والإصدارات والأوامر وحدود الإثبات في [تقرير G5](phase-2e-g5-verification.md).
+الحالة المحلية19 PASS /3 PARTIAL؛ لا ادعاء بتشغيل GitHub CI أو اعتماد production controls.
+G6 والإغلاق النهائي ينتظران موافقة المالك، ولا push/PR/deployment في هذه المجموعة.

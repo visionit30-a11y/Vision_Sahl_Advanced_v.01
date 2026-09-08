@@ -1,6 +1,6 @@
 # Phase 2E — Exit Criteria
 
-**الحالة:** إثبات G4 المحلي بتاريخ 2026-09-08؛ بقية معايير المرحلة تنتظر مجموعاتها.
+**الحالة:** إثبات G5 المحلي بتاريخ 2026-09-08؛ الإغلاق النهائي وGitHub CI ينتظران الاعتماد.
 **الأساس:** `phase-2d-baseline` — `1677d114c5736c4032b862ddf0b58517490d1317`.
 **Migration الحالية:** `0016_security_audit_retention`؛ أُثبتت على PostgreSQL معزول.
 
@@ -25,24 +25,30 @@
 | 13 | metadata وcontext آمنان | route template، internal correlation، request-ID compatibility وfinally/concurrency | PASS — G3 |
 | 14 | retention وpurge محدودتان | cutoff وTTL وbatches والتزامن وrollback event failure في DB disposable | PASS — G4 |
 | 15 | حدود التشغيل والنسخ موثقة ومثبتة بقدر البيئة | maintenance grants، DB/proxy log settings، restore/backup retention واعتماد التشغيل | PARTIAL — G4 |
-| 16 | لا أسرار في تاريخ Git أو snapshot المتتبع | Gitleaks + nested env guards + redacted scanner output tests | PLANNED |
-| 17 | تبعيات Python/npm مدققة بالكامل | frozen inventories، markers/dev/optional coverage، كل advisory بلا استثناء تفشل | PLANNED |
-| 18 | scanners fail closed والاستثناءات ضيقة | outage/invalid output/missing lock/skip/expired exception negative tests | PLANNED |
-| 19 | CI أقل صلاحيات وبوابات حاجزة فعلًا | SHA pins/timeouts/contents:read، required checks verified للنطاق المصرح | PLANNED |
-| 20 | browser proof وعدم تغير Design System | Playwright حقيقي: 5187 → FastAPI8010 → PostgreSQL، لا secrets storage/console/artifacts | PLANNED |
-| 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PARTIAL — G4 |
-| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G4 |
+| 16 | لا أسرار في تاريخ Git أو snapshot المتتبع | Gitleaks + nested env guards + redacted scanner output tests | PASS — G5 |
+| 17 | تبعيات Python/npm مدققة بالكامل | frozen inventories، markers/dev/optional coverage، كل advisory بلا استثناء تفشل | PASS — G5 |
+| 18 | scanners fail closed والاستثناءات ضيقة | outage/invalid output/missing lock/skip ورفض كل استثناء غير معتمد | PASS — G5 |
+| 19 | CI أقل صلاحيات وبوابات حاجزة فعلًا | SHA pins/timeouts/contents:read، required checks verified للنطاق المصرح | PARTIAL — G5 |
+| 20 | browser proof وعدم تغير Design System | Playwright حقيقي: 5187 → FastAPI8010 → PostgreSQL، لا secrets storage/console/artifacts | PASS — G5 |
+| 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PASS — G5 |
+| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G5 |
 
-**النتيجة الحالية:** 14 معيارًا مثبتًا محليًا، و3 جزئية، و5 مخططة؛ Phase 2E لم تُغلق.
-دليل G4: **404 targeted tests PASS**، منها112 جديدة و292 regression؛ migration0016 وRuff/Mypy/
-Alembic/round-trip/RLS/cleanup PASS. [التفاصيل](phase-2e-g4-retention.md).
-دليل G3 التاريخي: **717 Backend tests PASS**، منها88 جديدة.
-دليل G2 التاريخي: **313 targeted tests PASS**. التفاصيل في [تقرير G3](phase-2e-g3-verification.md).
-معيار15 جزئي: capability والـrunner وDB/Uvicorn المعزول مثبتة؛ production proxy/backup/job غير منفذة.
-معيار21 جزئي: G4 وحراس DB المرتبطة مثبتة؛ لم تُعد Full Backend/Frontend/Playwright في G4.
-معيار 22 جزئي: النطاق وGit محليًا مثبتان؛ CI والإغلاق النهائي للمرحلة مؤجلان.
-لا نتائج scanners أو GitHub CI جديدة؛ تعديل provisioning الاختباري في G4 لا يثبت تشغيل CI.
-النتيجة ليست22/22 PASS؛ G5 لم تبدأ.
+**النتيجة الحالية:** 19 معيارًا مثبتًا محليًا و3 جزئية؛ Phase 2E لم تُغلق نهائيًا.
+
+دليل G5: **996 Backend PASS /225 Frontend PASS (29files) /7 Playwright PASS**، بلا SKIP/XFAIL.
+Gitleaks على453 ملفًا متتبعًا والتاريخ/merge diffs و26 text artifacts PASS؛ pip-audit على50
+project +1 build +28 scanner، وnpm على350 nodes بلاadvisories.
+Ruff/Mypy/ESLint/TypeScript/Prettier/build/Alembic/head→base→head/RLS/ownership/cleanup
+وG4 retention PASS. [التفاصيل](phase-2e-g5-verification.md).
+
+- معيار15 جزئي: capability/runner/DB logs المعزولة مثبتة؛ production proxy/backup/job خارج التنفيذ.
+- معيار19 جزئي: workflow/scanner contracts مثبتة محليًا؛ GitHub run وربط required checks
+  بالـSHA الفعلي يُثبتان في الإغلاق المصرح لاحقًا. لا تعديل لإعدادات GitHub هنا.
+- معيار22 جزئي: النطاق والتقريرين المستثنيين وملفات المنتج ثابتة في G5؛ مراجعة المرحلة وCI/PR
+  النهائيان ينتظران G6. لا push أوmerge أوtag أوPhase3.
+
+دليل G4 التاريخي404 targeted PASS؛ دليل G3 التاريخي717 Backend PASS؛ دليل G2 التاريخي313 targeted
+PASS. لا تُجمع هذه الأعداد على996 لأنها داخلة في regression suite.
 
 ## قواعد تنفيذ الإثبات لاحقًا
 
