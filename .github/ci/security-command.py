@@ -309,8 +309,7 @@ def run_gate(
                 # Alembic current writes revisions to stdout; additional heads/revisions,
                 # blank output and a stale version all invalidate this proof.
                 incomplete = (
-                    incomplete
-                    or completed.stdout.strip() != b"0016_security_audit_retention (head)"
+                    incomplete or completed.stdout.strip() != b"0017_foundation_fk_indexes (head)"
                 )
             if incomplete:
                 report["reason"] = "incomplete_test_gate"

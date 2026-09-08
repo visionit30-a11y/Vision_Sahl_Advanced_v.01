@@ -235,7 +235,7 @@ def test_retention_migration_round_trip_preserves_history_and_capability_role(
     assert _history(retention) == original_history
     with retention.owner.connect() as owner:
         assert owner.scalar(text("SELECT version_num FROM public.alembic_version")) == (
-            "0016_security_audit_retention"
+            "0017_foundation_fk_indexes"
         )
         assert (
             owner.scalar(text("SELECT to_regprocedure('auth.prune_security_events(integer)')"))

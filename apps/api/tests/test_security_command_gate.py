@@ -169,7 +169,7 @@ def test_success_without_test_count_is_not_proof(
 
 
 @pytest.mark.parametrize(
-    "head", [b"0015_security_event_wiring (head)", b"0016_security_audit_retention"]
+    "head", [b"0015_security_event_wiring (head)", b"0017_foundation_fk_indexes"]
 )
 def test_migration_current_requires_approved_head(
     gate: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, head: bytes
@@ -235,7 +235,7 @@ def test_tool_specific_positive_test_counts_required(
 def test_approved_head_beside_another_revision_is_rejected(
     gate: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, extra: bytes
 ) -> None:
-    child(monkeypatch, gate, b"0016_security_audit_retention (head)\n" + extra)
+    child(monkeypatch, gate, b"0017_foundation_fk_indexes (head)\n" + extra)
     monkeypatch.setattr(gate, "scan_output", lambda *args: True)
     code, report = gate.run_gate("migration-head", ["alembic", "current"], tmp_path, 30)
     assert code == 1
