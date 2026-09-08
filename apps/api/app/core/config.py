@@ -53,7 +53,9 @@ class Settings(BaseSettings):
 
     # The runtime URL. It must name the application role, which owns nothing and
     # is subject to row level security.
-    database_url: str = "postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5433/sahl_dev"
+    database_url: str = Field(
+        default="postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5433/sahl_dev", repr=False
+    )
 
     # The migration URL, deliberately without a default. Alembic runs as the
     # migration role, which owns the schema; the application role must never
@@ -62,10 +64,10 @@ class Settings(BaseSettings):
     # the two roles back together silently, so there is no fallback: a missing
     # value is an error at the point migrations are run, not a quiet downgrade
     # to the runtime role.
-    migration_database_url: str | None = None
+    migration_database_url: str | None = Field(default=None, repr=False)
 
     redis_enabled: bool = False
-    redis_url: str = "redis://127.0.0.1:6379/0"
+    redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
 
     password_hash_concurrency: int = 2
     session_idle_timeout_minutes: int = 30
