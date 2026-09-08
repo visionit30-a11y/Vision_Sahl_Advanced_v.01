@@ -1,6 +1,6 @@
 # Phase 2D — Backend-Persisted UI Settings and Permission-Aware UI
 
-**الحالة:** Group 1 معتمدة؛ Group 2 منفذة محليًا وتنتظر اعتماد المالك.
+**الحالة:** Groups 1 و2 معتمدة؛ Group 3 منفذة محليًا وتنتظر اعتماد المالك.
 
 **الأساس:** `phase-2c-baseline` عند
 `e6072195079158d12dcb0ff95b0cd5343a3ba50e`، و`main = develop` عند نقطة البدء.
@@ -97,3 +97,28 @@
 4. optimistic create/update/delete آمن تحت التزامن وDB failures تفشل مغلقًا.
 5. لا HTTP routes أو frontend adapter ما لم يعتمد نطاق G3 صراحة.
 6. Platform layer قراءة فقط؛ Platform writes تبقى محجوبة حتى حل trusted Platform principal.
+
+## تنفيذ وبوابة G3
+
+- أضيف `UiSettingsRepository` كحد persistence داخلي وحيد. يقرأ Platform settings فقط،
+  ويقرأ ويكتب Tenant/User settings عبر `tenant_transaction()` وRLS دون كشف session أو raw
+  tables إلى service.
+- أضيف `UiSettingsService` للحسم الحتمي بالترتيب Built-in ثم Platform ثم Tenant ثم User؛
+  تطغى كل طبقة على المفاتيح الموجودة فقط، وتعيد القيمة الفعالة ومصدر كل مفتاح ونسخ الطبقات.
+- User writes تتطلب grant مطابقًا لـ`tenant.user_ui_settings.manage_self` وتطابق principal مع
+  المستخدم المستهدف. Tenant writes تتطلب `tenant.ui_settings.manage`. لا توجد Platform write
+  method أو HTTP route.
+- create يستخدم insert شرطيًا، وupdate/delete يقيدان الكتابة بالنسخة المتوقعة داخل statement
+  واحد. التنافس ينتج فائزًا واحدًا و`409 conflict` واضحًا للبقية؛ لا SELECT-then-write ولا
+  lost update. حذف الطبقة يحذف patch فقط فتعود القيم الموروثة في الحسم التالي.
+- أثبتت الاختبارات precedence وpartial patches وorigin لكل مفتاح والحذف والـpermission/self
+  guards. وأثبت PostgreSQL فعليًا create/update وdelete/update races وعزل القراءة عبر RLS.
+- نجحت اختبارات G3 والـregression guards المرتبطة: **99 passed** بلا skip أو xfail، وRuff
+  وMypy ناجحان. migration head بقي `0012_ui_settings_foundation`.
+
+## خطة G4
+
+1. إضافة HTTP contracts وdependencies تستخرج principal وTenantContext الموثوقين فقط.
+2. ربط effective read وUser/Tenant writes بالخدمة الحالية مع ETag/version conflict contract.
+3. إثبات 401/403/409 وIDOR وcross-tenant وعدم تنفيذ repository عند DENY.
+4. إبقاء Platform write وfrontend integration خارج G4 ما لم يعتمد نطاقهما صراحة.
