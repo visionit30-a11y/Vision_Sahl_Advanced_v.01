@@ -282,3 +282,41 @@ def test_event_is_frozen_closed_and_has_no_field_rendering() -> None:
     invalid_event = object.__new__(SecurityAuditEvent)
     object.__setattr__(invalid_event, "user_id", Unrenderable())
     assert repr(invalid_event) == "<SecurityAuditEvent>"
+
+
+@pytest.mark.parametrize(
+    ("field", "member"),
+    [
+        ("event_type", SecurityEventType.LOGIN_FAILURE),
+        ("result", SecurityEventResult.FAILURE),
+        ("reason_code", SecurityReasonCode.INVALID_CREDENTIALS),
+        ("subject_kind", SubjectKind.LOGIN_IP),
+    ],
+)
+@pytest.mark.parametrize("uses_known_string", [False, True])
+def test_forged_enum_instances_are_rejected_without_exposing_values(
+    field: str, member: Any, uses_known_string: bool
+) -> None:
+    canary = "canary-forged-audit-enum"
+    forged = str.__new__(type(member), member.value if uses_known_string else canary)
+    forged._name_ = "FORGED"
+    forged._value_ = Unrenderable()
+    values: dict[str, Any] = {
+        "event_type": SecurityEventType.LOGIN_FAILURE,
+        "result": SecurityEventResult.FAILURE,
+        "reason_code": SecurityReasonCode.INVALID_CREDENTIALS,
+        "subject_digest": b"a" * 32,
+        "subject_kind": SubjectKind.LOGIN_IP,
+        "subject_key_id": 1,
+    }
+    event = SecurityAuditEvent(**values)
+    values[field] = forged
+    with pytest.raises(InvalidSecurityAuditEventError) as caught:
+        SecurityAuditEvent(**values)
+    assert str(caught.value) == "Invalid security audit event."
+    assert canary not in repr(caught.value)
+    object.__setattr__(event, field, forged)
+    with pytest.raises(InvalidSecurityAuditEventError) as caught:
+        event._validate()
+    assert str(caught.value) == "Invalid security audit event."
+    assert canary not in repr(caught.value) + repr(event)

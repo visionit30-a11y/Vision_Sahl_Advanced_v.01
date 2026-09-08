@@ -34,6 +34,12 @@ class _ClosedAuditEnum(StrEnum, metaclass=_ClosedAuditEnumType):
     pass
 
 
+def _is_catalog_member(value: object, catalog: type[_ClosedAuditEnum]) -> bool:
+    # String equality is insufficient: a forged StrEnum can compare equal to a
+    # known member while exposing a different, untrusted .value to the writer.
+    return type(value) is catalog and any(value is member for member in catalog)
+
+
 @verify(UNIQUE)
 class SecurityEventType(_ClosedAuditEnum):
     LOGIN_SUCCESS = "login_success"
@@ -265,11 +271,13 @@ class SecurityAuditEvent:
         return "<SecurityAuditEvent>"
 
     def _validate(self) -> None:
-        if type(self.event_type) is not SecurityEventType:
+        if not _is_catalog_member(self.event_type, SecurityEventType):
             raise InvalidSecurityAuditEventError()
-        if type(self.result) is not SecurityEventResult:
+        if not _is_catalog_member(self.result, SecurityEventResult):
             raise InvalidSecurityAuditEventError()
-        if self.reason_code is not None and type(self.reason_code) is not SecurityReasonCode:
+        if self.reason_code is not None and not _is_catalog_member(
+            self.reason_code, SecurityReasonCode
+        ):
             raise InvalidSecurityAuditEventError()
         policy = SECURITY_EVENT_POLICIES[self.event_type]
         if self.result is not policy.result or self.reason_code not in policy.allowed_reasons:
@@ -310,7 +318,7 @@ class SecurityAuditEvent:
         if any(value is not None for value in subject) and (
             type(self.subject_digest) is not bytes
             or len(self.subject_digest) != 32
-            or type(self.subject_kind) is not SubjectKind
+            or not _is_catalog_member(self.subject_kind, SubjectKind)
             or type(self.subject_key_id) is not int
             or not 1 <= self.subject_key_id <= 32767
         ):
