@@ -1,0 +1,3 @@
+# The pinned binary supplies its default rules. No suppressions are approved.
+[extend]
+useDefault = true
