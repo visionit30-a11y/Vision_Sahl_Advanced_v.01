@@ -1,6 +1,6 @@
 # Phase 2D — Backend-Persisted UI Settings and Permission-Aware UI
 
-**الحالة:** Groups 1–3 معتمدة؛ Group 4 منفذة محليًا وتنتظر اعتماد المالك.
+**Status:** G1-G4 approved; G5 implemented with acceptance blockers documented below.
 
 **الأساس:** `phase-2c-baseline` عند
 `e6072195079158d12dcb0ff95b0cd5343a3ba50e`، و`main = develop` عند نقطة البدء.
@@ -147,3 +147,46 @@
 2. استبدال browser persistence المؤقت بالحالة المحملة من Backend، مع memory-only draft.
 3. إزالة preview authority وتحديث الحالة بعد tenant switch/session rotation بلا fallback قديم.
 4. إثبات التدفق بمتصفح حقيقي وحراس storage/cache/permissions مع الحفاظ على Design System.
+
+## تنفيذ G5 — التحقق النهائي معلّق
+
+- استُبدل browser adapter بـHTTP adapter صغير يستخدم AuthClient المشترك فقط. يقرأ
+  /ui-settings/effective وطبقتي /user و/tenant، ويكتب expected_version في PUT ويستخدم
+  DELETE عند إزالة آخر مفتاح من patch. لا توجد selectors للمستخدم أو الجهة.
+- Backend response وحده يحدد settings وorigin. تحفظ الطبقات والنسخ وحالة الإتاحة في
+  الذاكرة؛ لا يعاد حساب قيمة محفوظة أو ادعاء نجاح قبل confirmation وإعادة الجلب.
+- يعكس UI نتيجة GET المحمية لطبقة التحرير: 403 يعطل أدواتها؛ 404 بعد التفويض يعني
+  طبقة غير منشأة. تظل كل كتابة خاضعة لتفويض الخادم، وهذه الإشارات للعرض فقط.
+- حذفت browserUiSettingsSource وpreviewUiPermissions وUiPermissions وpreviewTenant،
+  وأزيل Platform editing من controls الحالية. بقيت registries وthemes وpresets ومكونات
+  Design System بلا تغيير. التخزين الموجود للغة خارج عقد UI settings لم يتغير.
+- refresh/remount وme بعد تسجيل الدخول وtenant/session rotation تعيد تحميل الحالة.
+  رقم جيل الطلبات يمنع الردود القديمة من استعادة هوية/إعدادات سابقة. BroadcastChannel
+  ينقل إشارة إبطال فقط، بلا token أو settings أو صلاحيات.
+- loading و401 و403 و409 وفشل الشبكة ظاهرة للمستخدم. العرض المدمج المؤقت موسوم صراحة؛
+  الكتابة معطلة حتى إعادة الجلب. لا إعادة محاولة كتابة تلقائية عند conflict.
+- Vite يمرر /ui-settings إلى هدف API المحلي الحالي 127.0.0.1:8010.
+  لم تتغير منافذ التشغيل المحلي أو Playwright، ولم تُلمس العملية على 8000.
+- التحقق: Frontend **225 passed / 29 files**. ESLint وTypeScript وPrettier وbuild PASS.
+  Backend مرتبط **131 passed**: HTTP/service/contracts/authz/context = 56، PostgreSQL
+  UI/RLS/transactions/role administration = 54، sessions/tenant HTTP = 21.
+  لا migration جديدة؛ head بقي 0012_ui_settings_foundation.
+
+### موانع قبول G5
+
+1. Playwright فشل قبل تنفيذ الاختبارات لأن 5173 مستخدم. رفضت المراجعة الآلية محاولة
+   تحويل منفذ الاختبار إلى 5187؛ لم تطبق المحاولة. تجميع --list نجح: 8 اختبارات
+   (4 auth موجودة + 4 UI settings جديدة)، لكن لا توجد نتيجة Chromium ناجحة لهذه الجولة.
+2. تأكد عبر OpenAPI أن /auth/me و/auth/csrf و/auth/tenant/switch غير مسجلة في تطبيق
+   FastAPI، رغم اعتماد AuthClient الحالي عليها. وجودها في security-server.mjs هو fixture
+   اختبار فقط. لذلك تدفق G5 الكامل على Backend الحقيقي محجوب حتى استكمال auth transport
+   الحالي بصورة معتمدة. لم يُنشأ مسار مصادقة بديل ضمن G5.
+3. اختبارات المتصفح الجديدة تستعمل خادم العقد الموجود؛ حتى بعد تشغيلها لا تُعد إثباتًا
+   لاتصال Chromium بPostgreSQL أو اكتمال مسارات auth الإنتاجية.
+
+G5 غير مغلقة ولا جاهزة للقبول النهائي قبل إزالة الموانع. لم يبدأ G6.
+
+## خطة G6 المقترحة
+
+بعد إغلاق G5 واعتماد المالك: البوابات النهائية للمرحلة، دليل browser/security على التدفق
+الحقيقي، مراجعة Exit Criteria، وتوثيق الإغلاق المحلي. لا توسع إلى Phase 2E أو Platform writes.
