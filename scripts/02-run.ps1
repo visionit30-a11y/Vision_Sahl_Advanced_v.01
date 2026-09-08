@@ -76,6 +76,12 @@ try {
         Write-Ok "port $port is free"
     }
 
+    # This entry point is explicitly local development, never staging/production.
+    if ($env:APP_ENV -and $env:APP_ENV -ne 'development') {
+        throw 'Local startup requires APP_ENV=development.'
+    }
+    $env:APP_ENV = 'development'
+    $env:AUTH_LOCAL_HTTP_ORIGIN = 'http://localhost:5173'
     Write-Section 'Starting the API (uvicorn)'
     $apiOut = Join-Path $logDir ('api-' + $stamp + '.log')
     $apiErr = Join-Path $logDir ('api-' + $stamp + '.err.log')

@@ -9,6 +9,8 @@ from typing import Never
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from app.audit.contracts import SecurityAuditEvent, SecurityEventResult, SecurityEventType
+from app.audit.writer import SecurityEventWriter
 from app.authorization.contracts import AuthorizationBoundaryRequiredError, AuthorizationGrant
 from app.authorization.permissions import PERMISSION_CATALOG, Permission, PermissionId
 from app.core.errors import AppError
@@ -67,6 +69,9 @@ class RoleAdministrationService:
         role_id = new_role_id()
         try:
             async with tenant_transaction(grant.tenant_context) as transaction:
+                event = self._event(grant, SecurityEventType.ROLE_CREATED, role_id)
+                writer = SecurityEventWriter(transaction)
+                await writer.prepare_role(event, grant.principal.membership_version)
                 row = (
                     await transaction.execute(
                         text(
@@ -82,8 +87,9 @@ class RoleAdministrationService:
                         },
                     )
                 ).one()
-        except IntegrityError as exc:
-            raise RoleConflictError() from exc
+                await writer.write(event)
+        except IntegrityError:
+            raise RoleConflictError() from None
         return RoleRecord(*row._tuple())
 
     async def update_role(
@@ -96,6 +102,9 @@ class RoleAdministrationService:
     ) -> RoleRecord:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            event = self._event(grant, SecurityEventType.ROLE_UPDATED, role_id)
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             row = (
                 await transaction.execute(
                     text(
@@ -113,6 +122,7 @@ class RoleAdministrationService:
             ).one_or_none()
             if row is None:
                 await self._raise_missing_or_stale(transaction, role_id)
+            await writer.write(event)
         return RoleRecord(*row._tuple())
 
     async def disable_role(
@@ -120,6 +130,9 @@ class RoleAdministrationService:
     ) -> RoleRecord:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            event = self._event(grant, SecurityEventType.ROLE_DISABLED, role_id)
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             row = (
                 await transaction.execute(
                     text(
@@ -133,6 +146,7 @@ class RoleAdministrationService:
             ).one_or_none()
             if row is None:
                 await self._raise_missing_or_stale(transaction, role_id)
+            await writer.write(event)
         return RoleRecord(*row._tuple())
 
     async def assign_permission(
@@ -142,6 +156,14 @@ class RoleAdministrationService:
         permission_id = self._tenant_permission(permission)
         async with tenant_transaction(grant.tenant_context) as transaction:
             await self._require_active_role(transaction, role_id)
+            event = self._event(
+                grant,
+                SecurityEventType.ROLE_PERMISSION_ASSIGNED,
+                role_id,
+                permission_id=permission_id,
+            )
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             result = await transaction.execute(
                 text(
                     "INSERT INTO auth.role_permissions(tenant_id,role_id,permission_id) "
@@ -154,7 +176,12 @@ class RoleAdministrationService:
                     "permission_id": permission_id,
                 },
             )
-        return result.scalar_one_or_none() == 1
+            changed = result.scalar_one_or_none() == 1
+            if changed:
+                await writer.write(event)
+            else:
+                await writer.cancel_role(event)
+        return changed
 
     async def remove_permission(
         self, grant: AuthorizationGrant, role_id: uuid.UUID, permission: Permission
@@ -163,6 +190,14 @@ class RoleAdministrationService:
         permission_id = self._tenant_permission(permission)
         async with tenant_transaction(grant.tenant_context) as transaction:
             await self._require_role(transaction, role_id)
+            event = self._event(
+                grant,
+                SecurityEventType.ROLE_PERMISSION_REMOVED,
+                role_id,
+                permission_id=permission_id,
+            )
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             result = await transaction.execute(
                 text(
                     "DELETE FROM auth.role_permissions "
@@ -170,7 +205,12 @@ class RoleAdministrationService:
                 ),
                 {"role_id": role_id, "permission_id": permission_id},
             )
-        return result.scalar_one_or_none() == 1
+            changed = result.scalar_one_or_none() == 1
+            if changed:
+                await writer.write(event)
+            else:
+                await writer.cancel_role(event)
+        return changed
 
     async def assign_role(
         self, grant: AuthorizationGrant, membership_id: uuid.UUID, role_id: uuid.UUID
@@ -187,6 +227,14 @@ class RoleAdministrationService:
             )
             if active is not True:
                 raise MembershipNotFoundError()
+            event = self._event(
+                grant,
+                SecurityEventType.MEMBERSHIP_ROLE_ASSIGNED,
+                role_id,
+                target_membership_id=membership_id,
+            )
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             result = await transaction.execute(
                 text(
                     "INSERT INTO auth.membership_roles(tenant_id,membership_id,role_id) "
@@ -199,7 +247,12 @@ class RoleAdministrationService:
                     "role_id": role_id,
                 },
             )
-        return result.scalar_one_or_none() == 1
+            changed = result.scalar_one_or_none() == 1
+            if changed:
+                await writer.write(event)
+            else:
+                await writer.cancel_role(event)
+        return changed
 
     async def remove_role(
         self, grant: AuthorizationGrant, membership_id: uuid.UUID, role_id: uuid.UUID
@@ -216,6 +269,14 @@ class RoleAdministrationService:
             )
             if active is not True:
                 raise MembershipNotFoundError()
+            event = self._event(
+                grant,
+                SecurityEventType.MEMBERSHIP_ROLE_REMOVED,
+                role_id,
+                target_membership_id=membership_id,
+            )
+            writer = SecurityEventWriter(transaction)
+            await writer.prepare_role(event, grant.principal.membership_version)
             result = await transaction.execute(
                 text(
                     "DELETE FROM auth.membership_roles "
@@ -223,7 +284,32 @@ class RoleAdministrationService:
                 ),
                 {"membership_id": membership_id, "role_id": role_id},
             )
-        return result.scalar_one_or_none() == 1
+            changed = result.scalar_one_or_none() == 1
+            if changed:
+                await writer.write(event)
+            else:
+                await writer.cancel_role(event)
+        return changed
+
+    @staticmethod
+    def _event(
+        grant: AuthorizationGrant,
+        event_type: SecurityEventType,
+        role_id: uuid.UUID,
+        *,
+        permission_id: PermissionId | None = None,
+        target_membership_id: uuid.UUID | None = None,
+    ) -> SecurityAuditEvent:
+        return SecurityAuditEvent(
+            event_type=event_type,
+            result=SecurityEventResult.SUCCESS,
+            user_id=grant.principal.user_id,
+            session_id=grant.principal.session_id,
+            membership_id=grant.principal.membership_id,
+            role_id=role_id,
+            permission_id=permission_id,
+            target_membership_id=target_membership_id,
+        )
 
     @staticmethod
     def _tenant_permission(permission: Permission) -> PermissionId:

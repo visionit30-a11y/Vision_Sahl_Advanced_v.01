@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import secrets
 import sys
 import uuid
 from typing import Any
@@ -21,6 +22,7 @@ from app.auth.sessions import SessionService
 from app.auth.tenants import PostgresMembershipAuthority, TrustedTenantService
 from app.authorization.permissions import Permission
 from app.core.config import get_settings
+from app.security.passwords import PasswordService
 
 
 def _owned_tenants(state: dict[str, str], migration: Engine) -> list[str]:
@@ -64,6 +66,7 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
         conn.execute(text("DELETE FROM auth.security_events WHERE user_id IN (:u,:v)"), params)
         conn.execute(text("DELETE FROM auth.sessions WHERE user_id IN (:u,:v)"), params)
         conn.execute(text("DELETE FROM auth.tenant_memberships WHERE user_id IN (:u,:v)"), params)
+        conn.execute(text("DELETE FROM auth.password_credentials WHERE user_id IN (:u,:v)"), params)
         conn.execute(text("DELETE FROM auth.users WHERE id IN (:u,:v)"), params)
         for tenant in tenants:
             conn.execute(text("DELETE FROM public.tenants WHERE id=:tenant"), {"tenant": tenant})
@@ -89,7 +92,7 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
     runtime = create_async_engine(settings.database_url, poolclass=NullPool)
     seeded_state: dict[str, str] | None = None
     try:
-        if payload["action"] == "seed":
+        if payload["action"] in {"seed", "seed_login"}:
             state = {
                 key: str(uuid.uuid7())
                 for key in (
@@ -186,6 +189,19 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                             "settings": json.dumps({"theme": theme}),
                         },
                     )
+            if payload["action"] == "seed_login":
+                state["password"] = secrets.token_urlsafe(32)
+                state["email"] = f"browser-g5-{state['user']}@example.test"
+                password_hash = await PasswordService().hash_password(state["password"])
+                with migration.begin() as conn:
+                    conn.execute(
+                        text(
+                            "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                            "VALUES (:id,:hash)"
+                        ),
+                        {"id": state["user"], "hash": password_hash},
+                    )
+                return state
             async with runtime.begin() as conn:
                 sessions = SessionService(PostgresSessionStore(conn))
                 issued = await sessions.issue(uuid.UUID(state["user"]), 1)

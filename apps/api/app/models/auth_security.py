@@ -6,6 +6,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -18,21 +20,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import BYTEA, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.audit.contracts import SecurityEventType
+from app.audit.schema import AUDIT_CHECKS
 from app.db.base import Base
 
-EVENT_TYPES = (
-    "login_success",
-    "login_failure",
-    "logout",
-    "session_revoked",
-    "all_sessions_revoked",
-    "password_changed",
-    "password_reset_requested",
-    "password_reset_completed",
-    "membership_denied",
-    "tenant_switch",
-    "throttling_triggered",
-)
+EVENT_TYPES = tuple(event.value for event in SecurityEventType)
 
 
 class ThrottleBucket(Base):
@@ -75,11 +67,8 @@ class PasswordResetToken(Base):
 class SecurityEvent(Base):
     __tablename__ = "security_events"
     __table_args__ = (
-        CheckConstraint(
-            "event_type IN (" + ",".join(repr(v) for v in EVENT_TYPES) + ")",
-            name="event_type_allowed",
-        ),
-        CheckConstraint("result IN ('success','failure','denied')", name="result_allowed"),
+        *(CheckConstraint(expression, name=name) for name, expression in AUDIT_CHECKS.items()),
+        Index("ix_security_events_retention", "created_at", "id"),
         {"schema": "auth"},
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
@@ -90,8 +79,37 @@ class SecurityEvent(Base):
     session_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     membership_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     subject_digest: Mapped[bytes | None] = mapped_column(BYTEA)
+    role_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    target_membership_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    permission_id: Mapped[str | None] = mapped_column(String(120))
+    subject_kind: Mapped[str | None] = mapped_column(String(32))
+    subject_key_id: Mapped[int | None] = mapped_column(SmallInteger)
+    affected_count: Mapped[int | None] = mapped_column(BigInteger)
     correlation_id: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     def __repr__(self) -> str:
-        return f"<SecurityEvent id={self.id} type={self.event_type!r} result={self.result!r}>"
+        return "<SecurityEvent>"
+
+
+class _RoleSecurityEventIntent(Base):
+    """Private transaction proof, unreachable through runtime table grants."""
+
+    __tablename__ = "role_security_event_intents"
+    __table_args__ = ({"schema": "auth"},)
+    transaction_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    backend_pid: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    membership_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    target_membership_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    permission_id: Mapped[str | None] = mapped_column(String(120))
+    correlation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    attested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    def __repr__(self) -> str:
+        return "<RoleSecurityEventIntent>"

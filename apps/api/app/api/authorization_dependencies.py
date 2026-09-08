@@ -8,7 +8,10 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from app.api.auth_dependencies import session_bearer_from_cookie
+from app.audit.request_events import SecurityDenialAuditor
 from app.auth.http import (
+    CsrfRejectedError,
+    TenantContextChangedError,
     require_session_bearer,
     validate_expected_membership,
     validate_session_csrf,
@@ -19,7 +22,10 @@ from app.authorization.permissions import Permission, PermissionId
 from app.authorization.service import AuthorizationDecision, AuthorizationService
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.db.authenticated_access import trusted_access_from_bearer
+from app.db.authenticated_access import (
+    get_security_denial_auditor,
+    trusted_access_from_bearer,
+)
 
 
 class AuthorizationDeniedError(AppError):
@@ -31,16 +37,21 @@ class AuthorizationDeniedError(AppError):
 async def require_authenticated_access(
     request: Request,
     bearer: Annotated[str, Depends(session_bearer_from_cookie)],
+    auditor: Annotated[SecurityDenialAuditor, Depends(get_security_denial_auditor)],
 ) -> TrustedTenantAccess:
     access = await trusted_access_from_bearer(require_session_bearer(bearer))
     settings = get_settings()
-    validate_expected_membership(request, access.principal.membership_id)
-    validate_session_csrf(
-        request,
-        access.session,
-        set(settings.auth_origin_list),
-        local_http_origin=settings.auth_local_http_origin,
-    )
+    try:
+        validate_expected_membership(request, access.principal.membership_id)
+        validate_session_csrf(
+            request,
+            access.session,
+            set(settings.auth_origin_list),
+            local_http_origin=settings.auth_local_http_origin,
+        )
+    except (CsrfRejectedError, TenantContextChangedError) as error:
+        await auditor.request_denied(error, request, access.session)
+        raise
     return access
 
 
@@ -60,11 +71,13 @@ def require_permission(permission: Permission) -> PermissionDependency:
     async def dependency(
         access: Annotated[TrustedTenantAccess, Depends(require_authenticated_access)],
         authorizer: Annotated[AuthorizationService, Depends(get_authorization_service)],
+        auditor: Annotated[SecurityDenialAuditor, Depends(get_security_denial_auditor)],
     ) -> AuthorizationGrant:
         principal = access.principal if isinstance(access, TrustedTenantAccess) else None
         context = access.context if isinstance(access, TrustedTenantAccess) else None
         decision = await authorizer.authorize(principal, context, permission_id)
         if decision is not AuthorizationDecision.ALLOW or principal is None or context is None:
+            await auditor.authorization_denied(principal, permission_id)
             raise AuthorizationDeniedError()
         return AuthorizationGrant(principal, context, permission_id)
 

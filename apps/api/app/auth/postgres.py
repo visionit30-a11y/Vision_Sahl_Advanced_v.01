@@ -9,6 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.audit.contracts import SecurityAuditEvent
+from app.audit.writer import SecurityEventWriter
 from app.auth.sessions import PreAuthState, SessionRecord
 
 
@@ -17,6 +19,9 @@ class PostgresSessionStore:
 
     def __init__(self, connection: AsyncConnection) -> None:
         self.connection = connection
+
+    async def write_security_event(self, event: SecurityAuditEvent) -> None:
+        await SecurityEventWriter(self.connection).write(event)
 
     async def current_time(self) -> datetime:
         return (await self.connection.execute(text("SELECT clock_timestamp()"))).scalar_one()

@@ -1,4 +1,4 @@
-"""HTTP middleware."""
+"""HTTP correlation and no-store middleware without raw request logging."""
 
 from __future__ import annotations
 
@@ -13,15 +13,23 @@ from app.core.context import (
     CORRELATION_ID_HEADER,
     bind_request_context,
     clear_request_context,
-    new_correlation_id,
+    get_internal_correlation_id,
+    safe_request_id,
 )
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
+def request_route_template(request: Request) -> str:
+    """A registered route template contains no client path or query values."""
+    route = request.scope.get("route")
+    template = getattr(route, "path", None)
+    return template if isinstance(template, str) else "unmatched"
+
+
 class UiSettingsNoStoreMiddleware(BaseHTTPMiddleware):
-    """Prevent caching of UI-settings and authentication responses, including errors."""
+    """Prevent caching of settings and authentication responses, including errors."""
 
     async def dispatch(
         self,
@@ -35,27 +43,31 @@ class UiSettingsNoStoreMiddleware(BaseHTTPMiddleware):
 
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
-    """Bind a correlation id to every request and echo it back to the client."""
+    """Echo a bounded legacy request ID while logs use an independent internal ID."""
 
     async def dispatch(
         self,
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        correlation_id = request.headers.get(CORRELATION_ID_HEADER) or new_correlation_id()
+        correlation_id = safe_request_id(request.headers.get(CORRELATION_ID_HEADER))
+        # Outer exception handlers cannot rely on an inner middleware's contextvar.
+        request.state.response_correlation_id = correlation_id
         clear_request_context()
         bind_request_context(correlation_id)
+        request.state.internal_correlation_id = get_internal_correlation_id()
         started = time.perf_counter()
         try:
             response = await call_next(request)
+            response.headers[CORRELATION_ID_HEADER] = correlation_id
+            return response
         finally:
-            duration_ms = round((time.perf_counter() - started) * 1000, 2)
-            logger.info(
-                "request_completed",
-                method=request.method,
-                path=request.url.path,
-                duration_ms=duration_ms,
-            )
-        response.headers[CORRELATION_ID_HEADER] = correlation_id
-        clear_request_context()
-        return response
+            try:
+                logger.info(
+                    "request_completed",
+                    method=request.method,
+                    route=request_route_template(request),
+                    duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                )
+            finally:
+                clear_request_context()

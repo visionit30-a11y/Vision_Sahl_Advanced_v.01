@@ -6,7 +6,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, SmallInteger, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -17,43 +26,45 @@ SETTINGS_KEYS_CHECK = (
     "settings - ARRAY['theme','buttonPreset','alertPreset','overlayPreset',"
     "'tablePreset','printPreset']::text[] = '{}'::jsonb"
 )
+
+
 def settings_value_checks() -> tuple[CheckConstraint, ...]:
     return (
         CheckConstraint(
-        "NOT settings ? 'theme' OR (jsonb_typeof(settings->'theme') = 'string' AND "
-        "settings->>'theme' IN ('teal-calm','green-institutional','navy-institutional',"
-        "'slate-neutral','sand-warm'))",
-        name="settings_theme_value",
+            "NOT settings ? 'theme' OR (jsonb_typeof(settings->'theme') = 'string' AND "
+            "settings->>'theme' IN ('teal-calm','green-institutional','navy-institutional',"
+            "'slate-neutral','sand-warm'))",
+            name="settings_theme_value",
         ),
         CheckConstraint(
-        "NOT settings ? 'buttonPreset' OR (jsonb_typeof(settings->'buttonPreset') = 'string' "
-        "AND settings->>'buttonPreset' IN ('institutional-standard','compact-sharp',"
-        "'soft-rounded','outlined-calm','balanced-roomy'))",
-        name="settings_button_preset_value",
+            "NOT settings ? 'buttonPreset' OR (jsonb_typeof(settings->'buttonPreset') = 'string' "
+            "AND settings->>'buttonPreset' IN ('institutional-standard','compact-sharp',"
+            "'soft-rounded','outlined-calm','balanced-roomy'))",
+            name="settings_button_preset_value",
         ),
         CheckConstraint(
-        "NOT settings ? 'alertPreset' OR (jsonb_typeof(settings->'alertPreset') = 'string' "
-        "AND settings->>'alertPreset' IN ('tinted-standard','solid-emphatic',"
-        "'minimal-inline','dense-compact','bordered-quiet'))",
-        name="settings_alert_preset_value",
+            "NOT settings ? 'alertPreset' OR (jsonb_typeof(settings->'alertPreset') = 'string' "
+            "AND settings->>'alertPreset' IN ('tinted-standard','solid-emphatic',"
+            "'minimal-inline','dense-compact','bordered-quiet'))",
+            name="settings_alert_preset_value",
         ),
         CheckConstraint(
-        "NOT settings ? 'overlayPreset' OR (jsonb_typeof(settings->'overlayPreset') = 'string' "
-        "AND settings->>'overlayPreset' IN ('institutional-standard','soft-elevated',"
-        "'flat-bordered','dim-focused','compact-dense'))",
-        name="settings_overlay_preset_value",
+            "NOT settings ? 'overlayPreset' OR (jsonb_typeof(settings->'overlayPreset') = 'string' "
+            "AND settings->>'overlayPreset' IN ('institutional-standard','soft-elevated',"
+            "'flat-bordered','dim-focused','compact-dense'))",
+            name="settings_overlay_preset_value",
         ),
         CheckConstraint(
-        "NOT settings ? 'tablePreset' OR (jsonb_typeof(settings->'tablePreset') = 'string' "
-        "AND settings->>'tablePreset' IN ('institutional-standard','zebra-scan','full-grid',"
-        "'compact-rows','airy-report'))",
-        name="settings_table_preset_value",
+            "NOT settings ? 'tablePreset' OR (jsonb_typeof(settings->'tablePreset') = 'string' "
+            "AND settings->>'tablePreset' IN ('institutional-standard','zebra-scan','full-grid',"
+            "'compact-rows','airy-report'))",
+            name="settings_table_preset_value",
         ),
         CheckConstraint(
-        "NOT settings ? 'printPreset' OR (jsonb_typeof(settings->'printPreset') = 'string' "
-        "AND settings->>'printPreset' IN ('institutional-standard','ink-saving',"
-        "'high-contrast-print','formal-letterhead','dense-archive'))",
-        name="settings_print_preset_value",
+            "NOT settings ? 'printPreset' OR (jsonb_typeof(settings->'printPreset') = 'string' "
+            "AND settings->>'printPreset' IN ('institutional-standard','ink-saving',"
+            "'high-contrast-print','formal-letterhead','dense-archive'))",
+            name="settings_print_preset_value",
         ),
     )
 
@@ -104,6 +115,7 @@ class TenantUiSettings(Base):
 class UserUiSettings(Base):
     __tablename__ = "user_ui_settings"
     __table_args__ = (
+        Index("ix_user_ui_settings_user_id", "user_id"),
         CheckConstraint("jsonb_typeof(settings) = 'object'", name="settings_object"),
         CheckConstraint(SETTINGS_KEYS_CHECK, name="settings_keys"),
         *settings_value_checks(),

@@ -161,6 +161,10 @@ def rbac_fixture(
                     connection.execute(text(f"DELETE FROM auth.{table}"))
         with migration_engine.begin() as connection:
             connection.execute(
+                text("DELETE FROM auth.security_events WHERE user_id IN (:a,:b)"),
+                {"a": user_a, "b": user_b},
+            )
+            connection.execute(
                 text("DELETE FROM auth.sessions WHERE id IN (:a,:b)"),
                 {"a": session_a, "b": session_b},
             )

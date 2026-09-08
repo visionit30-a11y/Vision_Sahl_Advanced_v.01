@@ -7,11 +7,18 @@ import hashlib
 import hmac
 import uuid
 from dataclasses import dataclass, replace
+from functools import lru_cache
 
 from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.audit.contracts import (
+    SecurityAuditEvent,
+    SecurityEventResult,
+    SecurityEventType,
+)
+from app.audit.request_events import audited_auth_transaction
 from app.auth.controls import (
     PostgresThrottleStore,
     SecurityEventWriter,
@@ -19,22 +26,32 @@ from app.auth.controls import (
     ThrottleService,
 )
 from app.auth.http import (
+    CSRF_HEADER,
+    PREAUTH_COOKIE,
+    CsrfRejectedError,
     require_session_bearer,
     validate_expected_membership,
+    validate_origin,
     validate_session_csrf,
 )
+from app.auth.password_authentication import PasswordAuthenticationService
 from app.auth.postgres import PostgresSessionStore
-from app.auth.sessions import IssuedSession, SessionRecord, SessionService, token_digest
+from app.auth.sessions import (
+    IssuedPreAuth,
+    IssuedSession,
+    SessionRecord,
+    SessionService,
+    token_digest,
+)
 from app.auth.tenants import (
     PostgresMembershipAuthority,
     SessionRejectedError,
-    TenantAccessDeniedError,
     TrustedTenantService,
 )
 from app.core.config import get_settings
-from app.core.context import get_correlation_id
 from app.core.errors import AppError
 from app.db.session import _engine
+from app.security.passwords import PasswordService
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,12 +117,78 @@ class AuthThrottledError(AppError):
     message = "The request could not be completed. Try again later."
 
 
+@lru_cache
+def _password_authentication() -> PasswordAuthenticationService:
+    settings = get_settings()
+    return PasswordAuthenticationService(
+        _engine,
+        PasswordService(max_concurrency=settings.password_hash_concurrency),
+        settings.required_auth_hmac_key,
+        hmac_key_id=settings.auth_hmac_key_id,
+    )
+
+
 class AuthHttpService:
     """Own database transactions; expose identity projections and opaque session operations."""
 
-    async def me(self, bearer: str) -> SessionIdentity:
+    async def bootstrap_preauth(self, request: Request) -> IssuedPreAuth:
+        settings = get_settings()
         async with _engine.begin() as connection:
+            decision = await ThrottleService(
+                PostgresThrottleStore(connection),
+                settings.required_auth_hmac_key,
+                key_id=settings.auth_hmac_key_id,
+            ).consume(ThrottleScope.CSRF_IP, request.client.host if request.client else "unknown")
+        if not decision.allowed:
+            raise AuthThrottledError()
+        async with _engine.begin() as connection:
+            return await SessionService(PostgresSessionStore(connection)).issue_preauth()
+
+    async def login(self, email: str, password: str, request: Request) -> IssuedSession:
+        settings = get_settings()
+        validate_origin(
+            request,
+            set(settings.auth_origin_list),
+            local_http_origin=settings.auth_local_http_origin,
+        )
+        state = request.cookies.get(PREAUTH_COOKIE, "")
+        csrf = request.headers.get(CSRF_HEADER, "")
+        try:
+            require_session_bearer(state)
+            require_session_bearer(csrf)
+        except SessionRejectedError:
+            raise CsrfRejectedError() from None
+        # Consume once under the existing row lock, before Argon2 work. No DB
+        # transaction remains open during hashing. Every retry needs fresh preauth.
+        async with _engine.begin() as connection:
+            valid = await SessionService(PostgresSessionStore(connection)).consume_preauth(
+                state, csrf
+            )
+        if not valid:
+            raise CsrfRejectedError()
+        issued = await _password_authentication().login(
+            email, password, request.client.host if request.client else "unknown"
+        )
+        if issued is None:
+            raise SessionRejectedError()
+        # Use the established refresh-stable HTTP synchronizer token from issuance,
+        # so concurrent settings/bootstrap reads do not invalidate the new client state.
+        csrf = _bootstrap_token(issued.secrets.bearer)
+        issued = replace(
+            issued,
+            record=replace(issued.record, csrf_digest=token_digest(csrf)),
+            secrets=replace(issued.secrets, csrf_token=csrf),
+        )
+        async with _engine.begin() as connection:
+            sessions, current, _ = await _active_session(connection, issued.secrets.bearer)
+            issued = replace(issued, record=replace(current, csrf_digest=token_digest(csrf)))
+            await sessions.store.replace(issued.record)
+        return issued
+
+    async def me(self, bearer: str) -> SessionIdentity:
+        async with audited_auth_transaction(_engine) as (connection, audit):
             sessions, record, identity = await _active_session(connection, bearer)
+            audit.session = record
             if record.selected_membership_id is not None:
                 await TrustedTenantService(
                     sessions, PostgresMembershipAuthority(connection)
@@ -136,13 +219,6 @@ class AuthHttpService:
                 settings.required_auth_hmac_key,
                 key_id=settings.auth_hmac_key_id,
             ).consume(ThrottleScope.CSRF_IP, request.client.host if request.client else "unknown")
-            if not decision.allowed:
-                await SecurityEventWriter(connection).write(
-                    "throttling_triggered",
-                    "denied",
-                    get_correlation_id() or "auth-http",
-                    reason_code="csrf_bootstrap",
-                )
         if not decision.allowed:
             raise AuthThrottledError()
         async with _engine.begin() as connection:
@@ -156,59 +232,38 @@ class AuthHttpService:
     async def switch(
         self, bearer: str, membership_selector: uuid.UUID, request: Request
     ) -> IssuedSession:
-        denied = False
-        async with _engine.begin() as connection:
+        async with audited_auth_transaction(_engine, request) as (connection, audit):
             sessions, record, _ = await _active_session(connection, bearer)
+            audit.session = record
             _validate_unsafe(request, record)
-            writer = SecurityEventWriter(connection)
             trusted = TrustedTenantService(sessions, PostgresMembershipAuthority(connection))
-            try:
-                switched = await trusted.switch(bearer, membership_selector)
-            except TenantAccessDeniedError:
-                denied = True
-                await writer.write(
-                    "membership_denied",
-                    "denied",
-                    get_correlation_id() or "auth-http",
-                    user_id=record.user_id,
-                    session_id=record.id,
-                    reason_code="membership_unavailable",
-                )
-            else:
-                issued = switched.issued_session
-                # Bootstrap and tenant rotation share one stable per-bearer token contract.
-                csrf = _bootstrap_token(issued.secrets.bearer)
-                issued = replace(
-                    issued,
-                    record=replace(issued.record, csrf_digest=token_digest(csrf)),
-                    secrets=replace(issued.secrets, csrf_token=csrf),
-                )
-                await sessions.store.replace(issued.record)
-                await writer.write(
-                    "tenant_switch",
-                    "success",
-                    get_correlation_id() or "auth-http",
+            switched = await trusted.switch(bearer, membership_selector)
+            issued = switched.issued_session
+            csrf = _bootstrap_token(issued.secrets.bearer)
+            issued = replace(
+                issued,
+                record=replace(issued.record, csrf_digest=token_digest(csrf)),
+                secrets=replace(issued.secrets, csrf_token=csrf),
+            )
+            await sessions.store.replace(issued.record)
+            await SecurityEventWriter(connection).write(
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.TENANT_SWITCH,
+                    result=SecurityEventResult.SUCCESS,
                     user_id=issued.record.user_id,
                     session_id=issued.record.id,
                     membership_id=switched.access.principal.membership_id,
                 )
-        if denied:
-            raise TenantAccessDeniedError()
+            )
         return issued
 
     async def logout(self, bearer: str, request: Request) -> None:
-        async with _engine.begin() as connection:
+        async with audited_auth_transaction(_engine, request) as (connection, audit):
             sessions, record, _ = await _active_session(connection, bearer)
+            audit.session = record
             _validate_unsafe(request, record)
             if not await sessions.logout(bearer, now=await sessions.store.current_time()):
                 raise SessionRejectedError()
-            await SecurityEventWriter(connection).write(
-                "logout",
-                "success",
-                get_correlation_id() or "auth-http",
-                user_id=record.user_id,
-                session_id=record.id,
-            )
 
 
 auth_http_service = AuthHttpService()

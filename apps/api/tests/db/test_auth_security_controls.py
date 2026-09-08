@@ -219,7 +219,7 @@ async def test_reset_lifecycle_is_atomic_and_invalidates_credentials_and_session
                     text("SELECT count(*) FROM auth.security_events WHERE user_id=:id"),
                     {"id": user_id},
                 )
-                == 3
+                == 5
             )
     finally:
         with migration.begin() as connection:
@@ -401,7 +401,7 @@ async def test_mandatory_event_failure_rolls_back_reset(settings: Settings) -> N
             connection.execute(
                 text("""
                 INSERT INTO auth.security_events(id,event_type,result,correlation_id,created_at)
-                VALUES(:id,'login_failure','failure','seed',clock_timestamp())
+                VALUES(:id,'login_failure','failure',gen_random_uuid()::text,clock_timestamp())
                 """),
                 {"id": event_id},
             )
