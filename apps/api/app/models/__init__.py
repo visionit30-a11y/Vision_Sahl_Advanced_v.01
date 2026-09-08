@@ -19,6 +19,7 @@ from app.models.identity import (
     UserStatus,
 )
 from app.models.tenant import Tenant
+from app.models.ui_settings import PlatformUiSettings, TenantUiSettings, UserUiSettings
 
 __all__ = [
     "AuthSession",
@@ -26,6 +27,7 @@ __all__ = [
     "MembershipStatus",
     "PasswordCredential",
     "PasswordResetToken",
+    "PlatformUiSettings",
     "PreAuthCsrfState",
     "Role",
     "RolePermission",
@@ -33,7 +35,9 @@ __all__ = [
     "SecurityEvent",
     "Tenant",
     "TenantMembership",
+    "TenantUiSettings",
     "ThrottleBucket",
     "User",
     "UserStatus",
+    "UserUiSettings",
 ]
