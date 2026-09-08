@@ -31,4 +31,3 @@ export type {
   UiSettings,
   UiSettingsPatch,
 } from './contract/settings';
-export { PREVIEW_TENANT_ID } from './previewTenant';

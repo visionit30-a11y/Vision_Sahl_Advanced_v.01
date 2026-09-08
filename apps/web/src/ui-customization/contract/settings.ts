@@ -90,4 +90,4 @@ export const UI_SCOPES = ['builtIn', 'platform', 'tenant', 'user'] as const;
 export type UiScope = (typeof UI_SCOPES)[number];
 
 /** The scope a change is written to. */
-export type EditableUiScope = Extract<UiScope, 'platform' | 'tenant'>;
+export type EditableUiScope = Extract<UiScope, 'user' | 'tenant'>;
