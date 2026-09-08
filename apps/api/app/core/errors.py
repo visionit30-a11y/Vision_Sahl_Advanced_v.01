@@ -91,6 +91,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=build_error_payload(exc.code, exc.message, exc.details),
+            headers={"X-Auth-Error": "tenant_context_changed"}
+            if exc.code == "tenant_context_changed"
+            else None,
         )
 
     @app.exception_handler(StarletteHTTPException)

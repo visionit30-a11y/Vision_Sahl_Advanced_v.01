@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 class UiSettingsNoStoreMiddleware(BaseHTTPMiddleware):
-    """Prevent caching of every UI-settings response, including errors."""
+    """Prevent caching of UI-settings and authentication responses, including errors."""
 
     async def dispatch(
         self,
@@ -29,7 +29,7 @@ class UiSettingsNoStoreMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         response = await call_next(request)
-        if request.url.path == "/ui-settings" or request.url.path.startswith("/ui-settings/"):
+        if request.url.path.split("/")[1] in {"ui-settings", "auth"}:
             response.headers["Cache-Control"] = "no-store"
         return response
 
