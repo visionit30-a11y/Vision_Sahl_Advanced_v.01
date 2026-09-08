@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [main, develop, "feature/**", "codex/**"]
   pull_request:
     branches: [main, develop]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,6 +17,7 @@ jobs:
   api:
     name: API (lint, types, tests, database)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/api
@@ -53,11 +57,13 @@ jobs:
       MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       # The version comes from apps/api/.python-version, the same file uv reads,
       # so the machine, CI and the future production image read one source.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version-file: apps/api/.python-version
 
@@ -81,13 +87,33 @@ jobs:
       # --frozen installs exactly what the lock records and refuses to resolve
       # anything, so this run and every later run get the same tree.
       - name: Install from the lock
-        run: uv sync --frozen
+        run: uv sync --frozen --config-file ../../.github/ci/uv-build.toml
 
       - name: Ruff
-        run: uv run ruff check .
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name ruff -- uv run --frozen --no-sync ruff check .
+
+      - name: G5 test formatting
+        run: >-
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name ruff-format --
+          uv run --frozen --no-sync ruff format --check
+          tests/test_ci_security_contract.py tests/test_dependency_audit_gate.py
+          tests/test_gitleaks_gate.py tests/test_security_command_gate.py
 
       - name: Mypy
-        run: uv run mypy
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name mypy -- uv run --frozen --no-sync mypy
+
+      - name: Security tool lint
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name security-tool-lint -- uv run --frozen --no-sync ruff check --config pyproject.toml ../../.github/ci
+
+      - name: Security tool formatting
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name security-tool-format -- uv run --frozen --no-sync ruff format --check --config pyproject.toml ../../.github/ci
+
+      - name: Security tool types
+        run: >-
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name security-tool-types --
+          uv run --frozen --no-sync mypy --config-file pyproject.toml
+          ../../.github/ci/dependency-audit.py ../../.github/ci/gitleaks-gate.py
+          ../../.github/ci/security-command.py ../../.github/ci/security-maintenance-fixture.py
 
       - name: Create the migration and application roles
         env:
@@ -95,7 +121,7 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci -f "${{ github.workspace }}/.github/ci/setup-database.sql"
           # G4: generate the disposable maintenance credential without printing or committing it.
-          uv run python ../../.github/ci/security-maintenance-fixture.py
+          uv run --frozen --no-sync python ../../.github/ci/security-maintenance-fixture.py
 
       # Blocking, and deliberately before anything touches the schema: if the
       # application role could bypass isolation, every later test would pass for
@@ -120,11 +146,11 @@ jobs:
       - name: Alembic migration round trip
         run: |
           set -euo pipefail
-          uv run alembic upgrade head
-          uv run alembic downgrade base
-          uv run alembic upgrade head
-          uv run alembic current | tee "$RUNNER_TEMP/alembic-current.txt"
-          grep -q '(head)' "$RUNNER_TEMP/alembic-current.txt"
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name migration-upgrade -- uv run --frozen --no-sync alembic upgrade head
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name migration-downgrade -- uv run --frozen --no-sync alembic downgrade base
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name migration-reupgrade -- uv run --frozen --no-sync alembic upgrade head
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name migration-check -- uv run --frozen --no-sync alembic check
+          python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name migration-head -- uv run --frozen --no-sync alembic current
 
       # Blocking, and only meaningful after the migrations have run: an object
       # owned by the application role bypasses row level security unless the
@@ -142,15 +168,20 @@ jobs:
           test "$owned" = "0"
 
       - name: Pytest (all tests, no skipped security proof)
-        run: uv run pytest --strict-security-gates --tb=short
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name backend-tests -- uv run --frozen --no-sync pytest --strict-security-gates --tb=short
 
       - name: Post-test artifact and RLS guard
         if: always()
-        run: uv run python -m tests.db.verify_clean_database
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name database-cleanup -- uv run --frozen --no-sync python -m tests.db.verify_clean_database
+
+      - name: Scan approved API output artifacts
+        if: always()
+        run: python ../../.github/ci/gitleaks-gate.py artifacts --scan-path "$RUNNER_TEMP/security-logs" --output-dir "$RUNNER_TEMP/api-artifact-scan"
 
   web:
     name: Web (lint, types, tests, real browser, build)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/web
@@ -176,15 +207,17 @@ jobs:
       DATABASE_URL: postgresql+psycopg://sahl_app:ci_app_password@127.0.0.1:5433/sahl_ci
       MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: apps/web/.nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version-file: apps/api/.python-version
 
@@ -193,12 +226,32 @@ jobs:
           enable-cache: true
           version: "0.12.10"
 
+      - name: Install the checksum-pinned npm tool outside the project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import pathlib
+          import urllib.request
+          with urllib.request.urlopen("https://registry.npmjs.org/npm/-/npm-11.11.0.tgz", timeout=60) as response:
+              archive = response.read()
+          expected = "82gRxKrh/eY5UnNorkTFcdBQAGpgjWehkfGVqAGlJjejEtJZGGJUqjo3mbBTNbc5BTnPKGVtGPBZGhElujX5cw=="
+          if base64.b64encode(hashlib.sha512(archive).digest()).decode("ascii") != expected:
+              raise SystemExit("Pinned npm integrity verification failed.")
+          (pathlib.Path(os.environ["RUNNER_TEMP"]) / "npm-11.11.0.tgz").write_bytes(archive)
+          PY
+          npm install --prefix "$RUNNER_TEMP/pinned-npm" --no-package-lock --ignore-scripts --no-audit --no-fund "$RUNNER_TEMP/npm-11.11.0.tgz"
+          echo "$RUNNER_TEMP/pinned-npm/node_modules/.bin" >> "$GITHUB_PATH"
+
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Install the real API from the lock
         working-directory: apps/api
-        run: uv sync --frozen
+        run: uv sync --frozen --config-file ../../.github/ci/uv-build.toml
 
       - name: Create isolated browser migration and application roles
         env:
@@ -209,82 +262,148 @@ jobs:
 
       - name: Migrate the real browser database
         working-directory: apps/api
-        run: uv run alembic upgrade head
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name browser-migration -- uv run --frozen --no-sync alembic upgrade head
 
       - name: ESLint
-        run: npm run lint
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name web-lint -- npm run lint
 
       - name: TypeScript
-        run: npm run typecheck
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name web-typecheck -- npm run typecheck
+
+      - name: Prettier
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name prettier -- npm run format:check
 
       - name: Vitest
-        run: npm run test
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name web-test -- npm run test
 
       - name: Install Chromium for the blocking browser security gate
-        run: npx playwright install --with-deps chromium
+        run: npm exec --no -- playwright install --with-deps chromium
 
       - name: Playwright with real FastAPI and PostgreSQL
         shell: bash
         env:
           LOG_LEVEL: WARNING
-        run: |
-          set -euo pipefail
-          # This key exists only in this shell and its children, never GITHUB_ENV,
-          # output, a fixture file, or an artifact. Shell tracing stays disabled.
-          set +x
-          export AUTH_HMAC_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
-          browser_api_pid=''
-          cleanup_browser_api() {
-            result=$?
-            trap - EXIT INT TERM
-            if [[ -n "$browser_api_pid" ]] && kill -0 "$browser_api_pid" 2>/dev/null; then
-              kill "$browser_api_pid"
-              wait "$browser_api_pid" || true
-            fi
-            exit "$result"
-          }
-          trap cleanup_browser_api EXIT
-          trap 'exit 130' INT
-          trap 'exit 143' TERM
-          ../api/.venv/bin/python -m uvicorn app.main:app --app-dir ../api \
-            --host 127.0.0.1 --port 8010 --no-access-log --log-level warning &
-          browser_api_pid=$!
-          browser_api_ready=false
-          for attempt in {1..30}; do
-            if ! kill -0 "$browser_api_pid" 2>/dev/null; then
-              echo 'The owned FastAPI process exited before browser readiness.' >&2
-              exit 1
-            fi
-            if curl --fail --silent --output /dev/null http://127.0.0.1:8010/health/db; then
-              browser_api_ready=true
-              break
-            fi
-            sleep 1
-          done
-          if [[ "$browser_api_ready" != true ]]; then
-            echo 'Real FastAPI/PostgreSQL did not become healthy on 8010.' >&2
-            exit 1
-          fi
-          # Playwright performs the stricter OpenAPI/database preflight itself.
-          npm run test:browser
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name browser-tests -- bash ../../.github/ci/run-browser-gate.sh
 
       - name: Browser database cleanup and RLS guard
         if: always()
         working-directory: apps/api
-        run: uv run python -m tests.db.verify_clean_database
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name database-cleanup -- uv run --frozen --no-sync python -m tests.db.verify_clean_database
 
       - name: Build
-        run: npm run build
+        run: python ../../.github/ci/security-command.py --log-dir "$RUNNER_TEMP/security-logs" --name web-build -- npm run build
+
+      # Only generated text assets and Playwright's secret-free status JSON.
+      # Binary font/image content is outside this explicit text-scanning scope.
+      # Traces, screenshots, videos, network dumps and raw logs are never uploaded.
+      - name: Stage approved browser and build artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/security-logs"
+          python - <<'PY'
+          import os
+          import pathlib
+          import shutil
+          try:
+              root = pathlib.Path("dist").resolve()
+              output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "security-logs/production-dist"
+              for artifact in root.rglob("*"):
+                  if artifact.is_symlink():
+                      raise ValueError
+                  if artifact.is_file() and artifact.suffix in {".js", ".css", ".html", ".json", ".map", ".txt"}:
+                      destination = output / artifact.resolve().relative_to(root)
+                      destination.parent.mkdir(parents=True, exist_ok=True)
+                      shutil.copyfile(artifact, destination)
+          except Exception:
+              raise SystemExit("Approved artifact staging failed.") from None
+          PY
+          if [[ -f test-results/.last-run.json ]]; then
+            cp test-results/.last-run.json "$RUNNER_TEMP/security-logs/browser-status.json"
+          fi
+
+      - name: Scan approved web output artifacts
+        if: always()
+        run: python ../../.github/ci/gitleaks-gate.py artifacts --scan-path "$RUNNER_TEMP/security-logs" --output-dir "$RUNNER_TEMP/web-artifact-scan"
 
   secrets:
     name: No committed secrets
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - name: Fail if a .env file is tracked
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: apps/api/.python-version
+      - name: Gitleaks history, tracked source and credential-path guard
+        run: python .github/ci/gitleaks-gate.py source --output-dir "$RUNNER_TEMP/source-secret-scan"
+
+  python-audit:
+    name: Python dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: apps/api/.python-version
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.10"
+      - name: Install the hash-locked audit tool outside the project environment
         run: |
-          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
-            echo "A .env file is tracked by git."
-            exit 1
-          fi
-          echo "No tracked .env file."
+          set -euo pipefail
+          uv venv --python python "$RUNNER_TEMP/pip-audit-tool"
+          uv pip sync --python "$RUNNER_TEMP/pip-audit-tool/bin/python" --require-hashes .github/ci/pip-audit.lock.txt
+      - name: Audit frozen Python, build and scanner inventories
+        run: >-
+          python .github/ci/dependency-audit.py python
+          --output-dir "$RUNNER_TEMP/python-audit"
+          --audit-python "$RUNNER_TEMP/pip-audit-tool/bin/python"
+          --uv uv
+
+  npm-audit:
+    name: npm dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: apps/api/.python-version
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: apps/web/.nvmrc
+      - name: Install the checksum-pinned npm tool outside the project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import pathlib
+          import urllib.request
+          with urllib.request.urlopen("https://registry.npmjs.org/npm/-/npm-11.11.0.tgz", timeout=60) as response:
+              archive = response.read()
+          expected = "82gRxKrh/eY5UnNorkTFcdBQAGpgjWehkfGVqAGlJjejEtJZGGJUqjo3mbBTNbc5BTnPKGVtGPBZGhElujX5cw=="
+          if base64.b64encode(hashlib.sha512(archive).digest()).decode("ascii") != expected:
+              raise SystemExit("Pinned npm integrity verification failed.")
+          (pathlib.Path(os.environ["RUNNER_TEMP"]) / "npm-11.11.0.tgz").write_bytes(archive)
+          PY
+          npm install --prefix "$RUNNER_TEMP/pinned-npm" --no-package-lock --ignore-scripts --no-audit --no-fund "$RUNNER_TEMP/npm-11.11.0.tgz"
+          echo "$RUNNER_TEMP/pinned-npm/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Audit the complete npm lock without modifying it
+        run: >-
+          python .github/ci/dependency-audit.py npm
+          --output-dir "$RUNNER_TEMP/npm-audit"
+          --node node --npm npm
