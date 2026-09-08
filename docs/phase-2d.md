@@ -1,6 +1,6 @@
 # Phase 2D — Backend-Persisted UI Settings and Permission-Aware UI
 
-**Status:** G1-G4 approved; G5 operationally verified against real FastAPI/PostgreSQL; awaiting owner acceptance. G6 not started.
+**Status:** G1-G5 approved; G6 local closure complete with 19/19 Exit Criteria PASS. Source CI and PR evidence accompany the release candidate; no merge authorized.
 
 **الأساس:** `phase-2c-baseline` عند
 `e6072195079158d12dcb0ff95b0cd5343a3ba50e`، و`main = develop` عند نقطة البدء.
@@ -233,8 +233,24 @@ HTTP الفعلي لكل عمليات المصادقة والإعدادات قي
 تفاصيل التشغيل، بما فيها SelectorEventLoop على Windows، في
 [browser-testing.md](browser-testing.md).
 
-## خطة G6 المقترحة
+## إغلاق G6 المحلي
 
-بعد اعتماد G5: مراجعة Exit Criteria للمرحلة والبوابات النهائية وتوثيق الإغلاق المحلي،
-مع تثبيت الأدلة الحالية واستكمال الفحوص المطلوبة عند نقطة قبول G6 فقط.
-لم يبدأ G6؛ لا Phase 2E أو Business Modules أو Platform writes.
+راجعت G6 شروط الخروج بندًا بندًا: **19/19 PASS**. الأدلة المحددة لكل بند في
+[phase-2d-exit-criteria.md](phase-2d-exit-criteria.md).
+
+أعيد تشغيل جميع البوابات المطلوبة: Backend **490 passed**، Frontend
+**225 passed / 29 files**، وChromium الحقيقي **7/7 PASS (3.2m)**.
+نجحت Ruff وMypy وESLint وTypeScript وPrettier وproduction build وAlembic check
+وحراس PostgreSQL وRLS وcatalog وownership وgrants والأسرار والتنظيف.
+
+نجحت دورة migrations كاملة مع commits فعلية: head → base → head، على PostgreSQL17
+مؤقت ومعزول على loopback5434، بأدوار CI المنفصلة. أُوقف الخادم المؤقت وأزيلت بياناته
+بعد الفحص. بقيت قاعدة التطوير على5433 وسجلاتها الأمنية محفوظة، ولم يتغير مسار المتصفح
+5187 → FastAPI8010 → PostgreSQL أو منفذا التشغيل الرسميان5173 و8010.
+
+لا تغييرات تنفيذية في G6؛ تحديث التوثيق يثبت أدلة الإغلاق. السجلات المنقحة في
+`_logs/phase2d-g6-*` غير متتبعة، والتقريران الشخصيان خارج commits وPR.
+تبقى BRD/SRS وعقود Phase2A/2B/2C ومكونات Design System والthemes/presets محفوظة.
+
+تُرفق نتيجة GitHub CI الخاصة بـsource HEAD النهائي في PR إلىdevelop بعد نجاحها.
+لا تدمج هذه الجولة PR، ولا تنشئ tag أوPhase2E أوBusiness Modules أوPlatform writes.
