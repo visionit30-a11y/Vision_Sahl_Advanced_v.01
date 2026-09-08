@@ -17,7 +17,7 @@ param(
 #    4. Python virtual environment and API packages   (uv, from uv.lock)
 #    5. frontend packages                             (skipped if present)
 #    6. verify the server identity through data_directory BEFORE any change
-#    7. create the sahl_migrator and sahl_app roles, the database, and the grants
+#    7. create migration/application roles, inert audit-maintenance capability, database/grants
 #    8. verify that the application role can connect
 #    9. apply the Alembic migrations, as the migration role
 #
@@ -369,7 +369,7 @@ try {
         Write-Ok 'Confirmed: this is an independent PostgreSQL instance, not the Odoo one.'
 
         Write-Section '7. Roles and database'
-        # Two roles, matching .github/ci/setup-database.sql exactly. The
+        # Runtime/migration separation matches .github/ci/setup-database.sql. The
         # migration role owns the schema and runs Alembic; the application role
         # owns nothing and runs the application. Sharing one role would leave
         # every isolation policy one missing FORCE away from being inert, and
@@ -403,6 +403,15 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
             '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres', '-f', $sqlPath
         ) | Out-Null
         Write-Ok ('Roles "' + $migratorUser + '" and "' + $dbUser + '" and database "' + $dbName + '" are ready')
+
+        # G4 creates only a NOLOGIN capability. No maintenance credential or purge
+        # is configured or executed here; the migrator remains NOCREATEROLE.
+        Invoke-Native -File $psqlExe -Arguments @(
+            '-v', 'ON_ERROR_STOP=1', '-q',
+            '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres',
+            '-f', (Join-Path $PSScriptRoot 'sql\security-maintenance-role.sql')
+        ) | Out-Null
+        Write-Ok 'Audit maintenance capability verified (NOLOGIN; no runtime membership).'
 
         # Ownership and grants live inside the database, so this runs connected
         # to it. REASSIGN OWNED moves anything the application role created

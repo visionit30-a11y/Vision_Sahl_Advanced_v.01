@@ -28,7 +28,7 @@ class SecurityEventWriter:
 
     The database verifies identity links independently. Role events require an
     armed intent attested by actual RBAC row mutations under existing FORCE RLS.
-    Retention events are reserved for the future maintenance capability.
+    Retention events are available only through the separate maintenance capability.
     """
 
     def __init__(self, connection: AsyncConnection | TenantTransaction) -> None:

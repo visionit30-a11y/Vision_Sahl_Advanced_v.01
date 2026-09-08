@@ -68,6 +68,7 @@ class SecurityEvent(Base):
     __tablename__ = "security_events"
     __table_args__ = (
         *(CheckConstraint(expression, name=name) for name, expression in AUDIT_CHECKS.items()),
+        Index("ix_security_events_retention", "created_at", "id"),
         {"schema": "auth"},
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)

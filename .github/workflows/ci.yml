@@ -92,9 +92,10 @@ jobs:
       - name: Create the migration and application roles
         env:
           PGPASSWORD: postgres
-        run: >-
-          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci
-          -f ${{ github.workspace }}/.github/ci/setup-database.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci -f "${{ github.workspace }}/.github/ci/setup-database.sql"
+          # G4: generate the disposable maintenance credential without printing or committing it.
+          uv run python ../../.github/ci/security-maintenance-fixture.py
 
       # Blocking, and deliberately before anything touches the schema: if the
       # application role could bypass isolation, every later test would pass for

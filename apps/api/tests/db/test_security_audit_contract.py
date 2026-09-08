@@ -290,8 +290,10 @@ def test_append_and_guard_functions_have_exact_grants_and_no_rls_bypass(
         assert row.proconfig == ["search_path=pg_catalog"]
         assert row.public_execute is False
         assert row.app_execute is (row.proname == "append_security_event")
-        for forbidden in ("BYPASSRLS", "ROW_SECURITY", "SET_CONFIG", "EXECUTE "):
-            assert forbidden not in row.definition.upper()
+        # Ignore quoted ACL labels such as 'EXECUTE'; rolbypassrls is a
+        # catalog flag we must reject, not the BYPASSRLS command itself.
+        sql_tokens = re.sub(r"'(?:''|[^'])*'", "''", row.definition.upper())
+        assert not re.search(r"\b(?:BYPASSRLS|ROW_SECURITY|SET_CONFIG|EXECUTE)\b", sql_tokens)
     assert rows[0].arguments == (
         "uuid, text, text, text, uuid, uuid, uuid, bytea, "
         "uuid, uuid, uuid, text, text, smallint, bigint"
