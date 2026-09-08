@@ -1,6 +1,6 @@
 # Phase 2D — Backend-Persisted UI Settings and Permission-Aware UI
 
-**الحالة:** Groups 1 و2 معتمدة؛ Group 3 منفذة محليًا وتنتظر اعتماد المالك.
+**الحالة:** Groups 1–3 معتمدة؛ Group 4 منفذة محليًا وتنتظر اعتماد المالك.
 
 **الأساس:** `phase-2c-baseline` عند
 `e6072195079158d12dcb0ff95b0cd5343a3ba50e`، و`main = develop` عند نقطة البدء.
@@ -122,3 +122,28 @@
 2. ربط effective read وUser/Tenant writes بالخدمة الحالية مع ETag/version conflict contract.
 3. إثبات 401/403/409 وIDOR وcross-tenant وعدم تنفيذ repository عند DENY.
 4. إبقاء Platform write وfrontend integration خارج G4 ما لم يعتمد نطاقهما صراحة.
+
+## تنفيذ وبوابة G4
+
+- أضيفت endpoints القراءة والحسم وإدارة طبقتي User self وTenant تحت `/ui-settings`.
+  لا تقبل العقود `user_id` أو`tenant_id`؛ تأتي الهوية وTenantContext من trusted auth flow.
+- كل route يرتبط بـPermission typed عبر `require_permission()`، ثم يستدعي
+  `UiSettingsService` فقط. لا يوجد import أو استدعاء repository/DB من route ولا role-name check.
+- User endpoints تستخدم `tenant.user_ui_settings.manage_self` وتستهدف principal الحالي فقط.
+  Tenant endpoints تستخدم `tenant.ui_settings.manage` وتستهدف TenantContext الحالي فقط.
+- PUT يطلب `expected_version` صراحة؛ القيمة null تعني create مشروطًا، والقيمة الموجبة تعني
+  update مشروطًا. DELETE يطلب نسخة موجبة. stale state يعيد 409، والطبقة الغائبة 404،
+  والتحقق 422 دون إعادة input، والمصادقة/التفويض 401/403.
+- كل response لمسار UI settings، بما فيها الأخطاء، يحمل `Cache-Control: no-store`.
+  لا يوجد Platform write endpoint أو frontend integration.
+- أثبتت الاختبارات effective read وUser/Tenant CRUD وحدود self/context، وتجاهل selectors
+  المزورة، وزيادة النسخة، و401/403/404/409/422، وغياب Platform writes وتسريب DB/session.
+- نجحت بوابة G4 المستهدفة وحراس authorization/RLS المرتبطة: **83 passed** بلا skip أو
+  xfail. Ruff وMypy ناجحان، وmigration head بقي `0012_ui_settings_foundation`.
+
+## خطة G5
+
+1. ربط frontend auth client بـeffective/User/Tenant endpoints مع credentials وCSRF الحاليين.
+2. استبدال browser persistence المؤقت بالحالة المحملة من Backend، مع memory-only draft.
+3. إزالة preview authority وتحديث الحالة بعد tenant switch/session rotation بلا fallback قديم.
+4. إثبات التدفق بمتصفح حقيقي وحراس storage/cache/permissions مع الحفاظ على Design System.
