@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Self
 
@@ -90,6 +91,14 @@ class UiSettingsPatch(RootModel[dict[UiSettingKey, str]]):
 
     def as_json(self) -> dict[str, str]:
         return {key.value: value for key, value in self.root.items()}
+
+
+@dataclass(frozen=True, slots=True)
+class StoredUiSettingsPatch:
+    """Versioned domain record returned without exposing persistence handles."""
+
+    settings: UiSettingsPatch
+    version: int
 
 
 class UserUiSettingsScopeError(ValueError):

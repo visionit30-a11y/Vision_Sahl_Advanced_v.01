@@ -3,20 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 
 from sqlalchemy import text
 
 from app.db.session import _engine
 from app.db.tenant_transaction import tenant_transaction
 from app.tenancy.context import TenantContext
-from app.ui_settings.contracts import UiSettingsPatch
-
-
-@dataclass(frozen=True, slots=True)
-class StoredUiSettingsPatch:
-    settings: UiSettingsPatch
-    version: int
+from app.ui_settings.contracts import StoredUiSettingsPatch, UiSettingsPatch
 
 
 class UiSettingsRepository:

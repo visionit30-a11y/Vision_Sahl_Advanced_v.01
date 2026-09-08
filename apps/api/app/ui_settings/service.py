@@ -10,18 +10,25 @@ from enum import StrEnum
 from app.authorization.contracts import AuthorizationBoundaryRequiredError, AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
 from app.core.errors import AppError
-from app.db.ui_settings_repository import (
+from app.db.ui_settings_repository import UiSettingsRepository, ui_settings_repository
+from app.ui_settings.contracts import (
     StoredUiSettingsPatch,
-    UiSettingsRepository,
-    ui_settings_repository,
+    UiSettingKey,
+    UiSettingsPatch,
+    require_self_user,
 )
-from app.ui_settings.contracts import UiSettingKey, UiSettingsPatch, require_self_user
 
 
 class UiSettingsConflictError(AppError):
     code = "conflict"
     status_code = 409
     message = "UI settings changed; reload them before retrying."
+
+
+class UiSettingsNotFoundError(AppError):
+    code = "not_found"
+    status_code = 404
+    message = "The requested UI settings layer was not found."
 
 
 class UiSettingsOrigin(StrEnum):
@@ -85,6 +92,16 @@ class UiSettingsService:
             values, origins, self._version(platform), self._version(tenant), self._version(user)
         )
 
+    async def get_user(self, grant: AuthorizationGrant) -> StoredUiSettingsPatch:
+        grant = _require_grant(grant, Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF)
+        return self._found(
+            await self._repository.read_user(grant.tenant_context, grant.principal.user_id)
+        )
+
+    async def get_tenant(self, grant: AuthorizationGrant) -> StoredUiSettingsPatch:
+        grant = _require_grant(grant, Permission.TENANT_UI_SETTINGS_MANAGE)
+        return self._found(await self._repository.read_tenant(grant.tenant_context))
+
     async def put_user(
         self,
         grant: AuthorizationGrant,
@@ -126,6 +143,12 @@ class UiSettingsService:
     def _changed(result: StoredUiSettingsPatch | None) -> StoredUiSettingsPatch:
         if result is None:
             raise UiSettingsConflictError()
+        return result
+
+    @staticmethod
+    def _found(result: StoredUiSettingsPatch | None) -> StoredUiSettingsPatch:
+        if result is None:
+            raise UiSettingsNotFoundError()
         return result
 
     @staticmethod

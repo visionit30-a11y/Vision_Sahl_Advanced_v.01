@@ -7,10 +7,14 @@ import pytest
 from app.auth.tenants import AuthenticatedPrincipal
 from app.authorization.contracts import AuthorizationBoundaryRequiredError, AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
-from app.db.ui_settings_repository import StoredUiSettingsPatch
 from app.models.tenant import TenantId
 from app.tenancy.context import TenantContext
-from app.ui_settings.contracts import UiSettingKey, UiSettingsPatch, UserUiSettingsScopeError
+from app.ui_settings.contracts import (
+    StoredUiSettingsPatch,
+    UiSettingKey,
+    UiSettingsPatch,
+    UserUiSettingsScopeError,
+)
 from app.ui_settings.service import UiSettingsOrigin, UiSettingsService
 
 
