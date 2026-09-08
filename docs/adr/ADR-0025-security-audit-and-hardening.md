@@ -1,6 +1,6 @@
 # ADR-0025: Security Audit Events والتنقيح والبوابات الأمنية
 
-- **الحالة:** G1 وG2 معتمدتان؛ اكتمل ربط الأحداث والتنقيح محليًا في G3. الأدلة في [تقرير G2](../phase-2e-g2-verification.md) و[تقرير G3](../phase-2e-g3-verification.md).
+- **الحالة:** G1–G3 معتمدة؛ اكتملت capability الاحتفاظ المحدود محليًا في G4 بتفويض صريح. الأدلة في [G2](../phase-2e-g2-verification.md) و[G3](../phase-2e-g3-verification.md) و[G4](../phase-2e-g4-retention.md).
 - **التاريخ:** 2026-09-08.
 - **الأساس:** `phase-2d-baseline` عند `1677d114c5736c4032b862ddf0b58517490d1317`.
 - **العلاقة:** يكمل ADR-0022 ولا يغيّر Authentication أو TenantContext أو RLS أو RBAC أو UI Settings.
@@ -64,8 +64,8 @@
 | `security_events_pruned` | success | مهمة retention المحدودة؛ العدد فقط، دون IDs للصفوف المحذوفة |
 
 الصفوف الأحد عشر الأولى موجودة في كتالوج baseline؛ نُفذ الكتالوج الكامل في G2.
-ربط G3 أحداث العمليات القائمة وأحداث الرفض وإدارة الأدوار. يبقى `security_events_pruned`
-مرفوضًا للكتابة حتى تنفيذ capability الصيانة في G4؛ وجوده في الكتالوج ليس إثبات تنفيذ purge.
+ربط G3 أحداث العمليات القائمة وأحداث الرفض وإدارة الأدوار. نُفذ `security_events_pruned` في G4
+حصريًا عبر capability الصيانة المحدودة؛ يبقى مرفوضًا عبر runtime writer العادي.
 تغطية النجاح عند mutations تعني حدثًا واحدًا لكل تغيير فعلي مع commit واحد، لا لكل retry أو
 idempotent no-op. رفض إدارة role يسجل `authorization_denied` أو `membership_denied` بحسب
 الحد الذي رفضه، ولا ينتج حدث نجاح. لا نسجل كل ALLOW أو كل قراءة إعدادات لتجنب تحويل السجل إلى
@@ -224,3 +224,20 @@ constraint trigger مؤجل يمنع commit لنية غير مستهلكة؛ إ�
 والحدث. لا endpoints جديدة ولا بديل عن Authentication الحالية. hash لا يخرج إلى HTTP/logs/audit.
 الملكية `sahl_migrator`، SECURITY DEFINER مع `search_path=pg_catalog`، وتوقيعات EXECUTE ضيقة،
 دون dynamic SQL أو PUBLIC privileges أو direct grants للجداول.
+
+
+## 11. حسم G4 — capability الاحتفاظ
+
+اعتمد المستخدم صراحة migration0016 والدالة `auth.prune_security_events(integer)` وأداة الصيانة
+واختبارات PostgreSQL disposable. cutoff هو `transaction_timestamp() - interval '2160 hours'`؛
+لا تاريخ أو IDs يرسلها caller. الصف عند الحد يبقى؛ معاملة قديمة تؤخر الحذف فقط ولا تعجله.
+الأداة تفتح معاملة جديدة محدودة لكل batch. SKIP LOCKED لا يعتبر الصف المقفل محذوفًا أو drained.
+
+دور NOLOGIN مستقل، لا ملكية أو عضوية في التطبيق/المهاجر أو امتيازات إدارية. المنح فقط auth
+USAGE وEXECUTE لتوقيع purge. تفحص الدالة وvalidator هوية `session_user` والمنح المتداخلة؛
+لا direct table/append grants. event count مشتق من DELETE الفعلي وفي المعاملة نفسها.
+الفهرس وvalidator/downgrade واختبارات الحدود والذرية والتزامن موثقة في [عقد G4](../phase-2e-g4-retention.md).
+
+capability provisioned دون LOGIN إنتاجي، وأداة CLI بلا .env/fallback/scheduler. اختبارات G4
+على PostgreSQL المعزول فقط؛ no production/dev purge. CI fixture تولد credential مؤقتًا دون
+التزامه أو طباعته. اعتماد backup/production job والسياسة التشغيلية الفعلية يبقى منفصلًا.

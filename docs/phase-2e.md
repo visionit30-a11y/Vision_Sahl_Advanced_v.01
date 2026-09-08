@@ -2,9 +2,9 @@
 
 ## الحالة والنطاق
 
-G1 وG2 معتمدتان، وG3 مكتملة محليًا بتاريخ 2026-09-08، من `phase-2d-baseline`:
+G1–G3 معتمدة، وG4 مكتملة ومثبتة محليًا بتاريخ 2026-09-08، من `phase-2d-baseline`:
 `1677d114c5736c4032b862ddf0b58517490d1317`.
-Migration head: `0015_security_event_wiring`؛ أُثبتت على PostgreSQL معزول فقط.
+Migration head: `0016_security_audit_retention`؛ أُثبتت على PostgreSQL معزول فقط.
 الفرع المحلي: `codex/phase-2e-security-hardening`.
 
 الأرقام **490 Backend / 225 Frontend في 29 ملفًا / 7 Playwright** تخص baseline المعتمدة،
@@ -135,12 +135,12 @@ stdout/stderr أو Match/context أو report. GitHub masking وحده ليس ب�
 | G1 | ADR/catalog/fields/retention/gates/exit criteria فقط | docs: عقد وكتالوج وخطة المرحلة والقبول والفهرس في commit توثيق ذري واحد |
 | G2 | typed audit contracts + writer وDB integrity/append-only guards | domain catalog/validators؛ migration مستقلة بعد 0013 عند الحاجة؛ targeted DB tests |
 | G3 | ربط audit بالعمليات الأمنية القائمة + error/logging hardening | atomic emitters؛ HTTP/validation projection؛ logging/DB/config emission guards؛ tests |
-| G4 | retention capability وأداة صيانة محدودة وrunbook | صلاحية purge مستقلة إن اعتمدت؛ cleanup وأحداثه؛ disposable DB concurrency/TTL tests |
+| G4 | retention capability وأداة صيانة محدودة وrunbook — مكتملة محليًا | صلاحية purge مستقلة؛ cleanup وأحداثه؛ disposable DB concurrency/TTL tests |
 | G5 | scanners + workflow hardening + negative CI tests | pinned security tools/lock عند الحاجة؛ redacted runners/exceptions؛ CI wiring/docs |
 | G6 | full final gates وExit Criteria والإغلاق المحلي | evidence/docs فقط أو إصلاح محدد مثبت؛ أي push/PR/merge/tag يحتاج الطلب المناسب |
 
-G4 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI business semantics مع audit.
-نُفذت 0014 في G2 و0015 في G3 بموافقة المستخدم، دون تعديل migrations السابقة.
+G5 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI business semantics مع audit.
+نُفذت 0014 في G2 و0015 في G3 و0016 في G4 بموافقة المستخدم، دون تعديل migrations السابقة.
 
 ### الملفات المتوقع لمسها لاحقًا
 
@@ -159,7 +159,7 @@ G4 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI bus
 
 اعتماد G1 يشمل اقتراح: retention للأحداث 90 يومًا، نهج الحقول المغلق والكتالوج، ورفض كل advisory
 غير مستثناة مع استثناء دقيق مدته القصوى 30 يومًا، واختيار Gitleaks/pip-audit/npm audit.
-لا يوجد blocker يمنع توثيق G1. migration 0014 معتمدة ومنفذة في G2؛ صلاحية maintenance مؤجلة إلى G4؛
+لا يوجد blocker يمنع توثيق G1. migration 0014 معتمدة ومنفذة في G2؛ capability الصيانة اعتمدت ونُفذت في G4؛
 مدة/آلية backup الفعلية وrequired branch checks وإصدارات scanners المقبولة تثبت في مجموعاتها،
 ولا تسجل PASS الآن أو تتحول إلى claim بأن production خالية من مخاطر غير مفحوصة.
 
@@ -206,5 +206,25 @@ Ruff وMypy وAlembic check و0015 → 0014 → 0015 وRLS/ownership/cleanup PAS
 PostgreSQL17 المعزول على5434 أُوقف وحُذفت بياناته بعد حفظ الأدلة المنقحة.
 
 التفاصيل والمصفوفة وحدود الادعاء في [تقرير G3](phase-2e-g3-verification.md).
-G4 لم تبدأ؛ تبقى retention capability/purge/runbook خارج هذا التنفيذ، وCI/scanners في G5،
-والبوابات النهائية الشاملة للمرحلة في G6. لا push/PR أو CI جديدة في G3.
+عند إغلاق G3 كانت retention capability/purge/runbook مؤجلة إلى G4. لا push/PR أو CI جديدة
+في G3. نُفذت G4 لاحقًا بالتفويض الصريح أدناه؛ تبقى scanners/CI hardening في G5 والبوابات
+النهائية الشاملة للمرحلة في G6.
+
+
+## G4 — الاحتفاظ المحدود والإغلاق المحلي
+
+نُفذت `auth.prune_security_events(integer)` مع cutoff ثابت90×24ساعة من وقت بدء معاملة PostgreSQL،
+وفهرس `(created_at,id)` وbatch1..1000 وSKIP LOCKED. DELETE والحدث الإلزامي ذريّان؛ فشل الحدث
+يلغي حذف الدفعة. لا-op بلا حدث، والصفوف المقفلة تظل backlog.
+
+capability `sahl_security_maintenance` بلا LOGIN/ownership أو صلاحيات إدارية، ولا grants مباشرة
+للجداول؛ فقط auth USAGE وEXECUTE للدالة المحددة. تحقق `session_user` يرفض الهوية غير المخولة
+والمنح المتداخلة. أداة الصيانة تستخدم URL مخصصة فقط و`--execute` صريحًا، ومعاملة لكل batch
+وحدًا لعدد الدفعات وexit0/1/2. لا scheduler أو credential إنتاجي أو purge على sahl_dev/production.
+
+**404 اختبارات فريدة PASS**:112 جديدة و292 regression مرتبطة؛ Ruff/Mypy/Alembic/RLS/ownership/
+cleanup و0016→0015→0016 PASS. PostgreSQL المعزول أُوقف وحُذفت بياناته. حُفظ audit history
+ودور capability خلال downgrade/upgrade. تهيئة CI تغيرت فقط لتوفير هوية G4 الاختبارية العشوائية؛
+لم يُشغّل GitHub CI أو scanners. التفاصيل في [عقد G4 وأدلة التحقق](phase-2e-g4-retention.md).
+
+G4 operationally verified محليًا، بلا blocker. G5 لم تبدأ، وPhase2E لم تُغلق نهائيًا.

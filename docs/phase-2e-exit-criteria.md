@@ -1,8 +1,8 @@
 # Phase 2E — Exit Criteria
 
-**الحالة:** إثبات G3 المحلي بتاريخ 2026-09-08؛ بقية معايير المرحلة تنتظر مجموعاتها.
+**الحالة:** إثبات G4 المحلي بتاريخ 2026-09-08؛ بقية معايير المرحلة تنتظر مجموعاتها.
 **الأساس:** `phase-2d-baseline` — `1677d114c5736c4032b862ddf0b58517490d1317`.
-**Migration الحالية:** `0015_security_event_wiring`؛ أُثبتت على PostgreSQL معزول.
+**Migration الحالية:** `0016_security_audit_retention`؛ أُثبتت على PostgreSQL معزول.
 
 المرجع: [ADR-0025](adr/ADR-0025-security-audit-and-hardening.md) و[خطة Phase 2E](phase-2e.md).
 
@@ -14,32 +14,35 @@
 | 2 | اكتمال emitters للعمليات الأمنية القائمة | coverage لكل حدث، بلا endpoints مصطنعة أو auth redesign | PASS — G3 |
 | 3 | IDs وروابط موثوقة فقط | forged user/session/membership/role IDs وcross-tenant denial | PASS — G3 |
 | 4 | حصر الحقول ومنع الأسرار | canaries لـpassword/PHC/bearer/reset/CSRF/keys/DSNs، ورفض raw metadata | PASS — G3 |
-| 5 | تغيير الحالة والحدث ذريّان | فشل event يلغي mutation؛ retry/no-op لا يخلق نجاحًا مضللًا | PASS — G3 |
+| 5 | تغيير الحالة والحدث ذريّان | فشل event يلغي mutation؛ retry/no-op لا يخلق نجاحًا مضللًا | PASS — G2–G4 |
 | 6 | failure/denial لا تختفي بصمت أو تفتح الوصول | rollback + bounded audit transaction، DB outage يبقى DENY | PASS — G3 |
-| 7 | runtime append-only وأقل grants | لا direct SELECT/INSERT/UPDATE/DELETE/TRUNCATE أو ownership؛ exact function guards | PASS — G2/G3 |
+| 7 | runtime append-only وأقل grants | لا direct SELECT/INSERT/UPDATE/DELETE/TRUNCATE أو ownership؛ exact function guards | PASS — G2–G4 |
 | 8 | تصنيف DB والعزل ثابتان | auth exception محددة، جميع tenant RLS/FORCE/USING/WITH CHECK guards | PASS — G2/G3 |
 | 9 | error envelopes منقحة ومتوافقة | AppError/HTTPException/500، 401/403/404/409، no-store | PASS — G3 |
 | 10 | validation لا يعيد input حساسًا | body/query/path/header، msg/loc/extra keys/malformed JSON canaries | PASS — G3 |
 | 11 | logging آمن عند الإخراج النهائي | structlog/stdlib/Uvicorn + exception chains عبر real server stdout/stderr | PASS — G3 |
 | 12 | SQLAlchemy/driver/config لا يكشف أسرارًا | hide_parameters/echo/DSN repr guards وDB failure canaries | PASS — G3 |
 | 13 | metadata وcontext آمنان | route template، internal correlation، request-ID compatibility وfinally/concurrency | PASS — G3 |
-| 14 | retention وpurge محدودتان | cutoff وTTL وbatches والتزامن وrollback event failure في DB disposable | PLANNED |
-| 15 | حدود التشغيل والنسخ موثقة ومثبتة بقدر البيئة | maintenance grants، DB/proxy log settings، restore/backup retention واعتماد التشغيل | PARTIAL — G3 |
+| 14 | retention وpurge محدودتان | cutoff وTTL وbatches والتزامن وrollback event failure في DB disposable | PASS — G4 |
+| 15 | حدود التشغيل والنسخ موثقة ومثبتة بقدر البيئة | maintenance grants، DB/proxy log settings، restore/backup retention واعتماد التشغيل | PARTIAL — G4 |
 | 16 | لا أسرار في تاريخ Git أو snapshot المتتبع | Gitleaks + nested env guards + redacted scanner output tests | PLANNED |
 | 17 | تبعيات Python/npm مدققة بالكامل | frozen inventories، markers/dev/optional coverage، كل advisory بلا استثناء تفشل | PLANNED |
 | 18 | scanners fail closed والاستثناءات ضيقة | outage/invalid output/missing lock/skip/expired exception negative tests | PLANNED |
 | 19 | CI أقل صلاحيات وبوابات حاجزة فعلًا | SHA pins/timeouts/contents:read، required checks verified للنطاق المصرح | PLANNED |
 | 20 | browser proof وعدم تغير Design System | Playwright حقيقي: 5187 → FastAPI8010 → PostgreSQL، لا secrets storage/console/artifacts | PLANNED |
-| 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PARTIAL — G3 |
-| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G3 |
+| 21 | regressions وكامل quality/database gates | Backend/Frontend كاملة، Ruff/Mypy/ESLint/TS/Prettier/build، Alembic/round-trip/RLS/cleanup | PARTIAL — G4 |
+| 22 | scope/history/evidence سليمة | لا Business Modules/Phase3، لا auth/RBAC/UI/RLS redesign؛ تقريران مستثنيان وBRD/SRS ثابتتان؛ CI لكل SHA مطلوب عند الإغلاق | PARTIAL — G4 |
 
-**النتيجة الحالية:** 13 معيارًا مثبتًا محليًا، و3 جزئية، و6 مخططة؛ Phase 2E لم تُغلق.
-دليل G3: **717 Backend tests PASS**، منها 88 جديدة؛ Ruff/Mypy/Alembic/round-trip/RLS/cleanup PASS.
+**النتيجة الحالية:** 14 معيارًا مثبتًا محليًا، و3 جزئية، و5 مخططة؛ Phase 2E لم تُغلق.
+دليل G4: **404 targeted tests PASS**، منها112 جديدة و292 regression؛ migration0016 وRuff/Mypy/
+Alembic/round-trip/RLS/cleanup PASS. [التفاصيل](phase-2e-g4-retention.md).
+دليل G3 التاريخي: **717 Backend tests PASS**، منها88 جديدة.
 دليل G2 التاريخي: **313 targeted tests PASS**. التفاصيل في [تقرير G3](phase-2e-g3-verification.md).
-معيار 15 جزئي: إثبات DB/Uvicorn المعزول فقط، دون production proxy/backup/maintenance.
-معيار 21 جزئي: Backend كاملة؛ Frontend/Playwright وباقي البوابات النهائية لم تُعد في G3.
+معيار15 جزئي: capability والـrunner وDB/Uvicorn المعزول مثبتة؛ production proxy/backup/job غير منفذة.
+معيار21 جزئي: G4 وحراس DB المرتبطة مثبتة؛ لم تُعد Full Backend/Frontend/Playwright في G4.
 معيار 22 جزئي: النطاق وGit محليًا مثبتان؛ CI والإغلاق النهائي للمرحلة مؤجلان.
-لا نتائج scanners أو GitHub CI جديدة؛ النتيجة ليست 22/22 PASS.
+لا نتائج scanners أو GitHub CI جديدة؛ تعديل provisioning الاختباري في G4 لا يثبت تشغيل CI.
+النتيجة ليست22/22 PASS؛ G5 لم تبدأ.
 
 ## قواعد تنفيذ الإثبات لاحقًا
 
