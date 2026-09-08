@@ -36,8 +36,11 @@ class Permission(StrEnum):
     TENANT_MEMBERSHIPS_MANAGE = "tenant.memberships.manage"
     TENANT_ROLES_READ = "tenant.roles.read"
     TENANT_ROLES_MANAGE = "tenant.roles.manage"
+    TENANT_USER_UI_SETTINGS_MANAGE_SELF = "tenant.user_ui_settings.manage_self"
+    TENANT_UI_SETTINGS_MANAGE = "tenant.ui_settings.manage"
     PLATFORM_TENANTS_READ = "platform.tenants.read"
     PLATFORM_TENANTS_MANAGE = "platform.tenants.manage"
+    PLATFORM_UI_SETTINGS_MANAGE = "platform.ui_settings.manage"
 
 
 def build_permission_catalog(values: Iterable[str]) -> frozenset[PermissionId]:
