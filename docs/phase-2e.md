@@ -168,3 +168,47 @@ G2 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI bus
 
 التحقق في G1 يقتصر على مراجعة اتساق الوثائق والروابط المحلية وdiff/whitespace ونطاق الملفات.
 لم تُشغّل الاختبارات المحلية أو scanners، ولم يحصل push/PR أو تعديل إعداد GitHub.
+
+## G2 — الجزء المستقل المنجز والتوقف قبل migration
+
+**الحالة بتاريخ 2026-09-08:** G2 غير مكتملة؛ لا تغيير قاعدة بيانات أو migration جديدة.
+
+أُنجزت foundation مستقلة في `app/audit/`: كتالوج typed من 22 event و19 reason، mapping
+غير قابلة للتعديل، DTO مغلقة مع scalar/link-shape validation وrepr/errors ثابتة، وصياغات SQL
+مشتقة من الكتالوج. writer مُحضّر لا يملك المعاملة، يولّد event/correlation IDs داخليًا،
+ويرفض raw intents وعمليات roles/retention المحجوزة ويخفي DB exception formatting.
+هذه الوحدات **غير موصولة بمسارات التطبيق الحالية**؛ لا ندعي إثبات DB أو تشغيل writer عليها.
+
+التحقق المستهدف: **89 unit tests PASS**؛ Ruff PASS؛ Mypy PASS على 6 ملفات.
+لم تُشغّل suite كاملة أو browser أو PostgreSQL tests، ولم تُثبّت أدوات scanning.
+تبقى migration head `0013_auth_http_projections` وmain/develop على baseline المعتمدة.
+
+### migration المقترحة للموافقة الصريحة
+
+`0014_security_audit_contract` بعد 0013، بلا تعديل migrations منشورة:
+
+- ستة أعمدة nullable: role_id وtarget_membership_id وpermission_id وsubject_kind وsubject_key_id
+  وaffected_count (bigint).
+- قيود مغلقة تطابق الكتالوج والأشكال؛ القيود الجديدة NOT VALID عند الحاجة لحماية الصفوف
+  التاريخية من إعادة الكتابة، مع enforcement على INSERT/UPDATE الجديدة.
+- trigger للإدراج يتحقق من وجود user وروابط session/membership وملكية العلاقة، برسالة خطأ ثابتة؛
+  لا FKs تحذف audit history ولا trigger يمنع cleanup المصرح به للـmigrator.
+- دالة append محددة التوقيع؛ wrapper القديم يرفض روابط غير متسقة ويولّد correlation داخليًا.
+  تعديل دوال reset يقتصر على توجيه كتابة الحدث إلى الحد المقيد، دون تغيير أعمال المصادقة.
+- owner يبقى sahl_migrator، search_path ثابت، لا PUBLIC EXECUTE ولا direct runtime table grants،
+  ولا تغيير RLS أو TenantContext.
+- downgrade يرفض فقد أحداث أو metadata جديدة؛ لا يحذف السجل لمجرد نجاح downgrade.
+- التطبيق والـround-trip والاختبارات على PostgreSQL disposable فقط، لا قاعدة التطوير المشتركة.
+
+رفضت المراجعة الآلية **إنشاء ملف migration** لأن كلمة «التالي» لم تُعتبر تفويضًا صريحًا كافيًا
+لهذه التغييرات الأمنية في DB. لم يُكتب الملف ولم تُطبق DB تغييرات، ولم يُستخدم مسار بديل
+لتجاوز الرفض. يحتاج استكمال هذه الخطوة إلى تأكيد المستخدم الصريح لتنفيذ G2 وmigration 0014.
+أُعيدت تعديلات الربط الأربع التي أُعدّت محليًا إلى HEAD كي لا يطلب التطبيق دالة DB غير موجودة؛
+diff الخاصة بها محفوظة مؤقتًا خارج commits في `_logs/phase2e-g2-pending-wiring.patch`.
+
+### حد أحداث إدارة الأدوار
+
+المراجعة المحدودة أثبتت أن policy على `auth.roles` تخص sahl_app، بينما FORCE RLS تمنع
+migrator من قراءة rows عبر SECURITY DEFINER. لذلك تبقى أحداث roles السبعة وحدث retention
+معرّفة في العقد ومرفوضة للكتابة في G2. لا نستبدل ذلك بـBYPASSRLS أو policy جديدة أو قبول UUID
+مجرد. يلزم اعتماد طريقة إثبات متوافقة قبل توصيل role emitters في G3؛ لا نعدّ هذا الإثبات منجزًا.
