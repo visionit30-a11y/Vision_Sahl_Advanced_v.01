@@ -29,6 +29,8 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `phase-2b.md` | نطاق الهوية والمصادقة والجلسات ومجموعات التنفيذ وحالة القبول |
 | `phase-2c.md` | نطاق RBAC وخدمة التفويض المركزية وقرارات وخطة Group 1 |
 | `phase-2d.md` | تخزين إعدادات الواجهة في Backend وربطها بصلاحيات Phase 2C |
+| `phase-2e.md` | خطة Security Audit والتنقيح والبوابات الأمنية ومجموعات التنفيذ |
+| `phase-2e-exit-criteria.md` | معايير قبول Phase 2E وخطة الإثبات دون ادعاء تنفيذ في G1 |
 | `adr/ADR-0015-tenant-context-and-transactions.md` | سياق الجهة وحدّ المعاملة؛ المجموعة الثالثة المقبولة |
 | `adr/ADR-0016-tenant-rls-enforcement.md` | إنفاذ RLS وبرهان probe وعقد اكتشاف الجداول |
 | `adr/ADR-0017-database-role-separation.md` | فصل الأدوار وحدود المنح ومهاجرة 0004 |
@@ -39,6 +41,7 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `adr/ADR-0022-authentication-events-and-privacy.md` | أحداث المصادقة والخصوصية والاحتفاظ |
 | `adr/ADR-0023-central-authorization-and-rbac.md` | Permission IDs والأدوار وخدمة التفويض وPlatform Admin دون تجاوز RLS |
 | `adr/ADR-0024-backend-persisted-ui-settings.md` | طبقات UI Settings وملكيتها وRLS وAPI وحد Platform Admin |
+| `adr/ADR-0025-security-audit-and-hardening.md` | عقد الأحداث الأمنية والحقول والتنقيح والاحتفاظ وحدود append-only |
 | `design-system.md` | قواعد نظام التصميم وحُرّاسه الآلية |
 | `environment-baseline.md` | خط أساس البيئة، الانحرافات المسجَّلة، والدين التقني |
 | `../تقرير_جاهزية_بدء_المشروع.md` | تقرير الجاهزية المعتمد قبل بدء التنفيذ |
