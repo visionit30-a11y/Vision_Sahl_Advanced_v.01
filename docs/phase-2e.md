@@ -2,9 +2,9 @@
 
 ## الحالة والنطاق
 
-G1 معتمدة وG2 مكتملة محليًا بتاريخ 2026-09-08، من `phase-2d-baseline`:
+G1 وG2 معتمدتان، وG3 مكتملة محليًا بتاريخ 2026-09-08، من `phase-2d-baseline`:
 `1677d114c5736c4032b862ddf0b58517490d1317`.
-Migration head: `0014_security_audit_contract`؛ أُثبتت على PostgreSQL معزول فقط.
+Migration head: `0015_security_event_wiring`؛ أُثبتت على PostgreSQL معزول فقط.
 الفرع المحلي: `codex/phase-2e-security-hardening`.
 
 الأرقام **490 Backend / 225 Frontend في 29 ملفًا / 7 Playwright** تخص baseline المعتمدة،
@@ -139,9 +139,8 @@ stdout/stderr أو Match/context أو report. GitHub masking وحده ليس ب�
 | G5 | scanners + workflow hardening + negative CI tests | pinned security tools/lock عند الحاجة؛ redacted runners/exceptions؛ CI wiring/docs |
 | G6 | full final gates وExit Criteria والإغلاق المحلي | evidence/docs فقط أو إصلاح محدد مثبت؛ أي push/PR/merge/tag يحتاج الطلب المناسب |
 
-G2 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI business semantics مع audit.
-لا نعدّل migrations 0001–0013 المنشورة؛ migration التالية المقترحة لعقد audit عند الحاجة هي
-`0014_security_audit_contract`، ويثبت نطاقها عند قبول G2 قبل إنشائها.
+G4 لا تبدأ تلقائيًا. لا نجمع تغييرات auth/RBAC/UI business semantics مع audit.
+نُفذت 0014 في G2 و0015 في G3 بموافقة المستخدم، دون تعديل migrations السابقة.
 
 ### الملفات المتوقع لمسها لاحقًا
 
@@ -186,6 +185,26 @@ DEFINER. لذلك تبقى أحداث roles السبعة وحدث retention مع
 لا BYPASSRLS ولا policy جديدة ولا قبول UUID مجرد. يلزم تثبيت طريقة إثبات متوافقة قبل ربط
 role emitters في G3. هذا حد معلن للمجموعة وليس إثباتًا مكتملًا لأحداث إدارة الأدوار.
 
-G3 لم تبدأ. خطتها: استكمال ربط الأحداث بالعمليات القائمة، مع إثبات trusted role audit أولًا،
-ثم error/validation/exception logging redaction واختبار المخرجات الحقيقية. لا تغيير قرارات
-Authentication/RBAC أو RLS، ولا retention deletion أو SIEM في G2.
+هذا وصف حد G2 التاريخي. حُلّ ربط أحداث الأدوار في G3 بإثبات التغيير الفعلي داخل المعاملة،
+كما في القسم التالي، دون تغيير policies أو FORCE RLS.
+
+
+## G3 — الإغلاق المحلي
+
+اكتمل ربط أحداث المصادقة والجلسات وكلمات المرور والرفض وإدارة الأدوار، مع تقوية error/validation
+وstdout/stderr وSQLAlchemy/config redaction. وافق المستخدم على تنسيق login/password change
+الداخلي وعلى الدوال الأربع المحددة في migration 0015؛ لا HTTP endpoints جديدة.
+
+أحداث الأدوار تستخدم private transaction proof + row triggers على التغيير الفعلي تحت RLS؛
+الـwriter يستهلك الإثبات في معاملة التغيير نفسها. deferred guard يمنع commit عند فقد الحدث.
+الجدول الخاص ليس مصدر صلاحية ولا يمنح وصولًا عامًا إلى RBAC؛ لا runtime/PUBLIC table grants.
+
+**717 Backend tests PASS** مع `--strict-security-gates`، تتضمن **88 اختبارًا جديدًا** في G3.
+Ruff وMypy وAlembic check و0015 → 0014 → 0015 وRLS/ownership/cleanup PASS.
+اختبار real Uvicorn على 8011 أثبت تنقيح stdout/stderr بعد الاستثناء؛ هذا منفذ اختبار مؤقت،
+ولا يغير Local Backend8010 أو Frontend5173 أو Browser Test5187.
+PostgreSQL17 المعزول على5434 أُوقف وحُذفت بياناته بعد حفظ الأدلة المنقحة.
+
+التفاصيل والمصفوفة وحدود الادعاء في [تقرير G3](phase-2e-g3-verification.md).
+G4 لم تبدأ؛ تبقى retention capability/purge/runbook خارج هذا التنفيذ، وCI/scanners في G5،
+والبوابات النهائية الشاملة للمرحلة في G6. لا push/PR أو CI جديدة في G3.

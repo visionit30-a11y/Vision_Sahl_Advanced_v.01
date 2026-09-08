@@ -1,6 +1,6 @@
 # ADR-0025: Security Audit Events والتنقيح والبوابات الأمنية
 
-- **الحالة:** G1 معتمدة؛ نُفذ عقد audit في G2 بموافقة صريحة. التنفيذ المرحلي والأدلة في [تقرير G2](../phase-2e-g2-verification.md).
+- **الحالة:** G1 وG2 معتمدتان؛ اكتمل ربط الأحداث والتنقيح محليًا في G3. الأدلة في [تقرير G2](../phase-2e-g2-verification.md) و[تقرير G3](../phase-2e-g3-verification.md).
 - **التاريخ:** 2026-09-08.
 - **الأساس:** `phase-2d-baseline` عند `1677d114c5736c4032b862ddf0b58517490d1317`.
 - **العلاقة:** يكمل ADR-0022 ولا يغيّر Authentication أو TenantContext أو RLS أو RBAC أو UI Settings.
@@ -63,7 +63,9 @@
 | `membership_role_removed` | success | فك إسناد فعلي |
 | `security_events_pruned` | success | مهمة retention المحدودة؛ العدد فقط، دون IDs للصفوف المحذوفة |
 
-الصفوف الأحد عشر الأولى موجودة في كتالوج baseline؛ بقية الصفوف توسعة مقترحة لا تعني تنفيذها.
+الصفوف الأحد عشر الأولى موجودة في كتالوج baseline؛ نُفذ الكتالوج الكامل في G2.
+ربط G3 أحداث العمليات القائمة وأحداث الرفض وإدارة الأدوار. يبقى `security_events_pruned`
+مرفوضًا للكتابة حتى تنفيذ capability الصيانة في G4؛ وجوده في الكتالوج ليس إثبات تنفيذ purge.
 تغطية النجاح عند mutations تعني حدثًا واحدًا لكل تغيير فعلي مع commit واحد، لا لكل retry أو
 idempotent no-op. رفض إدارة role يسجل `authorization_denied` أو `membership_denied` بحسب
 الحد الذي رفضه، ولا ينتج حدث نجاح. لا نسجل كل ALLOW أو كل قراءة إعدادات لتجنب تحويل السجل إلى
@@ -201,3 +203,24 @@ production، وليس مانعًا لكتابة G1 أو لاختبارات DB ا
 خطة CI والاعتماد المرحلي في [phase-2e.md](../phase-2e.md)، والقبول في
 [phase-2e-exit-criteria.md](../phase-2e-exit-criteria.md). لا تسجل هذه الوثائق أي gate تنفيذية
 جديدة PASS قبل تشغيلها في المجموعة المصرح بها.
+
+
+## 10. حسم G3 — إثبات mutation دون تجاوز RLS
+
+تحتاج أحداث الأدوار إثبات الدور والعضوية المستهدفة دون قراءة جداول FORCE RLS بمالك migration.
+لذلك يحضر writer نية حدث محددة داخل `tenant_transaction()`؛ يثبت DB هوية actor وحالة الجلسة
+والعضوية والجهة، ثم تربط نية الحدث بـtransaction/backend/tenant/actor/target/PermissionId.
+row triggers تشهد التغيير الفعلي من OLD/NEW، وvalidator يستهلك الإثبات عند append.
+constraint trigger مؤجل يمنع commit لنية غير مستهلكة؛ إلغاء النية لا يقبل mutation شهدها trigger.
+
+`auth.role_security_event_intents` استثناء identity-security خاص ومحدد، بلا RLS أو grants
+للتطبيق أو PUBLIC. لا يُعفى مخطط auth، ولا تتغير policies للجداول tenant-owned أو FORCE RLS.
+الجداول الفعلية للأدوار تبقى تحت RLS، ولا تعطي functions سياق tenant أو صلاحية Platform Admin.
+الإثبات مرحلي داخل المعاملة ولا يبقى بعد commit ناجح. يغطي الإلزام مسارات الخدمات الموصولة؛
+ليس نظام audit عام لكل raw SQL يمكن أن ينفذه مالك قاعدة البيانات أو أدوات التشغيل.
+
+وافق المستخدم أيضًا على تنسيق داخلي محدود لـlogin/password change والدوال الأربع المحددة
+في تقرير G3: snapshot داخلية تنتهي معاملتها قبل Argon2، ثم إعادة تحقق تحت القفل قبل mutation
+والحدث. لا endpoints جديدة ولا بديل عن Authentication الحالية. hash لا يخرج إلى HTTP/logs/audit.
+الملكية `sahl_migrator`، SECURITY DEFINER مع `search_path=pg_catalog`، وتوقيعات EXECUTE ضيقة،
+دون dynamic SQL أو PUBLIC privileges أو direct grants للجداول.
