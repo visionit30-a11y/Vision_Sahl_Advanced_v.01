@@ -12,6 +12,12 @@ from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.audit.contracts import (
+    SecurityAuditEvent,
+    SecurityEventResult,
+    SecurityEventType,
+    SecurityReasonCode,
+)
 from app.auth.controls import (
     PostgresThrottleStore,
     SecurityEventWriter,
@@ -32,7 +38,6 @@ from app.auth.tenants import (
     TrustedTenantService,
 )
 from app.core.config import get_settings
-from app.core.context import get_correlation_id
 from app.core.errors import AppError
 from app.db.session import _engine
 
@@ -138,10 +143,11 @@ class AuthHttpService:
             ).consume(ThrottleScope.CSRF_IP, request.client.host if request.client else "unknown")
             if not decision.allowed:
                 await SecurityEventWriter(connection).write(
-                    "throttling_triggered",
-                    "denied",
-                    get_correlation_id() or "auth-http",
-                    reason_code="csrf_bootstrap",
+                    SecurityAuditEvent(
+                        event_type=SecurityEventType.THROTTLING_TRIGGERED,
+                        result=SecurityEventResult.DENIED,
+                        reason_code=SecurityReasonCode.CSRF_BOOTSTRAP,
+                    )
                 )
         if not decision.allowed:
             raise AuthThrottledError()
@@ -167,12 +173,13 @@ class AuthHttpService:
             except TenantAccessDeniedError:
                 denied = True
                 await writer.write(
-                    "membership_denied",
-                    "denied",
-                    get_correlation_id() or "auth-http",
-                    user_id=record.user_id,
-                    session_id=record.id,
-                    reason_code="membership_unavailable",
+                    SecurityAuditEvent(
+                        event_type=SecurityEventType.MEMBERSHIP_DENIED,
+                        result=SecurityEventResult.DENIED,
+                        user_id=record.user_id,
+                        session_id=record.id,
+                        reason_code=SecurityReasonCode.MEMBERSHIP_UNAVAILABLE,
+                    )
                 )
             else:
                 issued = switched.issued_session
@@ -185,12 +192,13 @@ class AuthHttpService:
                 )
                 await sessions.store.replace(issued.record)
                 await writer.write(
-                    "tenant_switch",
-                    "success",
-                    get_correlation_id() or "auth-http",
-                    user_id=issued.record.user_id,
-                    session_id=issued.record.id,
-                    membership_id=switched.access.principal.membership_id,
+                    SecurityAuditEvent(
+                        event_type=SecurityEventType.TENANT_SWITCH,
+                        result=SecurityEventResult.SUCCESS,
+                        user_id=issued.record.user_id,
+                        session_id=issued.record.id,
+                        membership_id=switched.access.principal.membership_id,
+                    )
                 )
         if denied:
             raise TenantAccessDeniedError()
@@ -203,11 +211,12 @@ class AuthHttpService:
             if not await sessions.logout(bearer, now=await sessions.store.current_time()):
                 raise SessionRejectedError()
             await SecurityEventWriter(connection).write(
-                "logout",
-                "success",
-                get_correlation_id() or "auth-http",
-                user_id=record.user_id,
-                session_id=record.id,
+                SecurityAuditEvent(
+                    event_type=SecurityEventType.LOGOUT,
+                    result=SecurityEventResult.SUCCESS,
+                    user_id=record.user_id,
+                    session_id=record.id,
+                )
             )
 
 

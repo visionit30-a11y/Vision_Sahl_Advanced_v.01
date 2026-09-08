@@ -401,7 +401,7 @@ async def test_mandatory_event_failure_rolls_back_reset(settings: Settings) -> N
             connection.execute(
                 text("""
                 INSERT INTO auth.security_events(id,event_type,result,correlation_id,created_at)
-                VALUES(:id,'login_failure','failure','seed',clock_timestamp())
+                VALUES(:id,'login_failure','failure',gen_random_uuid()::text,clock_timestamp())
                 """),
                 {"id": event_id},
             )

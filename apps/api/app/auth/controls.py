@@ -14,6 +14,7 @@ from typing import Protocol
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.audit.writer import SecurityEventWriter as SecurityEventWriter
 from app.security.passwords import PasswordService
 
 RESET_TOKEN_BYTES = 32
@@ -184,40 +185,4 @@ class PasswordResetService:
         password_hash = await self.passwords.hash_password(new_password)
         return await self.store.complete(
             token_digest(token), password_hash, uuid.uuid7(), correlation_id
-        )
-
-
-class SecurityEventWriter:
-    def __init__(self, connection: AsyncConnection) -> None:
-        self.connection = connection
-
-    async def write(
-        self,
-        event_type: str,
-        result: str,
-        correlation_id: str,
-        *,
-        reason_code: str | None = None,
-        user_id: uuid.UUID | None = None,
-        session_id: uuid.UUID | None = None,
-        membership_id: uuid.UUID | None = None,
-        subject_digest: bytes | None = None,
-    ) -> None:
-        await self.connection.execute(
-            text(
-                """SELECT auth.record_security_event(
-                :id,:type,:result,:reason,:user,:session,:membership,:subject,:correlation
-                )"""
-            ),
-            {
-                "id": uuid.uuid7(),
-                "type": event_type,
-                "result": result,
-                "reason": reason_code,
-                "user": user_id,
-                "session": session_id,
-                "membership": membership_id,
-                "subject": subject_digest,
-                "correlation": correlation_id,
-            },
         )
