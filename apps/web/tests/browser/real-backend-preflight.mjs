@@ -1,8 +1,10 @@
 import { createServer } from 'node:net';
 
-const FRONTEND_PORT = 5187;
+const FRONTEND_PORT = process.env.SAHL_VERIFY_LOCAL_DEV === '1' ? 5173 : 5187;
 const BACKEND_URL = 'http://127.0.0.1:8010';
 const requiredOperations = [
+  ['get', '/auth/preauth'],
+  ['post', '/auth/login'],
   ['get', '/auth/csrf'],
   ['get', '/auth/me'],
   ['get', '/auth/memberships'],

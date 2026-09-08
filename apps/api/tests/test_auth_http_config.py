@@ -44,7 +44,6 @@ def test_protected_environments_reject_local_http_exception(environment: str) ->
 @pytest.mark.parametrize(
     "origin",
     [
-        "http://localhost:5173",
         "http://127.0.0.1:5187",
         "http://localhost:5188",
         "http://localhost:5187/",
@@ -64,3 +63,15 @@ def test_explicit_browser_origin_is_not_duplicated() -> None:
         auth_local_http_origin="http://localhost:5187",
     )
     assert settings.auth_origin_list == ["http://localhost:5187"]
+
+
+def test_development_origin_is_explicit_and_not_available_to_test_or_production() -> None:
+    settings = IsolatedSettings(
+        app_env="development", auth_local_http_origin="http://localhost:5173"
+    )
+    assert settings.auth_local_http_origin == "http://localhost:5173"
+    for environment in ("test", "staging", "production"):
+        with pytest.raises(ValidationError, match="restricted"):
+            IsolatedSettings.model_validate(
+                {"app_env": environment, "auth_local_http_origin": "http://localhost:5173"}
+            )

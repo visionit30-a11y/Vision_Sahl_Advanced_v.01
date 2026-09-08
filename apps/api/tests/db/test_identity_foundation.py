@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import Connection, text
 
-TABLES = ("users", "tenant_memberships", "password_credentials")
+TABLES = ("users", "tenant_memberships", "password_credentials", "role_security_event_intents")
 
 
 def test_auth_schema_and_tables_are_migrator_owned(
@@ -34,6 +34,7 @@ def test_auth_schema_and_tables_are_migrator_owned(
         ("password_reset_tokens", migration_role),
         ("preauth_csrf_states", migration_role),
         ("role_permissions", migration_role),
+        ("role_security_event_intents", migration_role),
         ("roles", migration_role),
         ("security_events", migration_role),
         ("sessions", migration_role),

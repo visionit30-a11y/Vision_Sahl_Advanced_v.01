@@ -91,10 +91,11 @@ def test_auth_session_routes_are_registered_on_real_application(app: FastAPI) ->
         ("/auth/csrf", "get"),
         ("/auth/tenant/switch", "post"),
         ("/auth/logout", "post"),
+        ("/auth/login", "post"),
+        ("/auth/preauth", "get"),
     ):
         assert method in paths[path]
     assert not any("/auth/test/" in path for path in paths)
-    assert "/auth/login" not in paths
     assert "/auth/password/reset" not in paths
 
 
@@ -241,6 +242,9 @@ async def test_real_ui_settings_dependency_enforces_csrf_origin_and_stale_tab_be
     )
     local = Settings(app_env="test", auth_local_http_origin=LOCAL_ORIGIN)
     monkeypatch.setattr(authorization_dependencies, "get_settings", lambda: local)
+    app.dependency_overrides[authorization_dependencies.get_security_denial_auditor] = lambda: (
+        AsyncMock()
+    )
     authorizer = AsyncMock()
     authorizer.authorize.return_value = (
         AuthorizationDecision.DENY

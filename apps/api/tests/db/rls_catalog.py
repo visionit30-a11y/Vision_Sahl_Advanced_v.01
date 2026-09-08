@@ -90,6 +90,9 @@ def assert_tenant_catalog(
                 failures=failures,
             )
             continue
+        if name == "auth.role_security_event_intents":
+            _check_private_audit_intent(connection, table.oid, application_role, failures)
+            continue
         if not table.relrowsecurity:
             failures.append(f"{name}: ENABLE ROW LEVEL SECURITY is required")
         if not table.relforcerowsecurity:
@@ -194,3 +197,53 @@ def _check_membership_exception(
         failures.append(f"{table_name}: runtime must have no direct data privileges")
     if public_access:
         failures.append(f"{table_name}: PUBLIC must have no direct data privileges")
+
+
+def _check_private_audit_intent(
+    connection: Connection, table_oid: int, application_role: str, failures: list[str]
+) -> None:
+    """Exact transaction-proof exception; never an exclusion of the auth schema."""
+    row = connection.execute(
+        text(
+            "SELECT relrowsecurity,relforcerowsecurity, "
+            "has_table_privilege(:app,oid,"
+            "'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') "
+            "AS app_access, (SELECT count(*) FROM pg_policy WHERE polrelid=c.oid) AS policies, "
+            "(SELECT count(*) FROM aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) "
+            "WHERE grantee=0) AS public_grants FROM pg_class c WHERE oid=:oid"
+        ),
+        {"oid": table_oid, "app": application_role},
+    ).one()
+    if (
+        row.relrowsecurity
+        or row.relforcerowsecurity
+        or row.policies
+        or row.app_access
+        or row.public_grants
+    ):
+        failures.append("auth.role_security_event_intents: private proof privileges invalid")
+    columns = set(
+        connection.execute(
+            text(
+                "SELECT attname FROM pg_attribute WHERE attrelid=:oid "
+                "AND attnum>0 AND NOT attisdropped"
+            ),
+            {"oid": table_oid},
+        ).scalars()
+    )
+    if columns != {
+        "transaction_id",
+        "backend_pid",
+        "event_id",
+        "event_type",
+        "user_id",
+        "session_id",
+        "membership_id",
+        "tenant_id",
+        "role_id",
+        "target_membership_id",
+        "permission_id",
+        "correlation_id",
+        "attested",
+    }:
+        failures.append("auth.role_security_event_intents: private proof contract changed")

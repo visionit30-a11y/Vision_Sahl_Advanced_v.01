@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -125,6 +126,7 @@ class MembershipRole(Base):
 
     __tablename__ = "membership_roles"
     __table_args__ = (
+        Index("ix_membership_roles_tenant_role", "tenant_id", "role_id"),
         ForeignKeyConstraint(
             ["tenant_id", "membership_id"],
             ["auth.tenant_memberships.tenant_id", "auth.tenant_memberships.id"],

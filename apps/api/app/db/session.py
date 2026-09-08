@@ -10,7 +10,9 @@ from app.core.status import DependencyStatus
 
 _settings = get_settings()
 
-_engine = create_async_engine(_settings.database_url, pool_pre_ping=True, future=True)
+_engine = create_async_engine(
+    _settings.database_url, pool_pre_ping=True, future=True, hide_parameters=True, echo=False
+)
 
 
 async def check_connection() -> DependencyStatus:
@@ -18,8 +20,8 @@ async def check_connection() -> DependencyStatus:
     try:
         async with _engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001 - the probe reports, it does not raise
-        return DependencyStatus(status="down", detail=type(exc).__name__)
+    except Exception:  # noqa: BLE001 - the probe reports, it does not raise
+        return DependencyStatus(status="down", detail="Database connection unavailable.")
     return DependencyStatus(status="up")
 
 

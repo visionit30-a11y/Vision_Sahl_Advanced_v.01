@@ -128,6 +128,14 @@ async def test_inactive_role_and_stale_membership_are_rejected(
     with pytest.raises(MembershipNotFoundError):
         await service.assign_role(member_grant, rbac_fixture.membership_a, rbac_fixture.role_a)
 
+    # The next assertion isolates inactive-role behavior with a current actor.
+    engine = create_engine(settings.required_migration_database_url, poolclass=NullPool)
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE auth.tenant_memberships SET status='active' WHERE id=:membership"),
+            {"membership": rbac_fixture.membership_a},
+        )
+    engine.dispose()
     await service.disable_role(role_grant, rbac_fixture.role_a, expected_version=1)
     with pytest.raises(RoleConflictError):
         await service.assign_permission(

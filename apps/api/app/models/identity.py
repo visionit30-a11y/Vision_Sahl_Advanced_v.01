@@ -247,6 +247,7 @@ class AuthSession(Base):
 
     __tablename__ = "sessions"
     __table_args__ = (
+        Index("ix_sessions_selected_membership_user", "selected_membership_id", "user_id"),
         CheckConstraint("idle_expires_at <= absolute_expires_at", name="session_expiry_order"),
         CheckConstraint(
             "(revoked_at IS NULL AND revoked_reason IS NULL) OR "

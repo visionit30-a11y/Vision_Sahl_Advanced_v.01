@@ -1,0 +1,7 @@
+# uv 0.12.10: build-constraint-dependencies in uv.toml is ignored by sync.
+# Constrain the already-required backend in the isolated sahl-api build instead.
+python-preference = "only-system"
+python-downloads = "never"
+
+[extra-build-dependencies]
+sahl-api = ["setuptools==84.0.0"]

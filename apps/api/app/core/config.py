@@ -48,12 +48,14 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8010
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
-    # Explicit opt-in for the approved real-browser test frontend only.
+    # Explicit opt-in: development on 5173; browser tests on 5187.
     auth_local_http_origin: str | None = None
 
     # The runtime URL. It must name the application role, which owns nothing and
     # is subject to row level security.
-    database_url: str = "postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5433/sahl_dev"
+    database_url: str = Field(
+        default="postgresql+psycopg://sahl_app:sahl_app@127.0.0.1:5433/sahl_dev", repr=False
+    )
 
     # The migration URL, deliberately without a default. Alembic runs as the
     # migration role, which owns the schema; the application role must never
@@ -62,10 +64,10 @@ class Settings(BaseSettings):
     # the two roles back together silently, so there is no fallback: a missing
     # value is an error at the point migrations are run, not a quiet downgrade
     # to the runtime role.
-    migration_database_url: str | None = None
+    migration_database_url: str | None = Field(default=None, repr=False)
 
     redis_enabled: bool = False
-    redis_url: str = "redis://127.0.0.1:6379/0"
+    redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
 
     password_hash_concurrency: int = 2
     session_idle_timeout_minutes: int = 30
@@ -79,8 +81,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_auth_local_http_origin(self) -> Self:
         if self.auth_local_http_origin is not None and (
-            self.app_env not in ("development", "test")
-            or self.auth_local_http_origin != "http://localhost:5187"
+            (self.app_env, self.auth_local_http_origin)
+            not in {
+                ("development", "http://localhost:5173"),
+                ("development", "http://localhost:5187"),
+                ("test", "http://localhost:5187"),
+            }
         ):
             raise ValueError(
                 "The auth HTTP origin exception is restricted to the approved browser test "

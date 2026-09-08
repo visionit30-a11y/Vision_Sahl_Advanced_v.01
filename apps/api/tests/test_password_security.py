@@ -13,7 +13,7 @@ def test_nested_passwords_and_hashes_are_redacted() -> None:
 
 def test_validation_input_and_context_are_redacted() -> None:
     details = _safe_error_details([{"input": "plain", "ctx": {"error": "plain"}}])
-    assert details == [{"input": MASK, "ctx": MASK}]
+    assert details == [{"type": "invalid_value", "loc": []}]
 
 
 def test_g6_identity_and_network_selectors_are_redacted() -> None:

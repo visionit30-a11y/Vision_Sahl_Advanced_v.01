@@ -62,6 +62,23 @@ export class AuthClient {
     });
   }
 
+  async login(email: string, password: string): Promise<AuthenticatedUser> {
+    this.#rotate('invalid');
+    await this.#request('/auth/preauth', { method: 'GET' }, false);
+    const response = await this.#request(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      },
+      false,
+    );
+    const csrf = response.headers.get('X-CSRF-Token');
+    this.#rotate();
+    if (csrf) this.#csrfToken = csrf;
+    return this.me();
+  }
+
   async bootstrapCsrf(): Promise<void> {
     const response = await this.#request('/auth/csrf', { method: 'GET' }, false);
     this.#acceptCsrf(response);
