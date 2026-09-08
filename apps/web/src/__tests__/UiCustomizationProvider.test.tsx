@@ -1,138 +1,204 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-
-import type { UiPermissions } from '../ui-customization/adapters/UiPermissions';
-import type { UiSettingsSource } from '../ui-customization/adapters/UiSettingsSource';
-import type { UiSettingsPatch } from '../ui-customization/contract/settings';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { AuthChange } from '../auth/client';
+import { HttpRequestError, SessionInvalidError } from '../auth/client';
+import type {
+  SettingsSnapshot,
+  UiSettingsSource,
+} from '../ui-customization/adapters/UiSettingsSource';
+import { BUILT_IN_UI_SETTINGS } from '../ui-customization/contract/settings';
 import { UiCustomizationProvider } from '../ui-customization/UiCustomizationProvider';
 import { useUiCustomization } from '../ui-customization/useUiCustomization';
+import { resolveUiSettings } from '../ui-customization/resolution/resolveUiSettings';
 
-const TENANT = 'test-tenant';
-
-function memorySource(initial: {
-  platform?: UiSettingsPatch | null;
-  tenant?: UiSettingsPatch | null;
-}): UiSettingsSource {
-  let platform = initial.platform ?? null;
-  let tenant = initial.tenant ?? null;
-
-  return {
-    readPlatform: () => Promise.resolve(platform),
-    readTenant: () => Promise.resolve(tenant),
-    writePlatform: (patch) => {
-      platform = patch;
-      return Promise.resolve();
-    },
-    writeTenant: (_tenantId, patch) => {
-      tenant = patch;
-      return Promise.resolve();
+function fixture() {
+  let user: SettingsSnapshot['layers']['user'] = null;
+  let tenant: SettingsSnapshot['layers']['tenant'] = {
+    settings: { theme: 'navy-institutional' },
+    version: 1,
+  };
+  let listener: (event: AuthChange) => void = () => undefined;
+  const snapshot = (): SettingsSnapshot => {
+    const resolved = resolveUiSettings({
+      builtIn: BUILT_IN_UI_SETTINGS,
+      tenant: tenant?.settings,
+      user: user?.settings,
+    });
+    return { ...resolved, layers: { user, tenant }, allowed: { user: true, tenant: true } };
+  };
+  const source: UiSettingsSource = {
+    load: vi.fn(async () => snapshot()),
+    write: vi.fn(async (scope, settings, version) => {
+      const value = { settings, version: (version ?? 0) + 1 };
+      if (scope === 'user') user = value;
+      else tenant = value;
+    }),
+    remove: vi.fn(async (scope) => {
+      if (scope === 'user') user = null;
+      else tenant = null;
+    }),
+    subscribe: (fn) => {
+      listener = fn;
+      return () => {
+        listener = () => undefined;
+      };
     },
   };
+  return { source, snapshot, change: (event: AuthChange) => listener(event) };
 }
-
-const allow: UiPermissions = {
-  canManagePlatformUi: () => true,
-  canManageTenantUi: () => true,
-};
-
-const denyTenant: UiPermissions = {
-  canManagePlatformUi: () => true,
-  canManageTenantUi: () => false,
-};
-
 function Probe() {
-  const { settings, origin, canManage, setSetting, clearSetting } = useUiCustomization();
-
+  const ui = useUiCustomization();
   return (
-    <div>
-      <span data-testid="theme">{settings.theme}</span>
-      <span data-testid="origin">{origin.theme}</span>
-      <span data-testid="tenant-allowed">{String(canManage('tenant'))}</span>
+    <>
+      <span data-testid="theme">{ui.settings.theme}</span>
+      <span data-testid="origin">{ui.origin.theme}</span>
+      <span data-testid="status">{ui.status}</span>
       <button
-        type="button"
+        disabled={!ui.canManage('user')}
         onClick={() => {
-          void setSetting('tenant', 'theme', 'sand-warm');
+          void ui.setSetting('user', 'theme', 'sand-warm');
         }}
       >
-        set-tenant
+        user
       </button>
       <button
-        type="button"
+        disabled={!ui.canManage('tenant')}
         onClick={() => {
-          void clearSetting('tenant', 'theme');
+          void ui.setSetting('tenant', 'theme', 'green-institutional');
         }}
       >
-        clear-tenant
+        tenant
       </button>
-    </div>
+      <button
+        onClick={() => {
+          void ui.clearSetting('user', 'theme');
+        }}
+      >
+        delete
+      </button>
+      <button
+        onClick={() => {
+          void ui.reload();
+        }}
+      >
+        reload
+      </button>
+    </>
   );
 }
-
-function renderProvider(source: UiSettingsSource, permissions: UiPermissions = allow) {
+function mount(source: UiSettingsSource) {
   return render(
-    <UiCustomizationProvider source={source} permissions={permissions} tenantId={TENANT}>
+    <UiCustomizationProvider source={source}>
       <Probe />
     </UiCustomizationProvider>,
   );
 }
+async function ready() {
+  await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('ready'));
+}
 
-afterEach(() => {
-  delete document.documentElement.dataset.theme;
-});
-
-describe('ui customisation provider', () => {
-  it('writes the resolved identity onto the document element', async () => {
-    renderProvider(memorySource({ platform: { theme: 'navy-institutional' } }));
-
-    await waitFor(() => {
-      expect(document.documentElement.dataset.theme).toBe('navy-institutional');
-    });
-    expect(screen.getByTestId('origin')).toHaveTextContent('platform');
-  });
-
-  it('applies a tenant choice over the platform default and repaints at once', async () => {
-    renderProvider(memorySource({ platform: { theme: 'navy-institutional' } }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('origin')).toHaveTextContent('platform');
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'set-tenant' }));
-
-    await waitFor(() => {
-      expect(document.documentElement.dataset.theme).toBe('sand-warm');
-    });
+describe('server-backed settings provider', () => {
+  it('fetches initially and on remount, then applies server origin', async () => {
+    const { source } = fixture();
+    const view = mount(source);
+    await ready();
+    expect(screen.getByTestId('theme')).toHaveTextContent('navy-institutional');
     expect(screen.getByTestId('origin')).toHaveTextContent('tenant');
+    view.unmount();
+    mount(source);
+    await ready();
+    expect(source.load).toHaveBeenCalledTimes(2);
   });
-
-  it('returns to the inherited value when the tenant customisation is removed', async () => {
-    renderProvider(
-      memorySource({ platform: { theme: 'navy-institutional' }, tenant: { theme: 'sand-warm' } }),
+  it('saves user and tenant layers with versions and deletes back to inheritance', async () => {
+    const { source } = fixture();
+    mount(source);
+    await ready();
+    fireEvent.click(screen.getByText('user'));
+    await ready();
+    expect(source.write).toHaveBeenCalledWith('user', { theme: 'sand-warm' }, null);
+    expect(screen.getByTestId('origin')).toHaveTextContent('user');
+    fireEvent.click(screen.getByRole('button', { name: 'tenant' }));
+    await ready();
+    expect(source.write).toHaveBeenCalledWith('tenant', { theme: 'green-institutional' }, 1);
+    expect(screen.getByTestId('theme')).toHaveTextContent('sand-warm');
+    fireEvent.click(screen.getByText('delete'));
+    await ready();
+    expect(source.remove).toHaveBeenCalledWith('user', 1);
+    expect(screen.getByTestId('theme')).toHaveTextContent('green-institutional');
+  });
+  it.each([['changed'], ['invalid']] as const)(
+    'clears old session settings on %s',
+    async (event) => {
+      const f = fixture();
+      mount(f.source);
+      await ready();
+      vi.mocked(f.source.load).mockImplementation(() => new Promise(() => undefined));
+      act(() => f.change(event));
+      expect(screen.getByTestId('theme')).toHaveTextContent('teal-calm');
+      expect(screen.getByText('user')).toBeDisabled();
+      expect(screen.getByTestId('status')).toHaveTextContent(
+        event === 'invalid' ? 'unauthorized' : 'loading',
+      );
+    },
+  );
+  it('discards an old tenant response arriving after rotation', async () => {
+    const f = fixture();
+    let complete!: (value: SettingsSnapshot) => void;
+    vi.mocked(f.source.load).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
     );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('origin')).toHaveTextContent('tenant');
+    mount(f.source);
+    const fresh = {
+      ...f.snapshot(),
+      settings: { ...BUILT_IN_UI_SETTINGS, theme: 'green-institutional' as const },
+    };
+    vi.mocked(f.source.load).mockResolvedValue(fresh);
+    act(() => f.change('changed'));
+    await ready();
+    await act(async () => {
+      complete(f.snapshot());
     });
-
-    fireEvent.click(screen.getByRole('button', { name: 'clear-tenant' }));
-
-    await waitFor(() => {
-      expect(document.documentElement.dataset.theme).toBe('navy-institutional');
-    });
-    expect(screen.getByTestId('origin')).toHaveTextContent('platform');
+    expect(screen.getByTestId('theme')).toHaveTextContent('green-institutional');
   });
-
-  it('does not write a scope the permissions layer refuses', async () => {
-    renderProvider(memorySource({ platform: { theme: 'navy-institutional' } }), denyTenant);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('tenant-allowed')).toHaveTextContent('false');
+  it.each([
+    [new HttpRequestError(409), 'conflict'],
+    [new HttpRequestError(403), 'forbidden'],
+    [new SessionInvalidError(), 'unauthorized'],
+    [new TypeError('network'), 'error'],
+  ])('fails visibly after rejected write: %s', async (error, state) => {
+    const f = fixture();
+    mount(f.source);
+    await ready();
+    vi.mocked(f.source.write).mockRejectedValue(error);
+    fireEvent.click(screen.getByText('user'));
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent(state as string));
+    expect(screen.getByTestId('theme')).toHaveTextContent('teal-calm');
+    expect(screen.getByText('user')).toBeDisabled();
+    fireEvent.click(screen.getByText('reload'));
+    await ready();
+  });
+  it('uses server permission denials to disable controls', async () => {
+    const f = fixture();
+    vi.mocked(f.source.load).mockResolvedValue({
+      ...f.snapshot(),
+      allowed: { user: true, tenant: false },
     });
-
-    fireEvent.click(screen.getByRole('button', { name: 'set-tenant' }));
-    await Promise.resolve();
-
-    expect(document.documentElement.dataset.theme).toBe('navy-institutional');
-    expect(screen.getByTestId('origin')).toHaveTextContent('platform');
+    mount(f.source);
+    await ready();
+    expect(screen.getByRole('button', { name: 'tenant' })).toBeDisabled();
+    expect(screen.getByText('user')).toBeEnabled();
+  });
+  it('does not apply a change before the server confirms it', async () => {
+    const f = fixture();
+    mount(f.source);
+    await ready();
+    vi.mocked(f.source.write).mockImplementation(() => new Promise(() => undefined));
+    fireEvent.click(screen.getByText('user'));
+    expect(screen.getByTestId('theme')).toHaveTextContent('navy-institutional');
+    expect(screen.getByTestId('status')).toHaveTextContent('saving');
+    expect(f.source.load).toHaveBeenCalledTimes(1);
   });
 });

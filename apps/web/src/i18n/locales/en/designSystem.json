@@ -9,17 +9,15 @@
     "reset": "Return to inherited",
     "inheriting": "Nothing is customised in this scope; the value is inherited from below.",
     "customised": "This scope carries a customisation that overrides the layers below it.",
-    "temporaryTitle": "Temporary preview",
-    "temporary": "Browser storage is temporary for this phase, and permissions are open because there is no user identity yet. Real storage and real permissions arrive in Phase 2. The association identifier here is a preview fixture, not a real association.",
     "notAllowedTitle": "Not available",
     "notAllowed": "The permissions layer does not allow this scope to be changed.",
     "scopes": {
-      "platform": "Platform default",
-      "tenant": "Association customisation"
+      "tenant": "Association customisation",
+      "user": "My settings"
     },
     "scopeHints": {
-      "platform": "Applies to every association that has not customised its identity.",
-      "tenant": "Overrides the platform default for this association alone."
+      "tenant": "Overrides the platform default for this association alone.",
+      "user": "Applies only to your account in the current association."
     },
     "origin": {
       "builtIn": "Built-in default",
@@ -34,6 +32,18 @@
       "overlayPreset": "Dialog and menu style",
       "tablePreset": "Table style",
       "printPreset": "Print style"
+    },
+    "persistenceTitle": "Server-managed settings",
+    "persistence": "Changes are saved to your current account or association on the server. Platform settings are inherited and read-only.",
+    "temporaryDisplay": "The displayed defaults are temporary; persisted effective settings are not confirmed.",
+    "retry": "Reload settings",
+    "state": {
+      "loading": "Loading settings",
+      "saving": "Saving settings",
+      "unauthorized": "Sign in to load settings",
+      "forbidden": "Settings access is not permitted",
+      "conflict": "Settings changed elsewhere. Reload before retrying.",
+      "error": "Settings could not be loaded or saved. Check the connection and retry."
     }
   },
   "themes": {

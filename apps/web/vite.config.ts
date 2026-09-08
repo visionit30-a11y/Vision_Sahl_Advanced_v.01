@@ -10,6 +10,7 @@ export default defineConfig({
     strictPort: true,
     // The dev server proxies the API so the browser always talks to one origin.
     proxy: {
+      '/ui-settings': { target: API_TARGET, changeOrigin: false },
       '/health': { target: API_TARGET, changeOrigin: false },
       '/auth': { target: API_TARGET, changeOrigin: false },
     },

@@ -20,6 +20,20 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+class UiSettingsNoStoreMiddleware(BaseHTTPMiddleware):
+    """Prevent caching of UI-settings and authentication responses, including errors."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        if request.url.path.split("/")[1] in {"ui-settings", "auth"}:
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     """Bind a correlation id to every request and echo it back to the client."""
 

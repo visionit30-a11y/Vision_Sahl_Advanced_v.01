@@ -78,14 +78,14 @@ export function DesignSystemPage() {
   const { t } = useTranslation(['designSystem', 'common']);
   const { show, clear } = useStatusBar();
   const { settings, origin, layers, canManage, setSetting, clearSetting } = useUiCustomization();
-  const [scope, setScope] = useState<EditableUiScope>('platform');
+  const [scope, setScope] = useState<EditableUiScope>('user');
   const [modalOpen, setModalOpen] = useState(false);
 
   const scopeOptions: RadioOption[] = [
     {
-      value: 'platform',
-      label: t('designSystem:customization.scopes.platform'),
-      hint: t('designSystem:customization.scopeHints.platform'),
+      value: 'user',
+      label: t('designSystem:customization.scopes.user'),
+      hint: t('designSystem:customization.scopeHints.user'),
     },
     {
       value: 'tenant',
@@ -174,8 +174,8 @@ export function DesignSystemPage() {
             </InlineAlert>
           )}
 
-          <InlineAlert tone="info" title={t('designSystem:customization.temporaryTitle')}>
-            {t('designSystem:customization.temporary')}
+          <InlineAlert tone="info" title={t('designSystem:customization.persistenceTitle')}>
+            {t('designSystem:customization.persistence')}
           </InlineAlert>
         </div>
       </Card>
