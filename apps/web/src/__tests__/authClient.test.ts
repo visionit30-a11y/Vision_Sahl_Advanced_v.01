@@ -81,3 +81,48 @@ describe('AuthClient', () => {
     expect(new Headers(fetcher.mock.calls[3]?.[1]?.headers).get('X-CSRF-Token')).toBe('new');
   });
 });
+
+describe('AuthClient settings invalidation events', () => {
+  it('notifies on authentication, rotation and logout without publishing secrets', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(reply({ id: 'u', selectedMembershipId: 'm1' }))
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'test-old' } }))
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'test-new' } }))
+      .mockResolvedValueOnce(reply({ id: 'u', selectedMembershipId: 'm2' }))
+      .mockResolvedValueOnce(reply());
+    const client = new AuthClient({ fetcher });
+    const listener = vi.fn();
+    const unsubscribe = client.subscribe(listener);
+    await client.me();
+    await client.bootstrapCsrf();
+    await client.switchTenant('m2');
+    await client.logout();
+    expect(listener.mock.calls.flat()).toContain('changed');
+    expect(listener.mock.calls.at(-1)).toEqual(['invalid']);
+    expect(
+      listener.mock.calls.flat().every((value) => value === 'changed' || value === 'invalid'),
+    ).toBe(true);
+    unsubscribe();
+    client.close();
+  });
+
+  it('discards a late response from before the session changed', async () => {
+    let finish!: (response: Response) => void;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(reply(null, { status: 401 }));
+    const client = new AuthClient({ fetcher });
+    const pending = client.request('/ui-settings/effective');
+    await expect(client.me()).rejects.toBeInstanceOf(SessionInvalidError);
+    finish(reply({ settings: { theme: 'sand-warm' } }));
+    await expect(pending).rejects.toBeInstanceOf(TenantContextChangedError);
+    client.close();
+  });
+});

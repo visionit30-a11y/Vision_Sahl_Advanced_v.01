@@ -16,7 +16,7 @@ const CONSUMER_DIRECTORIES = ['design-system', 'pages', 'app'];
 const ICON_MODULE = 'design-system/components/Icon/Icon.tsx';
 
 /** The only files allowed to touch browser storage directly. */
-const STORAGE_OWNERS = ['ui-customization/adapters/browserUiSettingsSource.ts', 'i18n/index.ts'];
+const STORAGE_OWNERS = ['i18n/index.ts'];
 
 /** The only file allowed to write a customisation decision onto the document. */
 const DOCUMENT_WRITER = 'ui-customization/applyUiSettings.ts';
@@ -38,6 +38,17 @@ function consumerSources(): string[] {
  * check below is a rule that would otherwise depend on everyone remembering it.
  */
 describe('ui customisation boundaries', () => {
+  it('has no preview authority or browser persistence in runtime settings', () => {
+    const source = collectFiles(SRC_ROOT + '/ui-customization', ['.ts', '.tsx'])
+      .filter((path) => !isTestFile(path))
+      .map(readFile)
+      .join(' ');
+    expect(source).not.toMatch(
+      /localStorage|sessionStorage|indexedDB|previewUiPermissions|PREVIEW_TENANT_ID|preview-tenant/,
+    );
+    expect(source).not.toMatch(/writePlatform|canManagePlatformUi/);
+  });
+
   it('names no identity or preset inside a component or a screen', () => {
     const offenders: string[] = [];
 

@@ -15,6 +15,12 @@ export interface AuthenticatedUser {
 export class SessionInvalidError extends Error {}
 export class TenantContextChangedError extends Error {}
 export class CsrfUnavailableError extends Error {}
+export class HttpRequestError extends Error {
+  constructor(readonly status: number) {
+    super('Request failed with status ' + status + '.');
+  }
+}
+export type AuthChange = 'changed' | 'invalid';
 
 interface AuthClientOptions {
   baseUrl?: string;
@@ -29,6 +35,19 @@ export class AuthClient {
   #csrfToken: string | undefined;
   #selectedMembershipId: string | null = null;
   #generation = 0;
+  #listeners = new Set<(event: AuthChange) => void>();
+  #userId: string | null = null;
+
+  subscribe(listener: (event: AuthChange) => void): () => void {
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
+  }
+
+  #emit(event: AuthChange): void {
+    for (const listener of this.#listeners) listener(event);
+  }
 
   constructor(options: AuthClientOptions = {}) {
     this.#baseUrl = options.baseUrl ?? '';
@@ -37,7 +56,9 @@ export class AuthClient {
       options.channel ??
       (typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('sahl-auth'));
     this.#channel?.addEventListener('message', (event: MessageEvent<number>) => {
-      if (event.data > this.#generation) this.#invalidate(event.data);
+      if (typeof event.data === 'number') {
+        this.#invalidate(Math.max(event.data, this.#generation + 1), 'changed');
+      }
     });
   }
 
@@ -47,9 +68,16 @@ export class AuthClient {
   }
 
   async me(): Promise<AuthenticatedUser> {
+    const generation = this.#generation;
     const response = await this.#request('/auth/me', { method: 'GET' });
     const user = (await response.json()) as AuthenticatedUser;
+    if (generation !== this.#generation)
+      throw new TenantContextChangedError('The trusted tenant context changed.');
+    const changed =
+      this.#userId !== user.id || this.#selectedMembershipId !== user.selectedMembershipId;
+    this.#userId = user.id;
     this.#selectedMembershipId = user.selectedMembershipId;
+    if (changed) this.#emit('changed');
     return user;
   }
 
@@ -71,7 +99,7 @@ export class AuthClient {
 
   async logout(): Promise<void> {
     await this.#request('/auth/logout', { method: 'POST' });
-    this.#rotate();
+    this.#rotate('invalid');
   }
 
   async request(path: string, init: RequestInit = {}): Promise<Response> {
@@ -80,9 +108,11 @@ export class AuthClient {
 
   close(): void {
     this.#channel?.close();
+    this.#listeners.clear();
   }
 
   async #request(path: string, init: RequestInit, requireSession = true): Promise<Response> {
+    const generation = this.#generation;
     const method = (init.method ?? 'GET').toUpperCase();
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
@@ -101,6 +131,9 @@ export class AuthClient {
       credentials: 'include',
       cache: 'no-store',
     });
+    if (generation !== this.#generation) {
+      throw new TenantContextChangedError('The trusted tenant context changed.');
+    }
     if (response.status === 401 && requireSession) {
       this.#invalidate(this.#generation + 1);
       throw new SessionInvalidError('The server-side session is no longer valid.');
@@ -112,26 +145,39 @@ export class AuthClient {
       this.#invalidate(this.#generation + 1);
       throw new TenantContextChangedError('The trusted tenant context changed.');
     }
-    if (!response.ok) throw new Error(`Auth request failed with status ${response.status}.`);
+    if (!response.ok) throw new HttpRequestError(response.status);
     this.#acceptCsrf(response);
     return response;
   }
 
   #acceptCsrf(response: Response): void {
     const token = response.headers.get('X-CSRF-Token');
-    if (token) this.#csrfToken = token;
+    if (token) {
+      const rotated = this.#csrfToken !== undefined && this.#csrfToken !== token;
+      this.#csrfToken = token;
+      if (rotated) {
+        this.#generation += 1;
+        this.#emit('changed');
+      }
+    }
   }
 
-  #invalidate(generation: number): void {
+  #invalidate(generation: number, event: AuthChange = 'invalid'): void {
     this.#generation = generation;
     this.#csrfToken = undefined;
     this.#selectedMembershipId = null;
+    this.#userId = null;
+    this.#emit(event);
   }
 
-  #rotate(): void {
+  #rotate(event: AuthChange = 'changed'): void {
     this.#generation += 1;
     this.#csrfToken = undefined;
     this.#selectedMembershipId = null;
     this.#channel?.postMessage(this.#generation);
+    this.#emit(event);
   }
 }
+
+/** Shared transport for application features. */
+export const authClient = new AuthClient();

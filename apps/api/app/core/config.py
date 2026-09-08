@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_DIR = Path(__file__).resolve().parents[2]
@@ -34,6 +34,7 @@ class Settings(BaseSettings):
         env_file=(PROJECT_ROOT / ".env", API_DIR / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
         case_sensitive=False,
     )
 
@@ -47,6 +48,8 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8010
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # Explicit opt-in for the approved real-browser test frontend only.
+    auth_local_http_origin: str | None = None
 
     # The runtime URL. It must name the application role, which owns nothing and
     # is subject to row level security.
@@ -70,8 +73,20 @@ class Settings(BaseSettings):
     max_concurrent_sessions: int = 5
     session_last_seen_interval_seconds: int = 60
     preauth_csrf_lifetime_minutes: int = 10
-    auth_hmac_key: str | None = None
+    auth_hmac_key: str | None = Field(default=None, repr=False)
     auth_hmac_key_id: int = 1
+
+    @model_validator(mode="after")
+    def _validate_auth_local_http_origin(self) -> Self:
+        if self.auth_local_http_origin is not None and (
+            self.app_env not in ("development", "test")
+            or self.auth_local_http_origin != "http://localhost:5187"
+        ):
+            raise ValueError(
+                "The auth HTTP origin exception is restricted to the approved browser test "
+                "origin in development or test."
+            )
+        return self
 
     @field_validator("password_hash_concurrency")
     @classmethod
@@ -89,6 +104,14 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         """CORS origins as a list (configured as a comma separated string)."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def auth_origin_list(self) -> list[str]:
+        """Configured origins plus the explicitly enabled local browser test origin."""
+        origins = self.cors_origin_list
+        if self.auth_local_http_origin and self.auth_local_http_origin not in origins:
+            origins.append(self.auth_local_http_origin)
+        return origins
 
     @property
     def is_production(self) -> bool:

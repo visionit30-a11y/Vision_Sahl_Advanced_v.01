@@ -5,13 +5,19 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from app.api.auth_dependencies import session_bearer_from_cookie
+from app.auth.http import (
+    require_session_bearer,
+    validate_expected_membership,
+    validate_session_csrf,
+)
 from app.auth.tenants import TrustedTenantAccess
 from app.authorization.contracts import AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
 from app.authorization.service import AuthorizationDecision, AuthorizationService
+from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.authenticated_access import trusted_access_from_bearer
 
@@ -23,9 +29,19 @@ class AuthorizationDeniedError(AppError):
 
 
 async def require_authenticated_access(
+    request: Request,
     bearer: Annotated[str, Depends(session_bearer_from_cookie)],
 ) -> TrustedTenantAccess:
-    return await trusted_access_from_bearer(bearer)
+    access = await trusted_access_from_bearer(require_session_bearer(bearer))
+    settings = get_settings()
+    validate_expected_membership(request, access.principal.membership_id)
+    validate_session_csrf(
+        request,
+        access.session,
+        set(settings.auth_origin_list),
+        local_http_origin=settings.auth_local_http_origin,
+    )
+    return access
 
 
 def get_authorization_service() -> AuthorizationService:

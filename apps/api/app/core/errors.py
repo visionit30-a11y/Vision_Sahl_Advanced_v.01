@@ -91,6 +91,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=build_error_payload(exc.code, exc.message, exc.details),
+            headers={"X-Auth-Error": "tenant_context_changed"}
+            if exc.code == "tenant_context_changed"
+            else None,
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -125,4 +128,8 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=build_error_payload("internal_error", "Unexpected error."),
+            # Starlette's outer error handler can run outside response middleware.
+            headers={"Cache-Control": "no-store"}
+            if request.url.path.split("/")[1] in {"auth", "ui-settings"}
+            else None,
         )
