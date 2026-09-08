@@ -13,7 +13,7 @@ from app.cache.redis_client import redis_provider
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
-from app.core.middleware import CorrelationIdMiddleware
+from app.core.middleware import CorrelationIdMiddleware, UiSettingsNoStoreMiddleware
 from app.db.session import dispose_engine
 
 logger = get_logger(__name__)
@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.add_middleware(CorrelationIdMiddleware)
+    application.add_middleware(UiSettingsNoStoreMiddleware)
 
     register_exception_handlers(application)
     application.include_router(api_router)
