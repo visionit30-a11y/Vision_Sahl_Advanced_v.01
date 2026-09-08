@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -12,8 +13,16 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
+from app.auth.tenants import AuthenticatedPrincipal
+from app.authorization.contracts import AuthorizationGrant
+from app.authorization.permissions import Permission, PermissionId
 from app.core.config import Settings
+from app.db.ui_settings_repository import UiSettingsRepository
+from app.models.tenant import TenantId
 from app.models.ui_settings import TenantUiSettings, UserUiSettings
+from app.tenancy.context import TenantContext
+from app.ui_settings.contracts import UiSettingsPatch
+from app.ui_settings.service import UiSettingsConflictError, UiSettingsService
 
 
 @dataclass(frozen=True)
@@ -22,6 +31,14 @@ class UiSettingsFixture:
     tenant_b: uuid.UUID
     user_a: uuid.UUID
     user_b: uuid.UUID
+
+
+def _grant(state: UiSettingsFixture, permission: Permission) -> AuthorizationGrant:
+    return AuthorizationGrant(
+        AuthenticatedPrincipal(state.user_a, uuid.uuid4(), uuid.uuid4(), 1),
+        TenantContext(TenantId(state.tenant_a)),
+        PermissionId(permission.value),
+    )
 
 
 def _set_tenant(connection: Connection, tenant_id: uuid.UUID) -> None:
@@ -87,17 +104,23 @@ def test_raw_sql_tenant_isolation_and_cross_tenant_writes(
     )
     _set_tenant(app_connection, state.tenant_b)
     assert app_connection.execute(text("SELECT tenant_id FROM app.tenant_ui_settings")).all() == []
-    assert app_connection.execute(
-        text(
-            "UPDATE app.tenant_ui_settings SET settings='{}'::jsonb "
-            "WHERE tenant_id=:id RETURNING tenant_id"
-        ),
-        {"id": state.tenant_a},
-    ).scalar_one_or_none() is None
-    assert app_connection.execute(
-        text("DELETE FROM app.tenant_ui_settings WHERE tenant_id=:id RETURNING tenant_id"),
-        {"id": state.tenant_a},
-    ).scalar_one_or_none() is None
+    assert (
+        app_connection.execute(
+            text(
+                "UPDATE app.tenant_ui_settings SET settings='{}'::jsonb "
+                "WHERE tenant_id=:id RETURNING tenant_id"
+            ),
+            {"id": state.tenant_a},
+        ).scalar_one_or_none()
+        is None
+    )
+    assert (
+        app_connection.execute(
+            text("DELETE FROM app.tenant_ui_settings WHERE tenant_id=:id RETURNING tenant_id"),
+            {"id": state.tenant_a},
+        ).scalar_one_or_none()
+        is None
+    )
     with pytest.raises(DBAPIError), app_connection.begin_nested():
         app_connection.execute(
             text("INSERT INTO app.tenant_ui_settings(tenant_id) VALUES (:id)"),
@@ -123,24 +146,30 @@ def test_orm_obeys_rls_for_tenant_and_user_rows(
         _set_tenant(app_connection, state.tenant_b)
         assert session.scalars(select(TenantUiSettings)).all() == []
         assert session.scalars(select(UserUiSettings)).all() == []
-        assert session.execute(
-            update(TenantUiSettings)
-            .where(TenantUiSettings.tenant_id == state.tenant_a)
-            .values(settings={})
-            .returning(TenantUiSettings.tenant_id)
-        ).scalar_one_or_none() is None
-        assert session.execute(
-            delete(UserUiSettings)
-            .where(UserUiSettings.user_id == state.user_a)
-            .returning(UserUiSettings.user_id)
-        ).scalar_one_or_none() is None
+        assert (
+            session.execute(
+                update(TenantUiSettings)
+                .where(TenantUiSettings.tenant_id == state.tenant_a)
+                .values(settings={})
+                .returning(TenantUiSettings.tenant_id)
+            ).scalar_one_or_none()
+            is None
+        )
+        assert (
+            session.execute(
+                delete(UserUiSettings)
+                .where(UserUiSettings.user_id == state.user_a)
+                .returning(UserUiSettings.user_id)
+            ).scalar_one_or_none()
+            is None
+        )
 
 
 def test_database_rejects_unknown_keys_values_and_non_objects(
     ui_settings_fixture: UiSettingsFixture, app_connection: Connection
 ) -> None:
     _set_tenant(app_connection, ui_settings_fixture.tenant_a)
-    for raw in ('{"unknown":"value"}', '{"theme":"unknown"}', '[]', '{"theme":null}'):
+    for raw in ('{"unknown":"value"}', '{"theme":"unknown"}', "[]", '{"theme":null}'):
         with pytest.raises(DBAPIError), app_connection.begin_nested():
             app_connection.execute(
                 text(
@@ -183,13 +212,16 @@ def test_unique_user_scope_and_optimistic_version_conflict(
         },
     ).scalar_one()
     assert changed == 2
-    assert app_connection.execute(
-        text(
-            "UPDATE app.user_ui_settings SET settings='{}'::jsonb,version=version+1 "
-            "WHERE tenant_id=:tenant AND user_id=:user AND version=1 RETURNING version"
-        ),
-        {"tenant": state.tenant_a, "user": state.user_a},
-    ).scalar_one_or_none() is None
+    assert (
+        app_connection.execute(
+            text(
+                "UPDATE app.user_ui_settings SET settings='{}'::jsonb,version=version+1 "
+                "WHERE tenant_id=:tenant AND user_id=:user AND version=1 RETURNING version"
+            ),
+            {"tenant": state.tenant_a, "user": state.user_a},
+        ).scalar_one_or_none()
+        is None
+    )
 
 
 def test_platform_classification_ownership_and_least_grants(
@@ -219,9 +251,7 @@ def test_platform_classification_ownership_and_least_grants(
     )
     for privilege in ("INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
         assert not app_connection.scalar(
-            text(
-                "SELECT has_table_privilege(:role,'app.platform_ui_settings',:privilege)"
-            ),
+            text("SELECT has_table_privilege(:role,'app.platform_ui_settings',:privilege)"),
             {"role": application_role, "privilege": privilege},
         )
 
@@ -241,3 +271,53 @@ def test_catalog_discovers_only_tenant_and_user_settings(
     )
     assert "app.platform_ui_settings" not in discovered
     assert {"app.tenant_ui_settings", "app.user_ui_settings"} <= discovered
+
+
+@pytest.mark.asyncio
+async def test_repository_create_and_update_races_are_atomic(
+    ui_settings_fixture: UiSettingsFixture,
+) -> None:
+    state = ui_settings_fixture
+    service = UiSettingsService(UiSettingsRepository())
+    access = _grant(state, Permission.TENANT_UI_SETTINGS_MANAGE)
+    first = UiSettingsPatch.model_validate({"theme": "sand-warm"})
+    second = UiSettingsPatch.model_validate({"theme": "navy-institutional"})
+
+    created = await asyncio.gather(
+        service.put_tenant(access, first, None),
+        service.put_tenant(access, second, None),
+        return_exceptions=True,
+    )
+    assert sum(isinstance(item, UiSettingsConflictError) for item in created) == 1
+    winner = next(item for item in created if not isinstance(item, BaseException))
+    assert winner.version == 1
+
+    updated = await asyncio.gather(
+        service.put_tenant(access, first, 1),
+        service.put_tenant(access, second, 1),
+        return_exceptions=True,
+    )
+    assert sum(isinstance(item, UiSettingsConflictError) for item in updated) == 1
+    changed = next(item for item in updated if not isinstance(item, BaseException))
+    assert changed.version == 2
+
+
+@pytest.mark.asyncio
+async def test_repository_delete_update_race_has_one_winner_and_tenant_isolation(
+    ui_settings_fixture: UiSettingsFixture,
+) -> None:
+    state = ui_settings_fixture
+    repository = UiSettingsRepository()
+    service = UiSettingsService(repository)
+    access = _grant(state, Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF)
+    patch = UiSettingsPatch.model_validate({"tablePreset": "compact-rows"})
+    await service.put_user(access, state.user_a, patch, None)
+
+    raced = await asyncio.gather(
+        service.delete_user(access, state.user_a, 1),
+        service.put_user(access, state.user_a, patch, 1),
+        return_exceptions=True,
+    )
+    assert sum(isinstance(item, UiSettingsConflictError) for item in raced) == 1
+    foreign = TenantContext(TenantId(state.tenant_b))
+    assert await repository.read_user(foreign, state.user_a) is None
