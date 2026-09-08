@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, 'feature/**']
+    branches: [main, develop, "feature/**"]
   pull_request:
     branches: [main, develop]
 
@@ -47,7 +47,7 @@ jobs:
       # same environment a developer's pytest run reports.
       APP_ENV: test
       LOG_FORMAT: json
-      REDIS_ENABLED: 'false'
+      REDIS_ENABLED: "false"
       # Tests run as the application role, which owns nothing.
       DATABASE_URL: postgresql+psycopg://sahl_app:ci_app_password@127.0.0.1:5433/sahl_ci
       MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
@@ -71,7 +71,7 @@ jobs:
           # The version of the uv tool, which is a different thing from the
           # version of the action above. Held equal to the local baseline so CI
           # installs from uv.lock with the same uv that produced it.
-          version: '0.12.10'
+          version: "0.12.10"
 
       # Blocking on its own: a lock that drifted from pyproject would mean CI
       # installs a tree nobody reviewed.
@@ -148,24 +148,67 @@ jobs:
         run: uv run python -m tests.db.verify_clean_database
 
   web:
-    name: Web (lint, types, tests, build)
+    name: Web (lint, types, tests, real browser, build)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sahl_ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sahl_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      APP_ENV: test
+      LOG_FORMAT: json
+      REDIS_ENABLED: "false"
+      AUTH_LOCAL_HTTP_ORIGIN: http://localhost:5187
+      DATABASE_URL: postgresql+psycopg://sahl_app:ci_app_password@127.0.0.1:5433/sahl_ci
+      MIGRATION_DATABASE_URL: postgresql+psycopg://sahl_migrator:ci_migrator_password@127.0.0.1:5433/sahl_ci
     steps:
       - uses: actions/checkout@v4
 
-      # The version comes from apps/web/.nvmrc so the local machine and CI read
-      # one source instead of two numbers that have to be kept equal by hand.
       - uses: actions/setup-node@v4
         with:
           node-version-file: apps/web/.nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install dependencies
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: apps/api/.python-version
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          version: "0.12.10"
+
+      - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Install the real API from the lock
+        working-directory: apps/api
+        run: uv sync --frozen
+
+      - name: Create isolated browser migration and application roles
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5433 -U postgres -d sahl_ci
+          -f ${{ github.workspace }}/.github/ci/setup-database.sql
+
+      - name: Migrate the real browser database
+        working-directory: apps/api
+        run: uv run alembic upgrade head
 
       - name: ESLint
         run: npm run lint
@@ -179,8 +222,55 @@ jobs:
       - name: Install Chromium for the blocking browser security gate
         run: npx playwright install --with-deps chromium
 
-      - name: Playwright browser security gate
-        run: npm run test:browser
+      - name: Playwright with real FastAPI and PostgreSQL
+        shell: bash
+        env:
+          LOG_LEVEL: WARNING
+        run: |
+          set -euo pipefail
+          # This key exists only in this shell and its children, never GITHUB_ENV,
+          # output, a fixture file, or an artifact. Shell tracing stays disabled.
+          set +x
+          export AUTH_HMAC_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          browser_api_pid=''
+          cleanup_browser_api() {
+            result=$?
+            trap - EXIT INT TERM
+            if [[ -n "$browser_api_pid" ]] && kill -0 "$browser_api_pid" 2>/dev/null; then
+              kill "$browser_api_pid"
+              wait "$browser_api_pid" || true
+            fi
+            exit "$result"
+          }
+          trap cleanup_browser_api EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          ../api/.venv/bin/python -m uvicorn app.main:app --app-dir ../api \
+            --host 127.0.0.1 --port 8010 --no-access-log --log-level warning &
+          browser_api_pid=$!
+          browser_api_ready=false
+          for attempt in {1..30}; do
+            if ! kill -0 "$browser_api_pid" 2>/dev/null; then
+              echo 'The owned FastAPI process exited before browser readiness.' >&2
+              exit 1
+            fi
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8010/health/db; then
+              browser_api_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$browser_api_ready" != true ]]; then
+            echo 'Real FastAPI/PostgreSQL did not become healthy on 8010.' >&2
+            exit 1
+          fi
+          # Playwright performs the stricter OpenAPI/database preflight itself.
+          npm run test:browser
+
+      - name: Browser database cleanup and RLS guard
+        if: always()
+        working-directory: apps/api
+        run: uv run python -m tests.db.verify_clean_database
 
       - name: Build
         run: npm run build
