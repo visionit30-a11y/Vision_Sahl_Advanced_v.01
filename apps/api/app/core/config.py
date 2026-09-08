@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8010
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
-    # Explicit opt-in for the approved real-browser test frontend only.
+    # Explicit opt-in: development on 5173; browser tests on 5187.
     auth_local_http_origin: str | None = None
 
     # The runtime URL. It must name the application role, which owns nothing and
@@ -81,8 +81,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_auth_local_http_origin(self) -> Self:
         if self.auth_local_http_origin is not None and (
-            self.app_env not in ("development", "test")
-            or self.auth_local_http_origin != "http://localhost:5187"
+            (self.app_env, self.auth_local_http_origin)
+            not in {
+                ("development", "http://localhost:5173"),
+                ("development", "http://localhost:5187"),
+                ("test", "http://localhost:5187"),
+            }
         ):
             raise ValueError(
                 "The auth HTTP origin exception is restricted to the approved browser test "

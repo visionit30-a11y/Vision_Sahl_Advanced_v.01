@@ -66,7 +66,8 @@ def _allowed_origin(origin: str, allowed_origins: set[str], local_http_origin: s
     if origin not in allowed_origins:
         return False
     return urlsplit(origin).scheme == "https" or (
-        local_http_origin == "http://localhost:5187" and origin == local_http_origin
+        local_http_origin in {"http://localhost:5173", "http://localhost:5187"}
+        and origin == local_http_origin
     )
 
 
