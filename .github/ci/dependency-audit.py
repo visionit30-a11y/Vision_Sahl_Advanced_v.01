@@ -84,6 +84,9 @@ def environment(work: Path) -> dict[str, str]:
         UV_PYTHON_DOWNLOADS="never",
         PYTHONIOENCODING="utf-8",
         NO_COLOR="1",
+        # A pinned scanner must not emit unrelated self-update notices.
+        # Actual npm audit stderr still fails closed in npm_report.
+        NPM_CONFIG_UPDATE_NOTIFIER="false",
     )
     return env
 

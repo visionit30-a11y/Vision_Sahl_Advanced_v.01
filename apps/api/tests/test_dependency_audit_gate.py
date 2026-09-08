@@ -253,6 +253,7 @@ def test_runtime_environment_drops_credentials_and_registry_overrides(
     env = gate.environment(tmp_path)
     assert "CANARY_PRIVATE_PAYLOAD" not in json.dumps(env)
     assert env["UV_PYTHON_DOWNLOADS"] == "never"
+    assert env["NPM_CONFIG_UPDATE_NOTIFIER"] == "false"
 
 
 def test_universal_uv_inventory_includes_non_host_marker_packages(gate: Any) -> None:
