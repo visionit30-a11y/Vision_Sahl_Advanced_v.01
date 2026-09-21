@@ -214,9 +214,14 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
         state = payload["state"]
         # Validate fixture ownership before any targeted cleanup or fixture mutation.
         tenants = _owned_tenants(state, migration)
-        if payload["action"] == "deny_tenant":
+        if payload["action"] in {"deny_tenant", "deny_user"}:
             if state["tenant_a"] not in tenants:
                 raise RuntimeError("Fixture tenant is unavailable.")
+            permission = (
+                Permission.TENANT_UI_SETTINGS_MANAGE
+                if payload["action"] == "deny_tenant"
+                else Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF
+            )
             async with runtime.begin() as conn:
                 await conn.execute(
                     text("SELECT set_config('app.tenant_id',:tenant,true)"),
@@ -229,7 +234,7 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                     ),
                     {
                         "role": state["role_a"],
-                        "permission": Permission.TENANT_UI_SETTINGS_MANAGE.value,
+                        "permission": permission.value,
                     },
                 )
             return {}
