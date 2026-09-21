@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 const verifyLocalDev = process.env.SAHL_VERIFY_LOCAL_DEV === '1';
 const port = verifyLocalDev ? 5173 : 5187;
+const apiTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8010';
 
 export default defineConfig({
   testDir: './tests/browser',
@@ -24,6 +25,6 @@ export default defineConfig({
         command: `node tests/browser/real-backend-preflight.mjs && npm run dev -- --host localhost --port ${port} --strictPort`,
         url: `http://localhost:${port}`,
         reuseExistingServer: false,
-        env: { VITE_API_PROXY_TARGET: 'http://127.0.0.1:8010' },
+        env: { VITE_API_PROXY_TARGET: apiTarget },
       },
 });

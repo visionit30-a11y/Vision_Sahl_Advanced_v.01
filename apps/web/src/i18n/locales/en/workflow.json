@@ -49,6 +49,7 @@
     "rejected": "Rejected",
     "returned": "Returned"
   },
+  "actors": { "requester": "Requester", "approver": "Approver" },
   "errors": {
     "title": "Workflow action failed",
     "description": "Reload the current tenant state and try again."

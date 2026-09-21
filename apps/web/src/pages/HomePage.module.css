@@ -2,6 +2,21 @@
   display: flex;
   flex-direction: column;
 }
+.summaryMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.summaryMetrics > div {
+  display: grid;
+  gap: var(--space-1);
+}
+.summaryMetrics strong {
+  font-size: var(--font-size-xl);
+}
+.summaryMetrics span {
+  color: var(--color-text-muted);
+}
 
 .contextRows {
   display: grid;
@@ -28,6 +43,9 @@
 
 @media (max-width: 48rem) {
   .contextRows {
+    grid-template-columns: 1fr;
+  }
+  .summaryMetrics {
     grid-template-columns: 1fr;
   }
 }

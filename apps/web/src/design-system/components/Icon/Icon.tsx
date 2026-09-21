@@ -1,5 +1,6 @@
 import {
   Check,
+  Bell,
   ChevronDown,
   ChevronRight,
   CircleAlert,
@@ -43,7 +44,8 @@ export type IconName =
   | 'globe'
   | 'moreHorizontal'
   | 'externalLink'
-  | 'inbox';
+  | 'inbox'
+  | 'bell';
 
 const ICONS: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -61,6 +63,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   moreHorizontal: Ellipsis,
   externalLink: ExternalLink,
   inbox: Inbox,
+  bell: Bell,
 };
 
 export interface IconProps {

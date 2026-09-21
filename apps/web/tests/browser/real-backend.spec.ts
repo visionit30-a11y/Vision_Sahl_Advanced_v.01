@@ -743,8 +743,18 @@ test('real workflow request returns, resubmits, approves, and preserves history'
     await expect(requester.getByTestId('workflow-request')).toContainText('مسودة');
     await requester.getByRole('button', { name: 'إرسال' }).click();
     await expect(requester.getByTestId('workflow-request')).toContainText('قيد الاعتماد');
+    await requester.reload();
+    await expect(requester.getByRole('button', { name: 'الإشعارات' })).toBeVisible();
 
     await loginAndSelectTenant(approver, account.approver_email, account.approver_password);
+    await expect(approver.getByLabel(/إشعارات غير مقروءة/)).toBeVisible();
+    await approver.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(approver.getByTestId('notification-item')).toContainText('طلب جديد للاعتماد');
+    await approver.getByRole('button', { name: 'فتح الطلب' }).click();
+    await expect(approver).toHaveURL(/\/workflows\/requests\?request=/);
+    await approver.goto('/tasks');
+    await expect(approver.getByTestId('activity-task')).toContainText('طلب اعتماد تجريبي');
+    await expect(approver.getByTestId('activity-task')).toContainText('مفتوحة');
     await approver.goto('/workflows/approvals');
     await expect(approver.getByTestId('approval-task')).toContainText('طلب اعتماد تجريبي');
     await approver.getByLabel('ملاحظة القرار').fill('أكمل وصف الطلب');
@@ -753,6 +763,11 @@ test('real workflow request returns, resubmits, approves, and preserves history'
 
     await requester.reload();
     await expect(requester.getByTestId('workflow-request')).toContainText('معاد');
+    await requester.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(requester.getByTestId('notification-item').first()).toContainText(
+      'أعيد الطلب للتعديل',
+    );
+    await requester.getByRole('link', { name: 'الطلبات' }).click();
     await requester.getByRole('button', { name: 'تعديل' }).click();
     await requester.getByLabel('الوصف').fill('دورة اعتماد مكتملة وقابلة للتتبع');
     await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
@@ -761,11 +776,20 @@ test('real workflow request returns, resubmits, approves, and preserves history'
     await approver.reload();
     await expect(approver.getByTestId('approval-task')).toBeVisible();
     await approver.getByRole('button', { name: 'اعتماد' }).click();
+    await approver.goto('/tasks');
+    await approver.getByLabel('الحالة').selectOption('completed');
+    await approver.getByRole('button', { name: 'تطبيق' }).click();
+    await expect(approver.getByTestId('activity-task').first()).toContainText('مكتملة');
     await requester.reload();
     await expect(requester.getByTestId('workflow-request')).toContainText('معتمد');
     await requester.getByRole('button', { name: 'سجل الحركات' }).click();
     await expect(requester.getByTestId('workflow-history')).toContainText('تمت الإعادة');
     await expect(requester.getByTestId('workflow-history')).toContainText('تم الاعتماد');
+    await expect(requester.getByTestId('workflow-history')).toContainText('مقدم الطلب');
+    await requester.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(requester.getByTestId('notification-item').first()).toContainText('اعتُمد الطلب');
+    await requester.getByRole('button', { name: 'تحديد الكل كمقروء' }).click();
+    await expect(requester.getByText('جديد')).toHaveCount(0);
   } finally {
     for (const value of await requesterContext.cookies()) rememberSecret(value.value);
     for (const value of await approverContext.cookies()) rememberSecret(value.value);

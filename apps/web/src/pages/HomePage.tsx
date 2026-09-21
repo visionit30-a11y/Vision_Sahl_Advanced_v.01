@@ -6,6 +6,8 @@ import { Badge, Button, Card, PageHeader } from '../design-system';
 import type { BadgeTone } from '../design-system';
 import styles from './HomePage.module.css';
 import { useAppAuth } from '../app/auth-state';
+import { activityCenterClient, type DashboardSummary } from '../activity-center/client';
+import { FRONTEND_PERMISSIONS, usePermissionSnapshot } from '../app/permission-state';
 
 type ServiceState = 'loading' | 'up' | 'down' | 'disabled' | 'error';
 
@@ -32,7 +34,9 @@ const TONE: Record<ServiceState, BadgeTone> = {
 export function HomePage() {
   const { t } = useTranslation(['home', 'common']);
   const auth = useAppAuth();
+  const permissions = usePermissionSnapshot();
   const [rows, setRows] = useState<ServiceRow[]>(INITIAL_ROWS);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [checking, setChecking] = useState(false);
 
   const check = useCallback(async () => {
@@ -66,6 +70,11 @@ export function HomePage() {
     void check();
   }, [check]);
 
+  useEffect(() => {
+    if (!permissions.allows(FRONTEND_PERMISSIONS.readWorkflowRequests)) return;
+    void activityCenterClient.dashboard().then(setSummary, () => setSummary(null));
+  }, [permissions]);
+
   return (
     <>
       <PageHeader title={t('home:welcome')} description={t('home:description')} />
@@ -88,6 +97,42 @@ export function HomePage() {
           </div>
         </dl>
       </Card>
+
+      {summary ? (
+        <Card title={t('activityCenter:dashboard.title')}>
+          <div className={styles.summaryMetrics}>
+            <div>
+              <strong>{summary.unread_notifications}</strong>
+              <span>{t('activityCenter:dashboard.unread')}</span>
+            </div>
+            <div>
+              <strong>{summary.pending_tasks}</strong>
+              <span>{t('activityCenter:dashboard.pending')}</span>
+            </div>
+            <div>
+              <strong>{summary.overdue_tasks}</strong>
+              <span>{t('activityCenter:dashboard.overdue')}</span>
+            </div>
+          </div>
+          <h3>{t('activityCenter:dashboard.recent')}</h3>
+          {summary.recent_activity.length === 0 ? (
+            <p>{t('activityCenter:dashboard.empty')}</p>
+          ) : (
+            <ul className={styles.rows}>
+              {summary.recent_activity.map((item) => (
+                <li className={styles.row} key={`${item.request_id}-${item.created_at}`}>
+                  <span className={styles.name}>{item.title}</span>
+                  <span className={styles.detail}>
+                    {t(`workflow:events.${item.event_type}`)} ·{' '}
+                    {t(`activityCenter:actors.${item.actor_kind}`)}
+                  </span>
+                  <Badge tone="neutral">{t(`workflow:status.${item.to_status}`)}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      ) : null}
 
       <Card
         title={t('home:platformStatus')}

@@ -8,10 +8,14 @@
     "workflow": "Workflow"
   },
   "tenantSelector": "Tenant",
+  "unreadCount": "{{count}} unread notifications",
   "items": {
     "home": "Home",
     "designSystem": "Design system",
     "workflowRequests": "Requests",
-    "workflowApprovals": "Approvals inbox"
+    "workflowApprovals": "Approvals inbox",
+    "notifications": "Notifications",
+    "tasks": "My tasks",
+    "notificationPreferences": "Notification preferences"
   }
 }

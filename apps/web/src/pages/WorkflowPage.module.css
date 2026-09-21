@@ -27,6 +27,9 @@
   display: grid;
   gap: var(--space-2);
 }
+.request[aria-current='true'] {
+  border-color: var(--color-brand);
+}
 .requestHeader {
   display: flex;
   justify-content: space-between;
