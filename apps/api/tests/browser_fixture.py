@@ -54,8 +54,6 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
                 text("SELECT set_config('app.tenant_id',:tenant,true)"), {"tenant": tenant}
             )
             for statement in (
-                "DELETE FROM app.workflow_events WHERE tenant_id=:tenant",
-                "DELETE FROM app.workflow_approval_tasks WHERE tenant_id=:tenant",
                 "DELETE FROM app.workflow_requests WHERE tenant_id=:tenant",
                 "DELETE FROM app.user_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM app.tenant_ui_settings WHERE tenant_id=:tenant",

@@ -17,6 +17,11 @@ const requiredOperations = [
   ['get', '/ui-settings/tenant'],
   ['put', '/ui-settings/tenant'],
   ['delete', '/ui-settings/tenant'],
+  ['get', '/workflows/permissions'],
+  ['get', '/workflows/approvers'],
+  ['get', '/workflows/requests'],
+  ['post', '/workflows/requests'],
+  ['get', '/workflows/approvals/inbox'],
 ];
 
 async function assertPortAvailable(host) {
