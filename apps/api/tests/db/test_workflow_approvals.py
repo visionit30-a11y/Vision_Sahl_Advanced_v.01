@@ -12,6 +12,8 @@ from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.pool import NullPool
 
+from app.activity_center.contracts import PreferenceUpdate, TaskBucket
+from app.activity_center.service import ActivityCenterConflictError, ActivityCenterService
 from app.auth.tenants import AuthenticatedPrincipal
 from app.authorization.contracts import AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
@@ -206,6 +208,101 @@ async def test_reject_and_concurrent_decision_are_fail_closed(
     assert sum(isinstance(result, WorkflowConflictError) for result in results) == 1
 
 
+async def test_activity_center_notification_task_and_preference_lifecycle(
+    workflow_fixture: WorkflowFixture,
+) -> None:
+    workflow = WorkflowService()
+    activity = ActivityCenterService()
+    creator = grant(
+        workflow_fixture, workflow_fixture.requester, Permission.TENANT_WORKFLOW_REQUESTS_CREATE
+    )
+    requester_read = grant(
+        workflow_fixture, workflow_fixture.requester, Permission.TENANT_WORKFLOW_REQUESTS_READ
+    )
+    approver_read = grant(
+        workflow_fixture, workflow_fixture.approver, Permission.TENANT_WORKFLOW_REQUESTS_READ
+    )
+    decider = grant(
+        workflow_fixture, workflow_fixture.approver, Permission.TENANT_WORKFLOW_APPROVALS_DECIDE
+    )
+    preference_grant = grant(
+        workflow_fixture,
+        workflow_fixture.requester,
+        Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF,
+    )
+    preferences = await activity.preferences(preference_grant)
+    assert preferences.version == 1 and preferences.request_approved is True
+    preferences = await activity.update_preferences(
+        preference_grant,
+        PreferenceUpdate(
+            approval_requested=True,
+            request_approved=True,
+            request_rejected=True,
+            request_returned=True,
+            overdue_tasks=True,
+            expected_version=preferences.version,
+        ),
+    )
+    assert preferences.version == 2
+    with pytest.raises(ActivityCenterConflictError):
+        await activity.update_preferences(
+            preference_grant,
+            PreferenceUpdate(
+                approval_requested=True,
+                request_approved=True,
+                request_rejected=True,
+                request_returned=True,
+                overdue_tasks=True,
+                expected_version=1,
+            ),
+        )
+    created = await workflow.create(
+        creator,
+        WorkflowCreate(
+            request_type="general_request",
+            title="Activity center proof",
+            description="Real tenant-safe notification lifecycle",
+            approver_membership_id=workflow_fixture.approver,
+        ),
+    )
+    await workflow.submit(creator, created.id, created.version)
+    approver_notifications = await activity.notifications(approver_read)
+    assert [item.kind for item in approver_notifications] == ["approval_requested"]
+    assert (await activity.notification_summary(approver_read)).unread_count == 1
+    marked = await activity.mark_read(approver_read, approver_notifications[0].id)
+    assert marked.read_at is not None
+    assert (await activity.notification_summary(approver_read)).unread_count == 0
+    tasks = await activity.tasks(decider, TaskBucket.OPEN)
+    assert len(tasks) == 1 and tasks[0].request_id == created.id
+    await workflow.decide(decider, tasks[0].id, WorkflowDecision.APPROVE, 1, None)
+    assert await activity.tasks(decider, TaskBucket.OPEN) == []
+    completed = await activity.tasks(decider, TaskBucket.COMPLETED)
+    assert len(completed) == 1 and completed[0].status == "approved"
+    requester_notifications = await activity.notifications(requester_read)
+    assert {item.kind for item in requester_notifications} == {
+        "request_submitted",
+        "request_approved",
+    }
+    dashboard = await activity.dashboard(requester_read)
+    assert dashboard.unread_notifications == 2
+    assert [item.event_type for item in dashboard.recent_activity][:2] == [
+        "approved",
+        "submitted",
+    ]
+
+
+async def test_activity_center_self_scope_hides_other_memberships(
+    workflow_fixture: WorkflowFixture,
+) -> None:
+    service = ActivityCenterService()
+    requester_task_grant = grant(
+        workflow_fixture,
+        workflow_fixture.requester,
+        Permission.TENANT_WORKFLOW_APPROVALS_DECIDE,
+    )
+    assert await service.tasks(requester_task_grant) == []
+
+
 async def test_cross_tenant_approver_and_idor_are_hidden(workflow_fixture: WorkflowFixture) -> None:
     creator = grant(
         workflow_fixture, workflow_fixture.requester, Permission.TENANT_WORKFLOW_REQUESTS_CREATE
@@ -250,6 +347,38 @@ def test_workflow_tables_rls_grants_and_append_only_history(
     )
     with pytest.raises(DBAPIError):
         app_connection.execute(text("UPDATE app.workflow_events SET note='tampered'"))
+
+
+def test_activity_center_tables_are_tenant_owned_and_least_privileged(
+    app_connection: Connection,
+    migration_role: str,
+    application_role: str,
+) -> None:
+    for table in ("notifications", "notification_preferences"):
+        row = app_connection.execute(
+            text("""
+            SELECT pg_get_userbyid(relowner),relrowsecurity,relforcerowsecurity
+            FROM pg_class WHERE oid=CAST(:name AS regclass)
+        """),
+            {"name": f"app.{table}"},
+        ).one()
+        assert tuple(row) == (migration_role, True, True)
+        assert app_connection.scalar(
+            text("""
+            SELECT count(*)=1 FROM pg_policy WHERE polrelid=CAST(:name AS regclass)
+              AND pg_get_expr(polqual,polrelid) LIKE '%app.current_tenant_id()%'
+              AND pg_get_expr(polwithcheck,polrelid) LIKE '%app.current_tenant_id()%'
+        """),
+            {"name": f"app.{table}"},
+        )
+        assert not app_connection.scalar(
+            text("SELECT has_table_privilege('public',:name,'SELECT,INSERT,UPDATE,DELETE')"),
+            {"name": f"app.{table}"},
+        )
+        assert app_connection.scalar(
+            text("SELECT has_table_privilege(:role,:name,'SELECT,INSERT,UPDATE')"),
+            {"role": application_role, "name": f"app.{table}"},
+        )
 
 
 def test_approver_projection_has_narrow_security_definer_boundary(

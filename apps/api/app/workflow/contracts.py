@@ -89,12 +89,14 @@ class ApprovalTaskRecord(BaseModel):
     status: str
     version: int
     created_at: datetime
+    due_at: datetime
 
 
 class WorkflowEventRecord(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     actor_membership_id: uuid.UUID
+    actor_kind: str
     event_type: str
     from_status: str | None
     to_status: str
