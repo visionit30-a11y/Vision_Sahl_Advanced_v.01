@@ -61,9 +61,10 @@ export function WorkflowRequestsPage() {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setBusy(true);
     setError(false);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(form);
     const payload = {
       title: String(data.get('title') ?? ''),
       description: String(data.get('description') ?? ''),
@@ -74,7 +75,7 @@ export function WorkflowRequestsPage() {
         await workflowClient.update(editing.id, { ...payload, expected_version: editing.version });
       else await workflowClient.create({ ...payload, request_type: 'general_request' });
       setEditing(null);
-      event.currentTarget.reset();
+      form.reset();
       await load();
     } catch {
       setError(true);

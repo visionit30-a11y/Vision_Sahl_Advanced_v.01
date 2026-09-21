@@ -107,6 +107,18 @@ async function loginAndSelectTenant(page: Page, email: string, password: string)
   await expect(page.getByRole('button', { name: 'A', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'A', exact: true }).click();
   await expect(page).toHaveURL('/');
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const response = await fetch('/auth/me', { credentials: 'include', cache: 'no-store' });
+        if (!response.ok) return false;
+        return Boolean(
+          ((await response.json()) as { selectedMembershipId?: string | null })
+            .selectedMembershipId,
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 type PythonLauncher = { command: string; args: string[]; probeArgs: string[] };

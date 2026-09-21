@@ -13,6 +13,14 @@ export default defineConfig({
       '/ui-settings': { target: API_TARGET, changeOrigin: false },
       '/health': { target: API_TARGET, changeOrigin: false },
       '/auth': { target: API_TARGET, changeOrigin: false },
+      '/workflows': {
+        target: API_TARGET,
+        changeOrigin: false,
+        // The SPA owns the same visible route prefix. HTML navigations stay in
+        // Vite while JSON API requests cross the local reverse proxy.
+        bypass: (request) =>
+          request.headers.accept?.includes('text/html') ? request.url : undefined,
+      },
     },
   },
   test: {
