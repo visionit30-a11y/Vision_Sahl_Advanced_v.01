@@ -24,7 +24,9 @@ const origin =
   process.env.SAHL_VERIFY_LOCAL_DEV === '1' ? 'http://localhost:5173' : 'http://localhost:5187';
 const testSecrets = new Set<string>();
 const CSRF_WINDOW_MS = 60_000;
-const CSRF_SCENARIO_BUDGET = 20;
+// The application shell and permission provider each prove their server state.
+// Reserve their two bootstrap reads while staying below the backend limit.
+const CSRF_SCENARIO_BUDGET = 22;
 const CSRF_WINDOW_LIMIT = 30;
 const CSRF_CLOCK_MARGIN = 2;
 let csrfWindow = -1;
@@ -327,7 +329,7 @@ test('real FastAPI contract and unauthenticated no-store denial', async ({ page 
     return { db: health.ok, status: response.status, cache: response.headers.get('cache-control') };
   });
   expect(proof).toEqual({ db: true, status: 401, cache: 'no-store' });
-  await expect(page.getByText('سجّل الدخول لتحميل الإعدادات')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'تسجيل الدخول' })).toBeVisible();
 });
 
 test('real patches survive refresh and deletion restores inheritance origins', async ({
@@ -562,15 +564,15 @@ test('real 409 blocks stale writes and logout clears cookie and settings', async
   await expect(page.locator('input[value="sand-warm"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'إعادة جلب الإعدادات' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'slate-neutral');
-  await page.evaluate(async () => {
-    const path = '/src/auth/client.ts';
-    const { authClient } = await import(path);
-    await authClient.logout();
-  });
+  const logoutResponse = page.waitForResponse((response) =>
+    response.url().endsWith('/auth/logout'),
+  );
+  await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
+  expect((await logoutResponse).status()).toBe(204);
   expect((await context.cookies()).some((cookie) => cookie.name === '__Host-sahl_session')).toBe(
     false,
   );
-  await expect(page.getByText('سجّل الدخول لتحميل الإعدادات')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'تسجيل الدخول' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'teal-calm');
   expect((await protectedApi(() => page.request.get('/ui-settings/effective'))).status()).toBe(401);
 });
@@ -601,6 +603,48 @@ test('real 403 disables tenant writes and storage console expose no secrets', as
         document.cookie === '',
     ),
   ).toBe(true);
+});
+
+test('real shell uses server permissions and preserves direction across viewports', async ({
+  page,
+  account,
+}) => {
+  expect(Boolean(account.user)).toBe(true);
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.getByRole('navigation', { name: 'التنقل الرئيسي' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'نظام التصميم' })).toBeVisible();
+  await expect(page.getByText('A', { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'تغيير اللغة' }).click();
+  await page.getByRole('menuitem', { name: 'English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.getByRole('heading', { name: 'Sahl Developer Platform' })).toBeVisible();
+
+  for (const viewport of [
+    { width: 768, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Sahl Developer Platform' })).toBeVisible();
+  }
+
+  await page.evaluate(() => localStorage.removeItem('sahl.language'));
+});
+
+test('real shell hides denied navigation and rejects a direct protected URL', async ({
+  page,
+  account,
+}) => {
+  await database('deny_user', account);
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'نظام التصميم' })).toHaveCount(0);
+  await page.goto('/design-system');
+  await expect(page.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
+  expect((await protectedApi(() => page.request.get('/ui-settings/effective'))).status()).toBe(403);
 });
 
 test('real backend wins over legacy storage and network failure stays visible', async ({
@@ -653,11 +697,25 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
     await page.goto('/login');
     await page.locator('input[name="email"]').fill(account.email);
     await page.locator('input[name="password"]').fill(account.password);
+    const authResponses: Array<{ path: string; status: number }> = [];
+    page.on('response', (response) => {
+      const path = new URL(response.url()).pathname;
+      if (path.startsWith('/auth/')) authResponses.push({ path, status: response.status() });
+    });
+    const preauthResponse = page.waitForResponse((response) =>
+      response.url().endsWith('/auth/preauth'),
+    );
     const loginResponse = page.waitForResponse((response) =>
       response.url().endsWith('/auth/login'),
     );
     await page.locator('button[type="submit"]').click();
-    const loginHeaders = await (await loginResponse).allHeaders();
+    await expect
+      .poll(() => authResponses, { timeout: 5000 })
+      .toContainEqual({ path: '/auth/preauth', status: 204 });
+    expect((await preauthResponse).status()).toBe(204);
+    const login = await loginResponse;
+    expect(login.status()).toBe(204);
+    const loginHeaders = await login.allHeaders();
     const cookieHeader = loginHeaders['set-cookie'] ?? '';
     expect(
       cookieHeader.includes('__Host-sahl_session=') &&
@@ -691,8 +749,9 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
     expect(proof).toBe(200);
     await page.reload();
     expect((await protectedApi(() => page.request.get('/auth/me'))).status()).toBe(200);
-    await expect(page.getByRole('button', { name: 'B', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'B', exact: true }).click();
+    await page.getByRole('button', { name: 'A', exact: true }).click();
+    await expect(page.getByRole('menuitem', { name: 'B', exact: true })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'B', exact: true }).click();
     await expect
       .poll(async () =>
         page.evaluate(async () => {

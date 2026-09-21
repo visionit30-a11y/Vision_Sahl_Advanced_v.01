@@ -1,0 +1,6 @@
+.userSummary {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+}

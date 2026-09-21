@@ -46,6 +46,7 @@
     "password": "Password",
     "submit": "Sign in",
     "failure": "Unable to sign in or complete the request. Please try again.",
+    "signedInAs": "Signed in as {{email}}",
     "ready": "Signed in with a selected tenant.",
     "selectTenant": "Select a tenant to continue.",
     "logout": "Sign out"

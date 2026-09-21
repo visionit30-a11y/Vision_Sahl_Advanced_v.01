@@ -6,6 +6,7 @@
   "sections": {
     "workspace": "Workspace"
   },
+  "tenantSelector": "Tenant",
   "items": {
     "home": "Home",
     "designSystem": "Design system"

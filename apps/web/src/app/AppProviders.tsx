@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import { StatusBarProvider } from '../design-system';
 import { directionOf } from '../i18n';
+import { AppAuthProvider, useAppAuth } from './auth-state';
 import { UiCustomizationProvider } from '../ui-customization';
+import { FrontendPermissionProvider } from './permission-state';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const { i18n } = useTranslation();
@@ -16,8 +18,25 @@ export function AppProviders({ children }: { children: ReactNode }) {
   }, [i18n.language]);
 
   return (
+    <AppAuthProvider>
+      <StatusBarProvider>
+        <TenantScopedProviders>{children}</TenantScopedProviders>
+      </StatusBarProvider>
+    </AppAuthProvider>
+  );
+}
+
+function TenantScopedProviders({ children }: { children: ReactNode }) {
+  const auth = useAppAuth();
+
+  // UI settings and permission presentation require a trusted tenant context.
+  // Keeping them unmounted on /login also prevents anonymous auth probes from
+  // racing the pre-auth login exchange on the shared client.
+  if (auth.status !== 'authenticated') return children;
+
+  return (
     <UiCustomizationProvider>
-      <StatusBarProvider>{children}</StatusBarProvider>
+      <FrontendPermissionProvider>{children}</FrontendPermissionProvider>
     </UiCustomizationProvider>
   );
 }

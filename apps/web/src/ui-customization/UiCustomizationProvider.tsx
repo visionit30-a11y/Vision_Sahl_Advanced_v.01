@@ -87,6 +87,11 @@ export function UiCustomizationProvider({
 
   useLayoutEffect(() => {
     applyUiSettings(snapshot.settings, document.documentElement);
+    return () => {
+      // A logout or tenant rotation unmounts this tenant-scoped provider.
+      // Clear the previous tenant's visual state before another context mounts.
+      applyUiSettings(BUILT_IN_UI_SETTINGS, document.documentElement);
+    };
   }, [snapshot.settings]);
 
   const persist = useCallback(

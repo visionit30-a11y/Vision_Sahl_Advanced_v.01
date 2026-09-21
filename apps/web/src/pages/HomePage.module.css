@@ -3,6 +3,35 @@
   flex-direction: column;
 }
 
+.contextRows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.contextRow {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.contextRow dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.contextRow dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  .contextRows {
+    grid-template-columns: 1fr;
+  }
+}
+
 .row {
   display: flex;
   align-items: center;
