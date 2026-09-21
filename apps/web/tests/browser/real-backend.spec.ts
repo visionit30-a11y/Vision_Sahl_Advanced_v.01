@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test as base } from '@playwright/test';
 import type { APIResponse, Page } from '@playwright/test';
@@ -90,16 +91,123 @@ async function browserCsrf(page: Page): Promise<string> {
   return result.token;
 }
 
+type PythonLauncher = { command: string; args: string[]; probeArgs: string[] };
+
+const databaseEnvironmentKeys = ['DATABASE_URL', 'MIGRATION_DATABASE_URL'] as const;
+
+function fixtureDatabaseEnvironment(apiDirectory: string): NodeJS.ProcessEnv {
+  const values: NodeJS.ProcessEnv = {};
+  for (const key of databaseEnvironmentKeys) {
+    if (process.env[key]) values[key] = process.env[key];
+  }
+
+  const candidates = [
+    resolve(apiDirectory, '..', '..', '.env'),
+    resolve(apiDirectory, '..', '..', '..', '.env'),
+  ];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    for (const line of readFileSync(candidate, 'utf8').split(/\r?\n/u)) {
+      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/u);
+      if (
+        !match ||
+        !databaseEnvironmentKeys.includes(match[1] as (typeof databaseEnvironmentKeys)[number])
+      ) {
+        continue;
+      }
+      const key = match[1] as (typeof databaseEnvironmentKeys)[number];
+      if (values[key]) continue;
+      const raw = match[2] ?? '';
+      values[key] =
+        (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
+          ? raw.slice(1, -1)
+          : raw;
+    }
+  }
+  return values;
+}
+
+function resolveFixtureLauncher(apiDirectory: string): PythonLauncher {
+  const pythonProbe = ['-c', 'import argon2, psycopg, sqlalchemy'];
+  if (process.env.BROWSER_FIXTURE_PYTHON) {
+    const configured = {
+      command: resolve(apiDirectory, process.env.BROWSER_FIXTURE_PYTHON),
+      args: ['-m', 'tests.browser_fixture'],
+      probeArgs: pythonProbe,
+    };
+    if (fixtureLauncherIsReady(configured, apiDirectory)) return configured;
+    throw new Error('Configured browser fixture Python lacks required dependencies.');
+  }
+
+  const candidates: PythonLauncher[] = [
+    {
+      command: resolve(apiDirectory, '.venv', 'Scripts', 'python.exe'),
+      args: ['-m', 'tests.browser_fixture'],
+      probeArgs: pythonProbe,
+    },
+    {
+      command: resolve(apiDirectory, '.venv', 'bin', 'python'),
+      args: ['-m', 'tests.browser_fixture'],
+      probeArgs: pythonProbe,
+    },
+    {
+      command: resolve(
+        apiDirectory,
+        '..',
+        '..',
+        '..',
+        'apps',
+        'api',
+        '.venv',
+        'Scripts',
+        'python.exe',
+      ),
+      args: ['-m', 'tests.browser_fixture'],
+      probeArgs: pythonProbe,
+    },
+    {
+      command: resolve(apiDirectory, '..', '..', '..', 'apps', 'api', '.venv', 'bin', 'python'),
+      args: ['-m', 'tests.browser_fixture'],
+      probeArgs: pythonProbe,
+    },
+    {
+      command: 'uv',
+      args: ['run', '--frozen', '--no-sync', 'python', '-m', 'tests.browser_fixture'],
+      probeArgs: ['run', '--frozen', '--no-sync', 'python', ...pythonProbe],
+    },
+    { command: 'python', args: ['-m', 'tests.browser_fixture'], probeArgs: pythonProbe },
+    { command: 'python3', args: ['-m', 'tests.browser_fixture'], probeArgs: pythonProbe },
+  ];
+
+  for (const candidate of candidates) {
+    if (fixtureLauncherIsReady(candidate, apiDirectory)) return candidate;
+  }
+
+  throw new Error('No browser fixture Python with required dependencies is available.');
+}
+
+function fixtureLauncherIsReady(launcher: PythonLauncher, apiDirectory: string): boolean {
+  if (!['uv', 'python', 'python3'].includes(launcher.command) && !existsSync(launcher.command)) {
+    return false;
+  }
+  const result = spawnSync(launcher.command, launcher.probeArgs, {
+    cwd: apiDirectory,
+    env: { ...process.env, ...fixtureDatabaseEnvironment(apiDirectory) },
+    stdio: 'ignore',
+    windowsHide: true,
+    timeout: 10_000,
+  });
+  return result.status === 0;
+}
+
 // Ephemeral fixture secrets use anonymous pipes only, never output/artifacts.
 async function database(action: string, state?: Account): Promise<Account> {
   return new Promise((done, reject) => {
     const api = resolve(process.cwd(), '../api');
-    const python = resolve(
-      api,
-      process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python',
-    );
-    const child = spawn(python, ['-m', 'tests.browser_fixture'], {
+    const launcher = resolveFixtureLauncher(api);
+    const child = spawn(launcher.command, launcher.args, {
       cwd: api,
+      env: { ...process.env, ...fixtureDatabaseEnvironment(api) },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
