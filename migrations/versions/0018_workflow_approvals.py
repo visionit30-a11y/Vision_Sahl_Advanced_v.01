@@ -45,6 +45,18 @@ def _replace_audit_permissions(previous: str, current: str) -> None:
     op.execute(
         "ALTER FUNCTION auth.validate_security_event_insert() OWNER TO sahl_migrator"
     )
+    op.drop_constraint(
+        op.f("ck_security_events_permission_catalog"),
+        "security_events",
+        schema="auth",
+        type_="check",
+    )
+    op.create_check_constraint(
+        op.f("ck_security_events_permission_catalog"),
+        "security_events",
+        f"permission_id IS NULL OR permission_id IN ({current})",
+        schema="auth",
+    )
 
 
 def upgrade() -> None:
