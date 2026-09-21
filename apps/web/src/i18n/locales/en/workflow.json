@@ -1,0 +1,56 @@
+{
+  "loading": "Loading workflow data",
+  "version": "v{{version}}",
+  "requests": {
+    "title": "Workflow requests",
+    "description": "Create, submit, and track tenant requests.",
+    "list": "My requests",
+    "empty": "No requests yet"
+  },
+  "approvals": {
+    "title": "Approvals inbox",
+    "description": "Review requests assigned to your active membership.",
+    "inbox": "Pending approvals",
+    "empty": "No approvals are waiting",
+    "note": "Decision note"
+  },
+  "form": {
+    "create": "New request",
+    "edit": "Revise returned request",
+    "title": "Title",
+    "description": "Description",
+    "approver": "Approver",
+    "chooseApprover": "Choose an active member"
+  },
+  "actions": {
+    "save": "Save draft",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "submit": "Submit",
+    "history": "History",
+    "approve": "Approve",
+    "reject": "Reject",
+    "return": "Return",
+    "retry": "Retry"
+  },
+  "status": {
+    "draft": "Draft",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "returned": "Returned"
+  },
+  "events": {
+    "created": "Created",
+    "updated": "Updated",
+    "submitted": "Submitted",
+    "resubmitted": "Resubmitted",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "returned": "Returned"
+  },
+  "errors": {
+    "title": "Workflow action failed",
+    "description": "Reload the current tenant state and try again."
+  }
+}

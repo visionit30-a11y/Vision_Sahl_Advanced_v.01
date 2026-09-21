@@ -552,10 +552,10 @@ async def test_writer_requires_an_existing_transaction(settings: Settings) -> No
 
 
 def test_frozen_migration_catalogue_matches_the_runtime_contract() -> None:
-    migration = (
+    foundation_migration = (
         Path(__file__).resolve().parents[4] / "migrations/versions/0014_security_audit_contract.py"
     )
-    module = ast.parse(migration.read_text(encoding="utf-8"))
+    module = ast.parse(foundation_migration.read_text(encoding="utf-8"))
     snapshot = next(
         ast.literal_eval(node.value)
         for node in module.body
@@ -564,7 +564,31 @@ def test_frozen_migration_catalogue_matches_the_runtime_contract() -> None:
             isinstance(target, ast.Name) and target.id == "AUDIT_CHECKS" for target in node.targets
         )
     )
-    assert snapshot == AUDIT_CHECKS
+    assert {key: value for key, value in snapshot.items() if key != "permission_catalog"} == {
+        key: value for key, value in AUDIT_CHECKS.items() if key != "permission_catalog"
+    }
+
+    workflow_migration = (
+        Path(__file__).resolve().parents[4] / "migrations/versions/0018_workflow_approvals.py"
+    )
+    workflow_module = ast.parse(workflow_migration.read_text(encoding="utf-8"))
+    assignments = {
+        target.id: node.value
+        for node in workflow_module.body
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    old_permissions = ast.literal_eval(assignments["OLD_AUDIT_PERMISSIONS"])
+    new_expression = assignments["NEW_AUDIT_PERMISSIONS"]
+    assert isinstance(new_expression, ast.BinOp) and isinstance(new_expression.op, ast.Add)
+    new_permissions = old_permissions + ast.literal_eval(new_expression.right)
+    assert snapshot["permission_catalog"] == (
+        f"permission_id IS NULL OR permission_id IN ({old_permissions})"
+    )
+    assert AUDIT_CHECKS["permission_catalog"] == (
+        f"permission_id IS NULL OR permission_id IN ({new_permissions})"
+    )
 
 
 async def test_deleting_fixture_identity_does_not_cascade_into_historical_events(

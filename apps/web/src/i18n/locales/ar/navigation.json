@@ -4,11 +4,14 @@
   "openNav": "فتح قائمة التنقل",
   "closeNav": "إغلاق قائمة التنقل",
   "sections": {
-    "workspace": "مساحة العمل"
+    "workspace": "مساحة العمل",
+    "workflow": "سير العمل"
   },
   "tenantSelector": "الجهة",
   "items": {
     "home": "الرئيسية",
-    "designSystem": "نظام التصميم"
+    "designSystem": "نظام التصميم",
+    "workflowRequests": "الطلبات",
+    "workflowApprovals": "صندوق الاعتمادات"
   }
 }

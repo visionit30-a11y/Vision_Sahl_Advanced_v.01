@@ -7,16 +7,21 @@ import type { APIResponse, Page } from '@playwright/test';
 type Account = Record<
   | 'user'
   | 'foreign_user'
+  | 'approver_user'
   | 'tenant_a'
   | 'tenant_b'
   | 'tenant_c'
   | 'membership_a'
   | 'membership_b'
   | 'membership_c'
+  | 'approver_membership'
   | 'role_a'
   | 'role_b'
+  | 'role_approver'
   | 'bearer'
   | 'email'
+  | 'approver_email'
+  | 'approver_password'
   | 'password',
   string
 >;
@@ -42,6 +47,15 @@ function currentCsrfWindow(): number {
   return current;
 }
 
+async function waitForFreshCsrfWindow(current = currentCsrfWindow()): Promise<void> {
+  const readyAt = (current + 1) * CSRF_WINDOW_MS + 1000;
+  while (Date.now() < readyAt) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(1000, readyAt - Date.now())));
+  }
+  currentCsrfWindow();
+  initialCsrfWindowAligned = true;
+}
+
 async function reserveRealCsrfBudget(): Promise<void> {
   const current = currentCsrfWindow();
   if (
@@ -50,11 +64,7 @@ async function reserveRealCsrfBudget(): Promise<void> {
   ) {
     // PostgreSQL's existing limit uses epoch-aligned one-minute buckets. Honor
     // it instead of resetting counters, weakening the policy, or retrying 429.
-    const readyAt = (current + 1) * CSRF_WINDOW_MS + 1000;
-    while (Date.now() < readyAt) {
-      await new Promise((resolve) => setTimeout(resolve, Math.min(1000, readyAt - Date.now())));
-    }
-    currentCsrfWindow();
+    await waitForFreshCsrfWindow(current);
   }
   initialCsrfWindowAligned = true;
 }
@@ -91,6 +101,29 @@ async function browserCsrf(page: Page): Promise<string> {
   expect(Boolean(result.token)).toBe(true);
   rememberSecret(result.token);
   return result.token;
+}
+
+async function loginAndSelectTenant(page: Page, email: string, password: string): Promise<void> {
+  rememberSecret(password);
+  await page.goto('/login');
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'A', exact: true }).click();
+  await expect(page).toHaveURL('/');
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const response = await fetch('/auth/me', { credentials: 'include', cache: 'no-store' });
+        if (!response.ok) return false;
+        return Boolean(
+          ((await response.json()) as { selectedMembershipId?: string | null })
+            .selectedMembershipId,
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 type PythonLauncher = { command: string; args: string[]; probeArgs: string[] };
@@ -305,6 +338,11 @@ const test = base.extend<{ account: Account; safety: void }>({
     }
   },
 });
+
+// The real suite deliberately waits for PostgreSQL-backed, epoch-aligned
+// throttle windows instead of resetting counters. Keep that wait inside the
+// test contract on slower CI runners.
+test.describe.configure({ timeout: 120_000 });
 
 test('real FastAPI contract and unauthenticated no-store denial', async ({ page }) => {
   const response = await protectedApi(() => page.request.get('http://127.0.0.1:8010/openapi.json'));
@@ -686,10 +724,65 @@ test('real backend wins over legacy storage and network failure stays visible', 
   }
 });
 
+test('real workflow request returns, resubmits, approves, and preserves history', async ({
+  browser,
+}) => {
+  const account = await database('seed_login');
+  const requesterContext = await browser.newContext({ baseURL: origin });
+  const approverContext = await browser.newContext({ baseURL: origin });
+  const requester = await requesterContext.newPage();
+  const approver = await approverContext.newPage();
+  try {
+    await loginAndSelectTenant(requester, account.email, account.password);
+    await requester.goto('/workflows/requests');
+    await expect(requester.getByRole('heading', { name: 'طلبات سير العمل' })).toBeVisible();
+    await requester.getByLabel('العنوان').fill('طلب اعتماد تجريبي');
+    await requester.getByLabel('الوصف').fill('دورة اعتماد حقيقية على PostgreSQL');
+    await requester.getByLabel('المعتمد').selectOption({ label: account.approver_email });
+    await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('مسودة');
+    await requester.getByRole('button', { name: 'إرسال' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('قيد الاعتماد');
+
+    await loginAndSelectTenant(approver, account.approver_email, account.approver_password);
+    await approver.goto('/workflows/approvals');
+    await expect(approver.getByTestId('approval-task')).toContainText('طلب اعتماد تجريبي');
+    await approver.getByLabel('ملاحظة القرار').fill('أكمل وصف الطلب');
+    await approver.getByRole('button', { name: 'إعادة' }).click();
+    await expect(approver.getByText('لا توجد اعتمادات بانتظارك')).toBeVisible();
+
+    await requester.reload();
+    await expect(requester.getByTestId('workflow-request')).toContainText('معاد');
+    await requester.getByRole('button', { name: 'تعديل' }).click();
+    await requester.getByLabel('الوصف').fill('دورة اعتماد مكتملة وقابلة للتتبع');
+    await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
+    await requester.getByRole('button', { name: 'إرسال' }).click();
+
+    await approver.reload();
+    await expect(approver.getByTestId('approval-task')).toBeVisible();
+    await approver.getByRole('button', { name: 'اعتماد' }).click();
+    await requester.reload();
+    await expect(requester.getByTestId('workflow-request')).toContainText('معتمد');
+    await requester.getByRole('button', { name: 'سجل الحركات' }).click();
+    await expect(requester.getByTestId('workflow-history')).toContainText('تمت الإعادة');
+    await expect(requester.getByTestId('workflow-history')).toContainText('تم الاعتماد');
+  } finally {
+    for (const value of await requesterContext.cookies()) rememberSecret(value.value);
+    for (const value of await approverContext.cookies()) rememberSecret(value.value);
+    await requesterContext.close();
+    await approverContext.close();
+    await database('cleanup', account);
+  }
+});
+
 test('real login form establishes a fresh PostgreSQL session and selected tenant', async ({
   page,
   context,
 }) => {
+  // The preceding workflow proof uses two additional browser contexts. Start
+  // this independent login proof in a new server throttle window rather than
+  // resetting PostgreSQL counters or retrying a rejected request.
+  await waitForFreshCsrfWindow();
   const account = await database('seed_login');
   rememberSecret(account.password);
   try {
@@ -764,7 +857,6 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
       const path = '/src/auth/client.ts';
       const { authClient } = await import(path);
       await authClient.me();
-      await authClient.bootstrapCsrf();
       await authClient.request('/ui-settings/user', {
         method: 'PUT',
         body: JSON.stringify({ settings: { theme: 'sand-warm' }, expected_version: null }),
