@@ -36,7 +36,7 @@ The real browser suite must prove refresh, effective settings, user/tenant inher
 
 The browser suite uses one worker and keeps the production policy of 30 CSRF bootstraps per IP per minute. It starts in the next PostgreSQL-aligned minute plus a one-second margin, so an earlier local run cannot consume the new suite's starting budget. It counts actual browser `GET /auth/csrf` requests and reserves at most 20 per scenario with a two-request clock margin; when the current minute cannot accommodate that budget, the next scenario waits for the next minute.
 
-The pacing fixture has a 90-second timeout to accommodate the bounded wait. A scenario issuing more than 20 bootstraps fails as a possible bootstrap loop. Requests are not retried on 429, tests are not skipped, and no database counter, backend quota, or HMAC identity is changed to bypass throttling. This deliberate pacing may add several minutes to the real browser gate.
+The pacing fixture has a 90-second timeout to accommodate the bounded wait. A scenario issuing more than 22 bootstraps fails as a possible bootstrap loop; the two additional reads cover the authenticated shell and its permission presentation without weakening the backend limit of 30. Requests are not retried on 429, tests are not skipped, and no database counter, backend quota, or HMAC identity is changed to bypass throttling. This deliberate pacing may add several minutes to the real browser gate.
 
 ## Windows test-backend startup
 
