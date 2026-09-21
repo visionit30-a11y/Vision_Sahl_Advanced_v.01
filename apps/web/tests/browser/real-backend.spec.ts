@@ -47,6 +47,15 @@ function currentCsrfWindow(): number {
   return current;
 }
 
+async function waitForFreshCsrfWindow(current = currentCsrfWindow()): Promise<void> {
+  const readyAt = (current + 1) * CSRF_WINDOW_MS + 1000;
+  while (Date.now() < readyAt) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(1000, readyAt - Date.now())));
+  }
+  currentCsrfWindow();
+  initialCsrfWindowAligned = true;
+}
+
 async function reserveRealCsrfBudget(): Promise<void> {
   const current = currentCsrfWindow();
   if (
@@ -55,11 +64,7 @@ async function reserveRealCsrfBudget(): Promise<void> {
   ) {
     // PostgreSQL's existing limit uses epoch-aligned one-minute buckets. Honor
     // it instead of resetting counters, weakening the policy, or retrying 429.
-    const readyAt = (current + 1) * CSRF_WINDOW_MS + 1000;
-    while (Date.now() < readyAt) {
-      await new Promise((resolve) => setTimeout(resolve, Math.min(1000, readyAt - Date.now())));
-    }
-    currentCsrfWindow();
+    await waitForFreshCsrfWindow(current);
   }
   initialCsrfWindowAligned = true;
 }
@@ -774,6 +779,10 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
   page,
   context,
 }) => {
+  // The preceding workflow proof uses two additional browser contexts. Start
+  // this independent login proof in a new server throttle window rather than
+  // resetting PostgreSQL counters or retrying a rejected request.
+  await waitForFreshCsrfWindow();
   const account = await database('seed_login');
   rememberSecret(account.password);
   try {
