@@ -290,9 +290,11 @@ class WorkflowService:
             row = (
                 await tx.execute(
                     text("""
-                UPDATE app.workflow_requests SET status=:status,version=version+1,
+                UPDATE app.workflow_requests
+                SET status=CAST(:status AS VARCHAR(16)),version=version+1,
                     updated_at=clock_timestamp(),
-                    completed_at=CASE WHEN :status IN ('approved','rejected')
+                    completed_at=CASE WHEN CAST(:status AS VARCHAR(16))
+                    IN ('approved','rejected')
                     THEN clock_timestamp() ELSE NULL END
                 WHERE id=:request AND status='pending' RETURNING *
             """),
