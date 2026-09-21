@@ -83,20 +83,23 @@ def workflow_fixture(settings: Settings) -> Iterator[WorkflowFixture]:
         yield state
     finally:
         with engine.begin() as connection:
-            connection.execute(
-                text("DELETE FROM app.workflow_events WHERE tenant_id IN (:tenant,:foreign)"),
-                {"tenant": tenant, "foreign": foreign},
-            )
-            connection.execute(
-                text(
-                    "DELETE FROM app.workflow_approval_tasks WHERE tenant_id IN (:tenant,:foreign)"
-                ),
-                {"tenant": tenant, "foreign": foreign},
-            )
-            connection.execute(
-                text("DELETE FROM app.workflow_requests WHERE tenant_id IN (:tenant,:foreign)"),
-                {"tenant": tenant, "foreign": foreign},
-            )
+            for tenant_id in (tenant, foreign):
+                connection.execute(
+                    text("SELECT set_config('app.current_tenant_id', CAST(:tenant AS text), true)"),
+                    {"tenant": tenant_id},
+                )
+                connection.execute(
+                    text("DELETE FROM app.workflow_events WHERE tenant_id=:tenant"),
+                    {"tenant": tenant_id},
+                )
+                connection.execute(
+                    text("DELETE FROM app.workflow_approval_tasks WHERE tenant_id=:tenant"),
+                    {"tenant": tenant_id},
+                )
+                connection.execute(
+                    text("DELETE FROM app.workflow_requests WHERE tenant_id=:tenant"),
+                    {"tenant": tenant_id},
+                )
             connection.execute(
                 text("DELETE FROM auth.tenant_memberships WHERE tenant_id IN (:tenant,:foreign)"),
                 {"tenant": tenant, "foreign": foreign},
