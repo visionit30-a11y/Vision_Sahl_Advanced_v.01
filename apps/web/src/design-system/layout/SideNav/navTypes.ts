@@ -7,6 +7,7 @@ export interface NavItem {
   icon: IconName;
   to: string;
   end?: boolean;
+  requiredPermission?: string;
 }
 
 export interface NavSection {

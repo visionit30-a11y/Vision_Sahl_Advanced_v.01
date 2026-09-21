@@ -1,4 +1,5 @@
 import type { NavSection } from '../design-system';
+import { FRONTEND_PERMISSIONS } from './permission-state';
 
 /**
  * Only routes that actually exist appear here. A module joins the navigation
@@ -15,6 +16,7 @@ export const NAV_SECTIONS: NavSection[] = [
         labelKey: 'items.designSystem',
         icon: 'layers',
         to: '/design-system',
+        requiredPermission: FRONTEND_PERMISSIONS.manageOwnUiSettings,
       },
     ],
   },

@@ -5,6 +5,7 @@ import { fetchApplicationHealth, fetchCacheHealth, fetchDatabaseHealth } from '.
 import { Badge, Button, Card, PageHeader } from '../design-system';
 import type { BadgeTone } from '../design-system';
 import styles from './HomePage.module.css';
+import { useAppAuth } from '../app/auth-state';
 
 type ServiceState = 'loading' | 'up' | 'down' | 'disabled' | 'error';
 
@@ -30,6 +31,7 @@ const TONE: Record<ServiceState, BadgeTone> = {
 
 export function HomePage() {
   const { t } = useTranslation(['home', 'common']);
+  const auth = useAppAuth();
   const [rows, setRows] = useState<ServiceRow[]>(INITIAL_ROWS);
   const [checking, setChecking] = useState(false);
 
@@ -67,6 +69,25 @@ export function HomePage() {
   return (
     <>
       <PageHeader title={t('home:welcome')} description={t('home:description')} />
+
+      <Card title={t('home:workspaceContext')}>
+        <dl className={styles.contextRows}>
+          <div className={styles.contextRow}>
+            <dt>{t('home:currentTenant')}</dt>
+            <dd>{auth.selectedMembershipName}</dd>
+          </div>
+          <div className={styles.contextRow}>
+            <dt>{t('home:currentUser')}</dt>
+            <dd>{auth.user?.email}</dd>
+          </div>
+          <div className={styles.contextRow}>
+            <dt>{t('home:activeSession')}</dt>
+            <dd>
+              <Badge tone="success">{t('home:serviceState.up')}</Badge>
+            </dd>
+          </div>
+        </dl>
+      </Card>
 
       <Card
         title={t('home:platformStatus')}

@@ -6,6 +6,7 @@
   "sections": {
     "workspace": "مساحة العمل"
   },
+  "tenantSelector": "الجهة",
   "items": {
     "home": "الرئيسية",
     "designSystem": "نظام التصميم"
