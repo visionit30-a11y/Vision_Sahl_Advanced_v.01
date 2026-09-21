@@ -86,7 +86,7 @@ def workflow_fixture(settings: Settings) -> Iterator[WorkflowFixture]:
         with application_engine.begin() as connection:
             for tenant_id in (tenant, foreign):
                 connection.execute(
-                    text("SELECT set_config('app.current_tenant_id', CAST(:tenant AS text), true)"),
+                    text("SELECT set_config('app.tenant_id', CAST(:tenant AS text), true)"),
                     {"tenant": tenant_id},
                 )
                 connection.execute(
@@ -160,7 +160,7 @@ async def test_complete_return_resubmit_approve_lifecycle(
             approver_membership_id=workflow_fixture.approver,
         ),
     )
-    assert revised.status == "draft"
+    assert revised.status == "returned"
     await service.submit(create_grant, created.id, revised.version)
     second_task = (await service.inbox(decide_grant))[0]
     approved = await service.decide(decide_grant, second_task.id, WorkflowDecision.APPROVE, 1, None)

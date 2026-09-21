@@ -98,7 +98,7 @@ class WorkflowService:
                     text("""
                 UPDATE app.workflow_requests
                 SET title=:title,description=:description,approver_membership_id=:approver,
-                    status='draft',version=version+1,updated_at=clock_timestamp(),completed_at=NULL
+                    version=version+1,updated_at=clock_timestamp(),completed_at=NULL
                 WHERE id=:id AND requester_membership_id=:requester
                   AND status IN ('draft','returned') AND version=:version
                 RETURNING *
@@ -115,7 +115,7 @@ class WorkflowService:
             ).one_or_none()
             if row is None:
                 raise WorkflowConflictError()
-            await self._event(tx, grant, request_id, "updated", str(previous), "draft", None)
+            await self._event(tx, grant, request_id, "updated", str(previous), str(previous), None)
         return WorkflowRecord.model_validate(row._mapping)
 
     async def submit(
