@@ -110,3 +110,19 @@ class AuthorizationService:
         # This boundary is deliberately total: a dependency defect must never become ALLOW.
         except Exception:  # noqa: BLE001
             return AuthorizationDecision.DENY
+
+    async def allowed_permissions(
+        self,
+        principal: AuthenticatedPrincipal | None,
+        tenant_context: TenantContext | None,
+        permission_ids: tuple[PermissionId, ...],
+    ) -> frozenset[PermissionId]:
+        """Return a fail-closed presentation snapshot from the same decision path."""
+        allowed: set[PermissionId] = set()
+        for permission_id in permission_ids:
+            if (
+                await self.authorize(principal, tenant_context, permission_id)
+                is AuthorizationDecision.ALLOW
+            ):
+                allowed.add(permission_id)
+        return frozenset(allowed)

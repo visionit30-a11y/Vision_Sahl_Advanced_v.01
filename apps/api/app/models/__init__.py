@@ -20,6 +20,7 @@ from app.models.identity import (
 )
 from app.models.tenant import Tenant
 from app.models.ui_settings import PlatformUiSettings, TenantUiSettings, UserUiSettings
+from app.models.workflow import WorkflowApprovalTask, WorkflowEvent, WorkflowRequest
 
 __all__ = [
     "AuthSession",
@@ -40,4 +41,7 @@ __all__ = [
     "User",
     "UserStatus",
     "UserUiSettings",
+    "WorkflowApprovalTask",
+    "WorkflowEvent",
+    "WorkflowRequest",
 ]
