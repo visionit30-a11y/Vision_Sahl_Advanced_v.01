@@ -6,11 +6,13 @@ import arDesignSystem from './locales/ar/designSystem.json';
 import arHome from './locales/ar/home.json';
 import arNavigation from './locales/ar/navigation.json';
 import arStatus from './locales/ar/status.json';
+import arWorkflow from './locales/ar/workflow.json';
 import enCommon from './locales/en/common.json';
 import enDesignSystem from './locales/en/designSystem.json';
 import enHome from './locales/en/home.json';
 import enNavigation from './locales/en/navigation.json';
 import enStatus from './locales/en/status.json';
+import enWorkflow from './locales/en/workflow.json';
 
 export const SUPPORTED_LANGUAGES = ['ar', 'en'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
@@ -51,7 +53,14 @@ export function storeLanguage(language: Language): void {
   }
 }
 
-export const NAMESPACES = ['common', 'navigation', 'status', 'home', 'designSystem'] as const;
+export const NAMESPACES = [
+  'common',
+  'navigation',
+  'status',
+  'home',
+  'designSystem',
+  'workflow',
+] as const;
 
 void i18n.use(initReactI18next).init({
   resources: {
@@ -61,6 +70,7 @@ void i18n.use(initReactI18next).init({
       status: arStatus,
       home: arHome,
       designSystem: arDesignSystem,
+      workflow: arWorkflow,
     },
     en: {
       common: enCommon,
@@ -68,6 +78,7 @@ void i18n.use(initReactI18next).init({
       status: enStatus,
       home: enHome,
       designSystem: enDesignSystem,
+      workflow: enWorkflow,
     },
   },
   lng: readStoredLanguage() ?? DEFAULT_LANGUAGE,

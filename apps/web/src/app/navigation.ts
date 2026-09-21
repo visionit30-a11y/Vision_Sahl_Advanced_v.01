@@ -20,4 +20,24 @@ export const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    id: 'workflow',
+    labelKey: 'sections.workflow',
+    items: [
+      {
+        id: 'workflow-requests',
+        labelKey: 'items.workflowRequests',
+        icon: 'inbox',
+        to: '/workflows/requests',
+        requiredPermission: FRONTEND_PERMISSIONS.readWorkflowRequests,
+      },
+      {
+        id: 'workflow-approvals',
+        labelKey: 'items.workflowApprovals',
+        icon: 'check',
+        to: '/workflows/approvals',
+        requiredPermission: FRONTEND_PERMISSIONS.decideWorkflowApprovals,
+      },
+    ],
+  },
 ];

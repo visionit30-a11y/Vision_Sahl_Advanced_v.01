@@ -7,16 +7,21 @@ import type { APIResponse, Page } from '@playwright/test';
 type Account = Record<
   | 'user'
   | 'foreign_user'
+  | 'approver_user'
   | 'tenant_a'
   | 'tenant_b'
   | 'tenant_c'
   | 'membership_a'
   | 'membership_b'
   | 'membership_c'
+  | 'approver_membership'
   | 'role_a'
   | 'role_b'
+  | 'role_approver'
   | 'bearer'
   | 'email'
+  | 'approver_email'
+  | 'approver_password'
   | 'password',
   string
 >;
@@ -91,6 +96,17 @@ async function browserCsrf(page: Page): Promise<string> {
   expect(Boolean(result.token)).toBe(true);
   rememberSecret(result.token);
   return result.token;
+}
+
+async function loginAndSelectTenant(page: Page, email: string, password: string): Promise<void> {
+  rememberSecret(password);
+  await page.goto('/login');
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'A', exact: true }).click();
+  await expect(page).toHaveURL('/');
 }
 
 type PythonLauncher = { command: string; args: string[]; probeArgs: string[] };
@@ -683,6 +699,57 @@ test('real backend wins over legacy storage and network failure stays visible', 
       localStorage.removeItem('sahl.ui.platform');
       localStorage.removeItem('sahl.ui.tenant.preview-tenant');
     });
+  }
+});
+
+test('real workflow request returns, resubmits, approves, and preserves history', async ({
+  browser,
+}) => {
+  const account = await database('seed_login');
+  const requesterContext = await browser.newContext({ baseURL: origin });
+  const approverContext = await browser.newContext({ baseURL: origin });
+  const requester = await requesterContext.newPage();
+  const approver = await approverContext.newPage();
+  try {
+    await loginAndSelectTenant(requester, account.email, account.password);
+    await requester.goto('/workflows/requests');
+    await expect(requester.getByRole('heading', { name: 'طلبات سير العمل' })).toBeVisible();
+    await requester.getByLabel('العنوان').fill('طلب اعتماد تجريبي');
+    await requester.getByLabel('الوصف').fill('دورة اعتماد حقيقية على PostgreSQL');
+    await requester.getByLabel('المعتمد').selectOption({ label: account.approver_email });
+    await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('مسودة');
+    await requester.getByRole('button', { name: 'إرسال' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('قيد الاعتماد');
+
+    await loginAndSelectTenant(approver, account.approver_email, account.approver_password);
+    await approver.goto('/workflows/approvals');
+    await expect(approver.getByTestId('approval-task')).toContainText('طلب اعتماد تجريبي');
+    await approver.getByLabel('ملاحظة القرار').fill('أكمل وصف الطلب');
+    await approver.getByRole('button', { name: 'إعادة' }).click();
+    await expect(approver.getByText('لا توجد اعتمادات بانتظارك')).toBeVisible();
+
+    await requester.reload();
+    await expect(requester.getByTestId('workflow-request')).toContainText('معاد');
+    await requester.getByRole('button', { name: 'تعديل' }).click();
+    await requester.getByLabel('الوصف').fill('دورة اعتماد مكتملة وقابلة للتتبع');
+    await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
+    await requester.getByRole('button', { name: 'إرسال' }).click();
+
+    await approver.reload();
+    await expect(approver.getByTestId('approval-task')).toBeVisible();
+    await approver.getByRole('button', { name: 'اعتماد' }).click();
+    await requester.reload();
+    await expect(requester.getByTestId('workflow-request')).toContainText('معتمد');
+    await requester.getByRole('button', { name: 'سجل الحركات' }).click();
+    await expect(requester.getByTestId('workflow-history')).toContainText('تمت الإعادة');
+    await expect(requester.getByTestId('workflow-history')).toContainText('تم الاعتماد');
+  } finally {
+    for (const value of await requesterContext.cookies()) rememberSecret(value.value);
+    for (const value of await approverContext.cookies()) rememberSecret(value.value);
+    await requesterContext.close();
+    await approverContext.close();
+    await database('cleanup', account);
   }
 });
 

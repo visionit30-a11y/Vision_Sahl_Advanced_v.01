@@ -7,6 +7,7 @@ import { directionOf } from '../i18n';
 import { AppAuthProvider, useAppAuth } from './auth-state';
 import { UiCustomizationProvider } from '../ui-customization';
 import { FrontendPermissionProvider } from './permission-state';
+import { workflowClient } from '../workflow/client';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const { i18n } = useTranslation();
@@ -36,7 +37,9 @@ function TenantScopedProviders({ children }: { children: ReactNode }) {
 
   return (
     <UiCustomizationProvider>
-      <FrontendPermissionProvider>{children}</FrontendPermissionProvider>
+      <FrontendPermissionProvider loadWorkflowPermissions={workflowClient.permissions}>
+        {children}
+      </FrontendPermissionProvider>
     </UiCustomizationProvider>
   );
 }

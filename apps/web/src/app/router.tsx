@@ -5,6 +5,8 @@ import { useAppAuth } from './auth-state';
 import { DesignSystemPage } from '../pages/DesignSystemPage';
 import { LoginPage } from '../pages/LoginPage';
 import { HomePage } from '../pages/HomePage';
+import { WorkflowRequestsPage } from '../pages/WorkflowRequestsPage';
+import { WorkflowApprovalsPage } from '../pages/WorkflowApprovalsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { AppLayout } from './AppLayout';
 import { AppProviders } from './AppProviders';
@@ -61,6 +63,22 @@ export function App() {
             element={
               <ProtectedRoute>
                 <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workflows/requests"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.readWorkflowRequests}>
+                <WorkflowRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workflows/approvals"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.decideWorkflowApprovals}>
+                <WorkflowApprovalsPage />
               </ProtectedRoute>
             }
           />

@@ -36,7 +36,7 @@ def _owned_tenants(state: dict[str, str], migration: Engine) -> list[str]:
                 if slug != f"browser-g5-{tenant}":
                     raise RuntimeError("Fixture tenant ownership could not be proved.")
                 tenants.append(tenant)
-        for key in ("user", "foreign_user"):
+        for key in ("user", "foreign_user", "approver_user"):
             user = str(uuid.UUID(state[key]))
             email = conn.scalar(
                 text("SELECT normalized_email FROM auth.users WHERE id=:id"), {"id": user}
@@ -54,6 +54,9 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
                 text("SELECT set_config('app.tenant_id',:tenant,true)"), {"tenant": tenant}
             )
             for statement in (
+                "DELETE FROM app.workflow_events WHERE tenant_id=:tenant",
+                "DELETE FROM app.workflow_approval_tasks WHERE tenant_id=:tenant",
+                "DELETE FROM app.workflow_requests WHERE tenant_id=:tenant",
                 "DELETE FROM app.user_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM app.tenant_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM auth.membership_roles WHERE tenant_id=:tenant",
@@ -62,19 +65,27 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             ):
                 await conn.execute(text(statement), {"tenant": tenant})
     with migration.begin() as conn:
-        params = {"u": str(uuid.UUID(state["user"])), "v": str(uuid.UUID(state["foreign_user"]))}
-        conn.execute(text("DELETE FROM auth.security_events WHERE user_id IN (:u,:v)"), params)
-        conn.execute(text("DELETE FROM auth.sessions WHERE user_id IN (:u,:v)"), params)
-        conn.execute(text("DELETE FROM auth.tenant_memberships WHERE user_id IN (:u,:v)"), params)
-        conn.execute(text("DELETE FROM auth.password_credentials WHERE user_id IN (:u,:v)"), params)
-        conn.execute(text("DELETE FROM auth.users WHERE id IN (:u,:v)"), params)
+        params = {
+            "u": str(uuid.UUID(state["user"])),
+            "v": str(uuid.UUID(state["foreign_user"])),
+            "w": str(uuid.UUID(state["approver_user"])),
+        }
+        conn.execute(text("DELETE FROM auth.security_events WHERE user_id IN (:u,:v,:w)"), params)
+        conn.execute(text("DELETE FROM auth.sessions WHERE user_id IN (:u,:v,:w)"), params)
+        conn.execute(
+            text("DELETE FROM auth.tenant_memberships WHERE user_id IN (:u,:v,:w)"), params
+        )
+        conn.execute(
+            text("DELETE FROM auth.password_credentials WHERE user_id IN (:u,:v,:w)"), params
+        )
+        conn.execute(text("DELETE FROM auth.users WHERE id IN (:u,:v,:w)"), params)
         for tenant in tenants:
             conn.execute(text("DELETE FROM public.tenants WHERE id=:tenant"), {"tenant": tenant})
     # Verify the committed result using exact fixture IDs. The tenant foreign
     # keys also prevent any settings/role rows surviving deletion of their tenant.
     with migration.connect() as conn:
         user_count = conn.scalar(
-            text("SELECT count(*) FROM auth.users WHERE id IN (:u,:v)"), params
+            text("SELECT count(*) FROM auth.users WHERE id IN (:u,:v,:w)"), params
         )
         tenant_count = conn.scalar(
             text("SELECT count(*) FROM public.tenants WHERE id IN (:a,:b,:c)"),
@@ -98,19 +109,22 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                 for key in (
                     "user",
                     "foreign_user",
+                    "approver_user",
                     "tenant_a",
                     "tenant_b",
                     "tenant_c",
                     "membership_a",
                     "membership_b",
                     "membership_c",
+                    "approver_membership",
                     "role_a",
                     "role_b",
+                    "role_approver",
                 )
             }
             seeded_state = state
             with migration.begin() as conn:
-                for key in ("user", "foreign_user"):
+                for key in ("user", "foreign_user", "approver_user"):
                     conn.execute(
                         text(
                             "INSERT INTO auth.users(id,email,normalized_email,status) "
@@ -139,6 +153,18 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                             "tenant": tenant,
                         },
                     )
+                conn.execute(
+                    text(
+                        "INSERT INTO auth.tenant_memberships "
+                        "(id,user_id,tenant_id,status,joined_at) VALUES "
+                        "(:id,:user,:tenant,'active',clock_timestamp())"
+                    ),
+                    {
+                        "id": state["approver_membership"],
+                        "user": state["approver_user"],
+                        "tenant": state["tenant_a"],
+                    },
+                )
             for suffix, theme in (("a", "navy-institutional"), ("b", "green-institutional")):
                 async with runtime.begin() as conn:
                     await conn.execute(
@@ -155,6 +181,8 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                     for permission in (
                         Permission.TENANT_UI_SETTINGS_MANAGE,
                         Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF,
+                        Permission.TENANT_WORKFLOW_REQUESTS_CREATE,
+                        Permission.TENANT_WORKFLOW_REQUESTS_READ,
                     ):
                         await conn.execute(
                             text(
@@ -179,6 +207,43 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                             "role": state[f"role_{suffix}"],
                         },
                     )
+                    if suffix == "a":
+                        await conn.execute(
+                            text(
+                                "INSERT INTO auth.roles(id,tenant_id,key,display_name) "
+                                "VALUES (:id,:tenant,'browser_approver','Browser approver')"
+                            ),
+                            {"id": state["role_approver"], "tenant": state["tenant_a"]},
+                        )
+                        for permission in (
+                            Permission.TENANT_WORKFLOW_REQUESTS_READ,
+                            Permission.TENANT_WORKFLOW_APPROVALS_DECIDE,
+                            Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF,
+                        ):
+                            await conn.execute(
+                                text(
+                                    "INSERT INTO auth.role_permissions"
+                                    "(tenant_id,role_id,permission_id) "
+                                    "VALUES (:tenant,:role,:permission)"
+                                ),
+                                {
+                                    "tenant": state["tenant_a"],
+                                    "role": state["role_approver"],
+                                    "permission": permission.value,
+                                },
+                            )
+                        await conn.execute(
+                            text(
+                                "INSERT INTO auth.membership_roles"
+                                "(tenant_id,membership_id,role_id) "
+                                "VALUES (:tenant,:membership,:role)"
+                            ),
+                            {
+                                "tenant": state["tenant_a"],
+                                "membership": state["approver_membership"],
+                                "role": state["role_approver"],
+                            },
+                        )
                     await conn.execute(
                         text(
                             "INSERT INTO app.tenant_ui_settings(tenant_id,settings) "
@@ -192,7 +257,10 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
             if payload["action"] == "seed_login":
                 state["password"] = secrets.token_urlsafe(32)
                 state["email"] = f"browser-g5-{state['user']}@example.test"
+                state["approver_password"] = secrets.token_urlsafe(32)
+                state["approver_email"] = f"browser-g5-{state['approver_user']}@example.test"
                 password_hash = await PasswordService().hash_password(state["password"])
+                approver_hash = await PasswordService().hash_password(state["approver_password"])
                 with migration.begin() as conn:
                     conn.execute(
                         text(
@@ -200,6 +268,13 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                             "VALUES (:id,:hash)"
                         ),
                         {"id": state["user"], "hash": password_hash},
+                    )
+                    conn.execute(
+                        text(
+                            "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                            "VALUES (:id,:hash)"
+                        ),
+                        {"id": state["approver_user"], "hash": approver_hash},
                     )
                 return state
             async with runtime.begin() as conn:

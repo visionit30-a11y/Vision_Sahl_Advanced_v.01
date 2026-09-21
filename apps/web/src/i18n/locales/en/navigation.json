@@ -4,11 +4,14 @@
   "openNav": "Open navigation",
   "closeNav": "Close navigation",
   "sections": {
-    "workspace": "Workspace"
+    "workspace": "Workspace",
+    "workflow": "Workflow"
   },
   "tenantSelector": "Tenant",
   "items": {
     "home": "Home",
-    "designSystem": "Design system"
+    "designSystem": "Design system",
+    "workflowRequests": "Requests",
+    "workflowApprovals": "Approvals inbox"
   }
 }

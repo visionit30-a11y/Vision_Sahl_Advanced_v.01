@@ -36,7 +36,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const home: Crumb = { id: 'home', label: t('navigation:items.home'), to: '/' };
   const currentLabel = location.pathname.startsWith('/design-system')
     ? t('navigation:items.designSystem')
-    : null;
+    : location.pathname.startsWith('/workflows/approvals')
+      ? t('navigation:items.workflowApprovals')
+      : location.pathname.startsWith('/workflows/requests')
+        ? t('navigation:items.workflowRequests')
+        : null;
   const breadcrumbs: Crumb[] = currentLabel ? [home, { id: 'current', label: currentLabel }] : [];
 
   return (
