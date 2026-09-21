@@ -342,7 +342,7 @@ const test = base.extend<{ account: Account; safety: void }>({
 // The real suite deliberately waits for PostgreSQL-backed, epoch-aligned
 // throttle windows instead of resetting counters. Keep that wait inside the
 // test contract on slower CI runners.
-test.describe.configure({ timeout: 180_000 });
+test.describe.configure({ timeout: 120_000 });
 
 test('real FastAPI contract and unauthenticated no-store denial', async ({ page }) => {
   const response = await protectedApi(() => page.request.get('http://127.0.0.1:8010/openapi.json'));
