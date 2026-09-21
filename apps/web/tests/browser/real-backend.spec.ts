@@ -334,6 +334,11 @@ const test = base.extend<{ account: Account; safety: void }>({
   },
 });
 
+// The real suite deliberately waits for PostgreSQL-backed, epoch-aligned
+// throttle windows instead of resetting counters. Keep that wait inside the
+// test contract on slower CI runners.
+test.describe.configure({ timeout: 120_000 });
+
 test('real FastAPI contract and unauthenticated no-store denial', async ({ page }) => {
   const response = await protectedApi(() => page.request.get('http://127.0.0.1:8010/openapi.json'));
   expect(response.ok()).toBe(true);
@@ -843,7 +848,6 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
       const path = '/src/auth/client.ts';
       const { authClient } = await import(path);
       await authClient.me();
-      await authClient.bootstrapCsrf();
       await authClient.request('/ui-settings/user', {
         method: 'PUT',
         body: JSON.stringify({ settings: { theme: 'sand-warm' }, expected_version: null }),
