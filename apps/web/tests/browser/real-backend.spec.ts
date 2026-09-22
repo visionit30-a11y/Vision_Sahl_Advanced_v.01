@@ -1069,6 +1069,10 @@ test('real Tenant Admin manages tenant access and rotates a changed password', a
         return (await response.json()).selectedMembershipId;
       })
       .toBe(account.membership_b);
+    // A full browser run may have consumed the current PostgreSQL-backed CSRF
+    // window by this second session rotation. Keep the direct-route proof in a
+    // fresh window rather than treating a legitimate 429 as authorization UI.
+    await waitForFreshCsrfWindow();
     await admin.goto('/settings/users');
     await expect(admin.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
     expect((await protectedApi(() => admin.request.get('/tenant-admin/users'))).status()).toBe(403);
