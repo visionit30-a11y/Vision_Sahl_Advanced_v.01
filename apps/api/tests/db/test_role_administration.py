@@ -456,7 +456,7 @@ async def test_unauthorized_and_platform_grants_cannot_administer_roles(
         await service.create_role(platform_grant, RoleKey("platform"), "Platform")
 
 
-def test_membership_guard_is_narrow_and_runtime_has_no_rls_bypass(
+def test_membership_guards_are_narrow_and_runtime_has_no_rls_bypass(
     app_connection: Connection, migration_role: str, application_role: str
 ) -> None:
     function = app_connection.execute(
@@ -484,6 +484,31 @@ def test_membership_guard_is_narrow_and_runtime_has_no_rls_bypass(
             "CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f',p.proowner))) a "
             "WHERE p.oid='auth.is_active_membership_in_tenant(uuid,uuid)'::regprocedure "
             "AND a.grantee=0 AND a.privilege_type='EXECUTE')"
+        )
+    )
+    admin_guard = app_connection.execute(
+        text(
+            "SELECT p.prosecdef,pg_get_userbyid(p.proowner) owner,p.proconfig,"
+            "pg_get_functiondef(p.oid) definition "
+            "FROM pg_proc p WHERE p.oid="
+            "'auth.has_other_active_tenant_admin(uuid,uuid)'::regprocedure"
+        )
+    ).one()
+    assert admin_guard.prosecdef is True and admin_guard.owner == migration_role
+    assert admin_guard.proconfig == ["search_path=pg_catalog"]
+    lowered = admin_guard.definition.lower()
+    assert "execute " not in lowered and "set_config" not in lowered
+    assert app_connection.scalar(
+        text(
+            "SELECT has_function_privilege(:app,"
+            "'auth.has_other_active_tenant_admin(uuid,uuid)','EXECUTE')"
+        ),
+        {"app": application_role},
+    )
+    assert not app_connection.scalar(
+        text(
+            "SELECT has_function_privilege('public',"
+            "'auth.has_other_active_tenant_admin(uuid,uuid)','EXECUTE')"
         )
     )
     flags = app_connection.execute(

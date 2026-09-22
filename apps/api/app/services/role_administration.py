@@ -302,16 +302,11 @@ class RoleAdministrationService:
             if kind == "tenant_admin":
                 if membership_id == grant.principal.membership_id:
                     raise RoleConflictError()
-                other_admins = await transaction.scalar(
-                    text(
-                        "SELECT count(*) FROM auth.membership_roles mr "
-                        "JOIN auth.tenant_memberships m ON m.tenant_id=mr.tenant_id "
-                        "AND m.id=mr.membership_id WHERE mr.role_id=:role_id "
-                        "AND mr.membership_id<>:membership AND m.status='active'"
-                    ),
+                has_other_admin = await transaction.scalar(
+                    text("SELECT auth.has_other_active_tenant_admin(:membership,:role_id)"),
                     {"role_id": role_id, "membership": membership_id},
                 )
-                if not isinstance(other_admins, int) or other_admins < 1:
+                if has_other_admin is not True:
                     raise RoleConflictError()
             await self._require_role(transaction, role_id)
             active = await transaction.scalar(

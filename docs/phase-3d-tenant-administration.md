@@ -12,6 +12,10 @@ official bootstrap boundary while preserving its owner and exact capability gran
 Migration `0022_password_change_fix` qualifies password-credential columns that overlap with the
 password-change function's table-return names; this closes the PostgreSQL `42702` failure without
 changing the HTTP, session-revocation, audit, ownership, or grant contracts.
+Migration `0023_tenant_admin_guard` adds one narrow, tenant-context-bound database function for
+the last-active-administrator check. Runtime receives EXECUTE on that exact function only; it still
+has no direct access to `auth.tenant_memberships`, and the function remains owned by
+`sahl_migrator` with a fixed `pg_catalog` search path.
 The official display name is `Tenant Admin / مسؤول الجمعية`. Bootstrap grants the complete current
 `tenant.*` catalog and no `platform.*` permission. The role cannot be edited, disabled, or have its
 permission set changed through ordinary role administration. A member cannot change their own role

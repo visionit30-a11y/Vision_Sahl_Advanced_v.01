@@ -235,7 +235,7 @@ def test_tool_specific_positive_test_counts_required(
 def test_approved_head_beside_another_revision_is_rejected(
     gate: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, extra: bytes
 ) -> None:
-    child(monkeypatch, gate, b"0022_password_change_fix (head)\n" + extra)
+    child(monkeypatch, gate, b"0023_tenant_admin_guard (head)\n" + extra)
     monkeypatch.setattr(gate, "scan_output", lambda *args: True)
     code, report = gate.run_gate("migration-head", ["alembic", "current"], tmp_path, 30)
     assert code == 1
