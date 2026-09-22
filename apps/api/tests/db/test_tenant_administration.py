@@ -57,7 +57,7 @@ async def bootstrap_state(settings: Settings) -> AsyncIterator[dict[str, uuid.UU
                 text("DELETE FROM auth.sessions WHERE user_id=:user"), {"user": user_id}
             )
             connection.execute(
-                text("SELECT set_config('app.tenant_id',:tenant,true)"),
+                text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
                 {"tenant": tenant_id},
             )
             connection.execute(
@@ -111,7 +111,7 @@ async def test_bootstrap_is_idempotent_and_grants_only_tenant_permissions(
     owner = create_engine(settings.required_migration_database_url, poolclass=NullPool)
     with owner.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": bootstrap_state["tenant"]},
         )
         role = connection.execute(
@@ -206,7 +206,7 @@ def test_tenant_directory_and_append_only_history_are_rls_scoped(
     bootstrap_state: dict[str, uuid.UUID | str], app_connection: Connection
 ) -> None:
     app_connection.execute(
-        text("SELECT set_config('app.tenant_id',:tenant,true)"),
+        text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
         {"tenant": bootstrap_state["tenant"]},
     )
     directory = app_connection.execute(text("SELECT * FROM auth.tenant_user_directory()"))
@@ -223,7 +223,8 @@ def test_tenant_directory_and_append_only_history_are_rls_scoped(
         )
     )
     app_connection.execute(
-        text("SELECT set_config('app.tenant_id',:tenant,true)"), {"tenant": uuid.uuid7()}
+        text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
+        {"tenant": uuid.uuid7()},
     )
     assert app_connection.execute(text("SELECT id FROM app.tenant_access_events")).all() == []
 
@@ -247,7 +248,9 @@ def test_bootstrap_capability_has_only_exact_function_execution(
             text(
                 "SELECT p.prosecdef,pg_get_userbyid(p.proowner),p.proconfig,"
                 "has_function_privilege(:capability,p.oid,'EXECUTE'),"
-                "has_function_privilege('PUBLIC',p.oid,'EXECUTE'),"
+                "EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl,"
+                "acldefault('f',p.proowner))) a WHERE a.grantee=0 "
+                "AND a.privilege_type='EXECUTE'),"
                 "has_function_privilege(:runtime,p.oid,'EXECUTE') "
                 "FROM pg_proc p WHERE p.oid=CAST(:signature AS regprocedure)"
             ),

@@ -51,7 +51,7 @@ def _give_actor_permissions(
     engine = create_engine(settings.database_url, poolclass=NullPool)
     with engine.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": state.tenant_a},
         )
         connection.execute(
@@ -95,7 +95,7 @@ def _tenant_admin_role(
     engine = create_engine(settings.database_url, poolclass=NullPool)
     with engine.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": state.tenant_a},
         )
         connection.execute(
@@ -146,7 +146,7 @@ def target_membership(rbac_fixture: RbacFixture, settings: Settings) -> Iterator
         runtime = create_engine(settings.database_url, poolclass=NullPool)
         with runtime.begin() as connection:
             connection.execute(
-                text("SELECT set_config('app.tenant_id',:tenant,true)"),
+                text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
                 {"tenant": rbac_fixture.tenant_a},
             )
             connection.execute(
@@ -382,7 +382,7 @@ async def test_permission_removal_and_role_disable_change_authorization_immediat
     engine = create_engine(settings.database_url, poolclass=NullPool)
     with engine.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": rbac_fixture.tenant_a},
         )
         connection.execute(
@@ -411,7 +411,7 @@ async def test_permission_removal_and_role_disable_change_authorization_immediat
     engine = create_engine(settings.database_url, poolclass=NullPool)
     with engine.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": rbac_fixture.tenant_a},
         )
         connection.execute(
@@ -430,7 +430,7 @@ async def test_permission_removal_and_role_disable_change_authorization_immediat
     engine = create_engine(settings.database_url, poolclass=NullPool)
     with engine.begin() as connection:
         connection.execute(
-            text("SELECT set_config('app.tenant_id',:tenant,true)"),
+            text("SELECT set_config('app.tenant_id',CAST(:tenant AS text),true)"),
             {"tenant": rbac_fixture.tenant_a},
         )
         connection.execute(
