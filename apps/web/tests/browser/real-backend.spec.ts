@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test as base } from '@playwright/test';
-import type { APIResponse, Page } from '@playwright/test';
+import type { APIResponse, BrowserContext, Page } from '@playwright/test';
 
 type Account = Record<
   | 'user'
@@ -67,6 +67,15 @@ async function reserveRealCsrfBudget(): Promise<void> {
     await waitForFreshCsrfWindow(current);
   }
   initialCsrfWindowAligned = true;
+}
+
+function trackRealCsrfBudget(context: BrowserContext): void {
+  context.on('request', (request) => {
+    if (request.method() === 'GET' && new URL(request.url()).pathname === '/auth/csrf') {
+      currentCsrfWindow();
+      csrfWindowRequests += 1;
+    }
+  });
 }
 
 function rememberSecret(value: string | undefined): void {
@@ -727,9 +736,12 @@ test('real backend wins over legacy storage and network failure stays visible', 
 test('real workflow request returns, resubmits, approves, and preserves history', async ({
   browser,
 }) => {
+  test.setTimeout(240_000);
   const account = await database('seed_login');
   const requesterContext = await browser.newContext({ baseURL: origin });
   const approverContext = await browser.newContext({ baseURL: origin });
+  trackRealCsrfBudget(requesterContext);
+  trackRealCsrfBudget(approverContext);
   const requester = await requesterContext.newPage();
   const approver = await approverContext.newPage();
   try {
@@ -761,6 +773,10 @@ test('real workflow request returns, resubmits, approves, and preserves history'
     await approver.getByRole('button', { name: 'إعادة' }).click();
     await expect(approver.getByText('لا توجد اعتمادات بانتظارك')).toBeVisible();
 
+    // The proof intentionally drives two authenticated shells. Respect the
+    // PostgreSQL-backed CSRF limit before the resubmission half instead of
+    // resetting counters or retrying a rejected request.
+    await reserveRealCsrfBudget();
     await requester.reload();
     await expect(requester.getByTestId('workflow-request')).toContainText('معاد');
     await requester.getByRole('button', { name: 'الإشعارات' }).click();
@@ -803,10 +819,6 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
   page,
   context,
 }) => {
-  // The preceding workflow proof uses two additional browser contexts. Start
-  // this independent login proof in a new server throttle window rather than
-  // resetting PostgreSQL counters or retrying a rejected request.
-  await waitForFreshCsrfWindow();
   const account = await database('seed_login');
   rememberSecret(account.password);
   try {
