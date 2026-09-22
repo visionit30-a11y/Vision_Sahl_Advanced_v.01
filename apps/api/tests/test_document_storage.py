@@ -8,7 +8,7 @@ import boto3
 import pytest
 from moto.server import ThreadedMotoServer
 
-from app.core.config import Settings
+from app.core.config import Environment, Settings
 from app.documents import storage as storage_module
 from app.documents.storage import DocumentStorageUnavailable, ObjectStorage
 
@@ -52,18 +52,20 @@ def test_http_storage_endpoint_is_loopback_and_nonproduction_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     storage_module.get_object_storage.cache_clear()
-    for environment, endpoint in (
+    cases: tuple[tuple[Environment, str], ...] = (
         ("production", "http://127.0.0.1:9001"),
         ("development", "http://object-store.example:9001"),
         ("development", "http://user:pass@127.0.0.1:9001"),
-    ):
-        settings = Settings(
-            _env_file=None,
-            app_env=environment,
-            object_storage_endpoint_url=endpoint,
-            object_storage_bucket="documents-test",
-            object_storage_access_key="isolated-test",
-            object_storage_secret_key="isolated-test",
+    )
+    for environment, endpoint in cases:
+        settings = Settings.model_validate(
+            {
+                "app_env": environment,
+                "object_storage_endpoint_url": endpoint,
+                "object_storage_bucket": "documents-test",
+                "object_storage_access_key": "isolated-test",
+                "object_storage_secret_key": "isolated-test",
+            }
         )
         monkeypatch.setattr(storage_module, "get_settings", lambda settings=settings: settings)
         with pytest.raises(DocumentStorageUnavailable):
