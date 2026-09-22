@@ -22,6 +22,10 @@ class Options:
     force_password_change: bool
 
 
+class PasswordConfirmationError(ValueError):
+    """A safe input error that never carries either password value."""
+
+
 def _options(argv: list[str]) -> Options:
     parser = argparse.ArgumentParser(description="Trusted local identity administration.")
     parser.add_argument("action", choices=("bootstrap-admin", "reset-password"))
@@ -34,7 +38,7 @@ def _secret() -> str:
     first = getpass.getpass("New password: ")
     second = getpass.getpass("Confirm password: ")
     if first != second:
-        raise ValueError("Password confirmation does not match.")
+        raise PasswordConfirmationError("Password confirmation does not match.")
     return first
 
 
@@ -98,7 +102,13 @@ async def _run(options: Options) -> int:
 def main(argv: list[str] | None = None) -> int:
     try:
         return asyncio.run(_run(_options(sys.argv[1:] if argv is None else argv)))
-    except PasswordPolicyError, ValueError, RuntimeError:
+    except PasswordPolicyError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    except PasswordConfirmationError:
+        print("Password confirmation does not match.", file=sys.stderr)
+        return 1
+    except ValueError, RuntimeError:
         print("Identity administration could not be completed.", file=sys.stderr)
         return 1
 

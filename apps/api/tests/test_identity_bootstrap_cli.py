@@ -86,3 +86,34 @@ def test_command_refuses_nondevelopment_before_database_use(
         lambda: SimpleNamespace(app_env="production"),
     )
     assert identity_bootstrap.main(["reset-password"]) == 1
+
+
+def test_command_reports_password_policy_without_echoing_secret(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    secret = "short-secret"
+    monkeypatch.setattr("builtins.input", lambda _prompt: "member@example.test")
+    monkeypatch.setattr(identity_bootstrap.getpass, "getpass", lambda _prompt: secret)
+    monkeypatch.setattr(identity_bootstrap, "get_settings", _settings)
+
+    assert identity_bootstrap.main(["reset-password"]) == 1
+    captured = capsys.readouterr()
+    assert "15 to 128 Unicode code points" in captured.err
+    assert secret not in captured.out + captured.err
+
+
+def test_command_reports_password_confirmation_without_echoing_secret(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    secrets = iter(["A valid private password", "A different private password"])
+    monkeypatch.setattr("builtins.input", lambda _prompt: "member@example.test")
+    monkeypatch.setattr(identity_bootstrap.getpass, "getpass", lambda _prompt: next(secrets))
+    monkeypatch.setattr(identity_bootstrap, "get_settings", _settings)
+
+    assert identity_bootstrap.main(["reset-password"]) == 1
+    captured = capsys.readouterr()
+    assert "Password confirmation does not match" in captured.err
+    assert "A valid private password" not in captured.out + captured.err
+    assert "A different private password" not in captured.out + captured.err
