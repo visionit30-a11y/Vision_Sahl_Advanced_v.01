@@ -22,6 +22,7 @@ type Account = Record<
   | 'email'
   | 'approver_email'
   | 'approver_password'
+  | 'invite_email'
   | 'password',
   string
 >;
@@ -904,6 +905,93 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
       false,
     );
   } finally {
+    await database('cleanup', account);
+  }
+});
+
+test('real Tenant Admin manages tenant access and rotates a changed password', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  const account = await database('seed_login');
+  const adminContext = await browser.newContext({ baseURL: origin });
+  const memberContext = await browser.newContext({ baseURL: origin });
+  trackRealCsrfBudget(adminContext);
+  trackRealCsrfBudget(memberContext);
+  const admin = await adminContext.newPage();
+  const member = await memberContext.newPage();
+  const changedPassword = `Changed-${account.password}`;
+  rememberSecret(changedPassword);
+  try {
+    await loginAndSelectTenant(admin, account.email, account.password);
+    await admin.goto('/settings/users');
+    await expect(admin.getByRole('heading', { name: 'إدارة مستخدمي الجمعية' })).toBeVisible();
+    await admin.locator('input[name="email"]').fill(account.invite_email);
+    await admin.getByRole('button', { name: 'إضافة الدعوة' }).click();
+    const invited = admin.getByTestId('tenant-user').filter({ hasText: account.invite_email });
+    await expect(invited).toContainText('بانتظار التفعيل');
+    await invited.getByRole('button', { name: 'تفعيل' }).click();
+    await expect(invited).toContainText('فعال');
+    await invited.getByLabel('إدارة الدور').selectOption({ label: 'Browser approver' });
+    await expect(invited).toContainText('Browser approver');
+
+    const crossTenant = await admin.evaluate(
+      async ({ membership, role }) => {
+        const path = '/src/auth/client.ts';
+        const { authClient } = await import(path);
+        return (
+          await authClient.request(`/auth/memberships/${membership}/roles/${role}`, {
+            method: 'PUT',
+          })
+        ).status;
+      },
+      { membership: account.approver_membership, role: account.role_b },
+    );
+    expect(crossTenant).toBe(404);
+
+    await loginAndSelectTenant(member, account.approver_email, account.approver_password);
+    await member.goto('/settings/users');
+    await expect(member.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
+    expect((await protectedApi(() => member.request.get('/tenant-admin/users'))).status()).toBe(
+      403,
+    );
+
+    const oldBearer = (await adminContext.cookies()).find(
+      (cookie) => cookie.name === '__Host-sahl_session',
+    )?.value;
+    rememberSecret(oldBearer);
+    await admin.goto('/settings/password');
+    await admin.locator('input[name="currentPassword"]').fill(account.password);
+    await admin.locator('input[name="newPassword"]').fill(changedPassword);
+    await admin.locator('input[name="confirmPassword"]').fill(changedPassword);
+    await admin.getByRole('button', { name: 'تغيير كلمة المرور' }).click();
+    await expect(admin.getByRole('heading', { name: 'تسجيل الدخول' })).toBeVisible();
+    expect(
+      (
+        await protectedApi(() =>
+          admin.request.get('http://127.0.0.1:8010/auth/me', {
+            headers: { Cookie: `__Host-sahl_session=${oldBearer}` },
+          }),
+        )
+      ).status(),
+    ).toBe(401);
+    await loginAndSelectTenant(admin, account.email, changedPassword);
+    await admin.goto('/settings/users');
+    await expect(admin.getByRole('heading', { name: 'إدارة مستخدمي الجمعية' })).toBeVisible();
+
+    await admin.evaluate(async (membership) => {
+      const path = '/src/auth/client.ts';
+      const { authClient } = await import(path);
+      await authClient.switchTenant(membership);
+    }, account.membership_b);
+    await admin.goto('/settings/users');
+    await expect(admin.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
+    expect((await protectedApi(() => admin.request.get('/tenant-admin/users'))).status()).toBe(403);
+  } finally {
+    for (const value of await adminContext.cookies()) rememberSecret(value.value);
+    for (const value of await memberContext.cookies()) rememberSecret(value.value);
+    await adminContext.close();
+    await memberContext.close();
     await database('cleanup', account);
   }
 });

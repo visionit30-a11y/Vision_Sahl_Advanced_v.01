@@ -55,6 +55,7 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             )
             for statement in (
                 "DELETE FROM app.workflow_requests WHERE tenant_id=:tenant",
+                "DELETE FROM app.tenant_access_events WHERE tenant_id=:tenant",
                 "DELETE FROM app.user_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM app.tenant_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM auth.membership_roles WHERE tenant_id=:tenant",
@@ -63,6 +64,15 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             ):
                 await conn.execute(text(statement), {"tenant": tenant})
     with migration.begin() as conn:
+        invite_email = state.get("invite_email")
+        invited_user = (
+            conn.scalar(
+                text("SELECT id FROM auth.users WHERE normalized_email=:email"),
+                {"email": invite_email},
+            )
+            if invite_email
+            else None
+        )
         params = {
             "u": str(uuid.UUID(state["user"])),
             "v": str(uuid.UUID(state["foreign_user"])),
@@ -77,6 +87,16 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             text("DELETE FROM auth.password_credentials WHERE user_id IN (:u,:v,:w)"), params
         )
         conn.execute(text("DELETE FROM auth.users WHERE id IN (:u,:v,:w)"), params)
+        if invited_user is not None:
+            conn.execute(
+                text("DELETE FROM auth.tenant_memberships WHERE user_id=:user"),
+                {"user": invited_user},
+            )
+            conn.execute(
+                text("DELETE FROM auth.password_credentials WHERE user_id=:user"),
+                {"user": invited_user},
+            )
+            conn.execute(text("DELETE FROM auth.users WHERE id=:user"), {"user": invited_user})
         for tenant in tenants:
             conn.execute(text("DELETE FROM public.tenants WHERE id=:tenant"), {"tenant": tenant})
     # Verify the committed result using exact fixture IDs. The tenant foreign
@@ -121,6 +141,7 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                 )
             }
             seeded_state = state
+            state["invite_email"] = f"browser-g5-invite-{state['tenant_a']}@example.test"
             with migration.begin() as conn:
                 for key in ("user", "foreign_user", "approver_user"):
                     conn.execute(
@@ -169,19 +190,33 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                         text("SELECT set_config('app.tenant_id',:tenant,true)"),
                         {"tenant": state[f"tenant_{suffix}"]},
                     )
+                    role_kind = "tenant_admin" if suffix == "a" else "custom"
+                    role_key = "tenant_admin" if suffix == "a" else "browser_settings"
+                    role_name = "Tenant Admin" if suffix == "a" else "Browser settings"
                     await conn.execute(
                         text(
-                            "INSERT INTO auth.roles(id,tenant_id,key,display_name) "
-                            "VALUES (:id,:tenant,'browser_settings','Browser settings')"
+                            "INSERT INTO auth.roles(id,tenant_id,key,display_name,kind) "
+                            "VALUES (:id,:tenant,:key,:name,CAST(:kind AS auth.role_kind))"
                         ),
-                        {"id": state[f"role_{suffix}"], "tenant": state[f"tenant_{suffix}"]},
+                        {
+                            "id": state[f"role_{suffix}"],
+                            "tenant": state[f"tenant_{suffix}"],
+                            "key": role_key,
+                            "name": role_name,
+                            "kind": role_kind,
+                        },
                     )
-                    for permission in (
-                        Permission.TENANT_UI_SETTINGS_MANAGE,
-                        Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF,
-                        Permission.TENANT_WORKFLOW_REQUESTS_CREATE,
-                        Permission.TENANT_WORKFLOW_REQUESTS_READ,
-                    ):
+                    permissions = (
+                        tuple(item for item in Permission if item.value.startswith("tenant."))
+                        if suffix == "a"
+                        else (
+                            Permission.TENANT_UI_SETTINGS_MANAGE,
+                            Permission.TENANT_USER_UI_SETTINGS_MANAGE_SELF,
+                            Permission.TENANT_WORKFLOW_REQUESTS_CREATE,
+                            Permission.TENANT_WORKFLOW_REQUESTS_READ,
+                        )
+                    )
+                    for permission in permissions:
                         await conn.execute(
                             text(
                                 "INSERT INTO auth.role_permissions"

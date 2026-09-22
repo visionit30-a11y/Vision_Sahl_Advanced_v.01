@@ -16,6 +16,14 @@ export const FRONTEND_PERMISSIONS = {
   createWorkflowRequests: 'tenant.workflow_requests.create',
   readWorkflowRequests: 'tenant.workflow_requests.read',
   decideWorkflowApprovals: 'tenant.workflow_approvals.decide',
+  readTenantUsers: 'tenant.users.read',
+  manageTenantUsers: 'tenant.users.manage',
+  inviteTenantUsers: 'tenant.users.invite',
+  readTenantRoles: 'tenant.roles.read',
+  manageTenantRoles: 'tenant.roles.manage',
+  manageTenantMemberships: 'tenant.memberships.manage',
+  readAccessAudit: 'tenant.access_audit.read',
+  readDashboard: 'tenant.dashboard.read',
 } as const;
 
 export type FrontendPermission = (typeof FRONTEND_PERMISSIONS)[keyof typeof FRONTEND_PERMISSIONS];

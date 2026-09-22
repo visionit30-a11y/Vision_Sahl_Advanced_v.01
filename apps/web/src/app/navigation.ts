@@ -61,4 +61,23 @@ export const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    id: 'tenant-administration',
+    labelKey: 'sections.tenantAdministration',
+    items: [
+      {
+        id: 'tenant-users',
+        labelKey: 'items.tenantUsers',
+        icon: 'layers',
+        to: '/settings/users',
+        requiredPermission: FRONTEND_PERMISSIONS.readTenantUsers,
+      },
+      {
+        id: 'change-password',
+        labelKey: 'items.changePassword',
+        icon: 'check',
+        to: '/settings/password',
+      },
+    ],
+  },
 ];

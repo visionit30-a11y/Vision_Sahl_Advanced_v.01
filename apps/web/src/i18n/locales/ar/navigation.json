@@ -4,12 +4,15 @@
   "openNav": "فتح قائمة التنقل",
   "closeNav": "إغلاق قائمة التنقل",
   "sections": {
+    "tenantAdministration": "إدارة الجمعية",
     "workspace": "مساحة العمل",
     "workflow": "سير العمل"
   },
   "tenantSelector": "الجهة",
   "unreadCount": "{{count}} إشعارات غير مقروءة",
   "items": {
+    "tenantUsers": "المستخدمون والأدوار",
+    "changePassword": "تغيير كلمة المرور",
     "home": "الرئيسية",
     "designSystem": "نظام التصميم",
     "workflowRequests": "الطلبات",

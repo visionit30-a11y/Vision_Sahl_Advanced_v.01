@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   selectedMembershipId: string | null;
+  forcePasswordChange: boolean;
 }
 
 export class SessionInvalidError extends Error {}
@@ -116,6 +117,22 @@ export class AuthClient {
 
   async logout(): Promise<void> {
     await this.#request('/auth/logout', { method: 'POST' });
+    this.#rotate('invalid');
+  }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<void> {
+    await this.#request('/auth/password/change', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      }),
+    });
     this.#rotate('invalid');
   }
 

@@ -1,0 +1,54 @@
+{
+  "title": "Tenant users",
+  "description": "Manage memberships, roles, and access changes in the current tenant.",
+  "loading": "Loading users...",
+  "directory": {
+    "title": "User directory",
+    "search": "Search by email",
+    "status": "Membership status",
+    "empty": "No matching memberships."
+  },
+  "invite": { "title": "Invite user", "email": "Email", "submit": "Add invitation" },
+  "roles": {
+    "none": "No roles",
+    "separator": ", ",
+    "assign": "Manage role",
+    "choose": "Choose a role to add or remove"
+  },
+  "audit": { "title": "Access change history", "empty": "No access changes are recorded." },
+  "status": {
+    "all": "All statuses",
+    "pending": "Pending",
+    "active": "Active",
+    "suspended": "Suspended"
+  },
+  "actions": { "retry": "Retry", "activate": "Activate", "suspend": "Suspend" },
+  "events": {
+    "user_invited": "User invited",
+    "membership_activated": "Membership activated",
+    "membership_suspended": "Membership suspended",
+    "tenant_admin_bootstrapped": "Tenant Admin bootstrapped",
+    "password_admin_reset": "Password administratively reset",
+    "role_created": "Role created",
+    "role_updated": "Role updated",
+    "role_disabled": "Role disabled",
+    "permission_assigned": "Permission assigned",
+    "permission_removed": "Permission removed",
+    "role_assigned": "Role assigned",
+    "role_removed": "Role removed"
+  },
+  "password": {
+    "title": "Change password",
+    "description": "Existing sessions are revoked after a successful change.",
+    "card": "Password details",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "submit": "Change password",
+    "error": "The password could not be changed. Check the details and try again."
+  },
+  "errors": {
+    "title": "Request could not be completed",
+    "description": "Check your permissions or reload the data, then try again."
+  }
+}
