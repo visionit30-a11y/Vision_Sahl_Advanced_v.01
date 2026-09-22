@@ -135,3 +135,22 @@ def test_command_redacts_database_errors(
     captured = capsys.readouterr()
     assert "database operation failed" in captured.err
     assert marker not in captured.out + captured.err
+
+
+def test_command_reports_only_safe_database_sqlstate(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    marker = "database-secret-marker"
+    original = RuntimeError(marker)
+    original.sqlstate = "42501"  # type: ignore[attr-defined]
+
+    async def fail(_options: identity_bootstrap.Options) -> int:
+        raise InterfaceError("connection", {"password": marker}, original)
+
+    monkeypatch.setattr(identity_bootstrap, "_run", fail)
+
+    assert identity_bootstrap.main(["reset-password"]) == 1
+    captured = capsys.readouterr()
+    assert "SQLSTATE 42501" in captured.err
+    assert marker not in captured.out + captured.err

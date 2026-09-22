@@ -118,8 +118,10 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError, RuntimeError:
         print("Identity administration could not be completed.", file=sys.stderr)
         return 1
-    except SQLAlchemyError:
-        print("Identity administration database operation failed.", file=sys.stderr)
+    except SQLAlchemyError as error:
+        sqlstate = getattr(getattr(error, "orig", None), "sqlstate", None)
+        suffix = f" (SQLSTATE {sqlstate})" if isinstance(sqlstate, str) else ""
+        print(f"Identity administration database operation failed{suffix}.", file=sys.stderr)
         return 1
 
 
