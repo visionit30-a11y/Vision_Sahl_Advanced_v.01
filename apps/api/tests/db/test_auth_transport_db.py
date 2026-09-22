@@ -89,6 +89,13 @@ async def transport_fixture(
             ),
             {"id": user, "email": email},
         )
+        db.execute(
+            text(
+                "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                "VALUES (:id,'$argon2id$fixture')"
+            ),
+            {"id": user},
+        )
         for number, (tenant, membership) in enumerate(zip(tenants, memberships, strict=True)):
             db.execute(
                 text(
@@ -138,6 +145,9 @@ async def transport_fixture(
             db.execute(text("DELETE FROM auth.sessions WHERE user_id=:user"), {"user": user})
             db.execute(
                 text("DELETE FROM auth.tenant_memberships WHERE user_id=:user"), {"user": user}
+            )
+            db.execute(
+                text("DELETE FROM auth.password_credentials WHERE user_id=:user"), {"user": user}
             )
             db.execute(text("DELETE FROM auth.users WHERE id=:user"), {"user": user})
             for tenant in tenants:

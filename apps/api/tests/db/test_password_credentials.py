@@ -18,6 +18,7 @@ def test_password_credential_contract(app_connection: Connection, migration_role
         ("password_hash", True, "text"),
         ("credential_version", True, "integer"),
         ("changed_at", True, "timestamp with time zone"),
+        ("force_password_change", True, "boolean"),
     ]
     constraints = set(
         app_connection.execute(
@@ -64,4 +65,10 @@ def test_no_plaintext_columns_or_rls_contract_change(app_connection: Connection)
     """)
         ).scalars()
     )
-    assert names == {"user_id", "password_hash", "credential_version", "changed_at"}
+    assert names == {
+        "user_id",
+        "password_hash",
+        "credential_version",
+        "changed_at",
+        "force_password_change",
+    }

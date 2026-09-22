@@ -17,14 +17,17 @@ from app.core.config import Settings
 from app.db.tenant_transaction import tenant_transaction
 from app.models.authorization import RoleKey
 from app.services.role_administration import RoleAdministrationService
-from tests.db.test_role_administration import _grant
+from tests.db.test_role_administration import _give_actor_permissions, _grant
 
 if TYPE_CHECKING:
     from sqlalchemy import Connection
 
     from tests.db.test_rbac_foundation import RbacFixture
 
-pytest_plugins = ("tests.db.test_rbac_foundation",)
+pytest_plugins = (
+    "tests.db.test_rbac_foundation",
+    "tests.db.test_role_administration",
+)
 
 
 def _events(settings: Settings, state: RbacFixture) -> list[str]:
@@ -56,22 +59,23 @@ def _event(state: RbacFixture, role: uuid.UUID | None = None) -> SecurityAuditEv
 
 
 async def test_every_role_event_once_and_noop_assignments_emit_nothing(
-    rbac_fixture: RbacFixture, settings: Settings
+    rbac_fixture: RbacFixture, settings: Settings, target_membership: uuid.UUID
 ) -> None:
     s = RoleAdministrationService()
     state = rbac_fixture
     role_grant = _grant(state, Permission.TENANT_ROLES_MANAGE)
     member_grant = _grant(state, Permission.TENANT_MEMBERSHIPS_MANAGE)
+    _give_actor_permissions(state, settings, Permission.TENANT_ROLES_READ)
     created = await s.create_role(role_grant, RoleKey("audit_probe"), "Audit Probe")
     await s.update_role(role_grant, created.id, expected_version=1, display_name="Updated")
     assert await s.assign_permission(role_grant, created.id, Permission.TENANT_ROLES_READ)
     assert not await s.assign_permission(role_grant, created.id, Permission.TENANT_ROLES_READ)
     assert await s.remove_permission(role_grant, created.id, Permission.TENANT_ROLES_READ)
     assert not await s.remove_permission(role_grant, created.id, Permission.TENANT_ROLES_READ)
-    assert await s.assign_role(member_grant, state.membership_a, created.id)
-    assert not await s.assign_role(member_grant, state.membership_a, created.id)
-    assert await s.remove_role(member_grant, state.membership_a, created.id)
-    assert not await s.remove_role(member_grant, state.membership_a, created.id)
+    assert await s.assign_role(member_grant, target_membership, created.id)
+    assert not await s.assign_role(member_grant, target_membership, created.id)
+    assert await s.remove_role(member_grant, target_membership, created.id)
+    assert not await s.remove_role(member_grant, target_membership, created.id)
     await s.disable_role(role_grant, created.id, expected_version=2)
     assert _events(settings, state) == [
         "role_created",
@@ -97,16 +101,21 @@ async def test_every_role_event_once_and_noop_assignments_emit_nothing(
     ],
 )
 async def test_mandatory_event_failure_rolls_back_each_role_change(
-    operation: str, rbac_fixture: RbacFixture, settings: Settings, monkeypatch: pytest.MonkeyPatch
+    operation: str,
+    rbac_fixture: RbacFixture,
+    settings: Settings,
+    target_membership: uuid.UUID,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     s = RoleAdministrationService()
     state = rbac_fixture
     grant = _grant(state, Permission.TENANT_ROLES_MANAGE)
     member = _grant(state, Permission.TENANT_MEMBERSHIPS_MANAGE)
+    _give_actor_permissions(state, settings, Permission.TENANT_ROLES_READ)
     if operation == "remove_permission":
         await s.assign_permission(grant, state.role_a, Permission.TENANT_ROLES_READ)
     if operation == "remove_role":
-        await s.assign_role(member, state.membership_a, state.role_a)
+        await s.assign_role(member, target_membership, state.role_a)
     async with tenant_transaction(grant.tenant_context) as tx:
         before = (
             await tx.execute(
@@ -150,9 +159,9 @@ async def test_mandatory_event_failure_rolls_back_each_role_change(
             case "remove_permission":
                 await s.remove_permission(grant, state.role_a, Permission.TENANT_ROLES_READ)
             case "assign_role":
-                await s.assign_role(member, state.membership_a, state.role_a)
+                await s.assign_role(member, target_membership, state.role_a)
             case "remove_role":
-                await s.remove_role(member, state.membership_a, state.role_a)
+                await s.remove_role(member, target_membership, state.role_a)
     async with tenant_transaction(grant.tenant_context) as tx:
         assert (
             await tx.execute(

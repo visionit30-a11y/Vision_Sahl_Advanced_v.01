@@ -58,6 +58,13 @@ def projections(settings: Settings) -> Iterator[ProjectionFixture]:
                     {"id": user, "email": f"http-projection-{user.hex}@example.test"},
                 )
                 db.execute(
+                    text(
+                        "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                        "VALUES (:id,'$argon2id$fixture')"
+                    ),
+                    {"id": user},
+                )
+                db.execute(
                     text("""
                     INSERT INTO auth.sessions
                     (id,user_id,bearer_digest,csrf_digest,security_version,created_at,
@@ -93,6 +100,9 @@ def projections(settings: Settings) -> Iterator[ProjectionFixture]:
                 db.execute(text("DELETE FROM auth.sessions WHERE user_id=:id"), {"id": user})
                 db.execute(
                     text("DELETE FROM auth.tenant_memberships WHERE user_id=:id"), {"id": user}
+                )
+                db.execute(
+                    text("DELETE FROM auth.password_credentials WHERE user_id=:id"), {"id": user}
                 )
                 db.execute(text("DELETE FROM auth.users WHERE id=:id"), {"id": user})
             for tenant in fixture.tenants:
@@ -170,9 +180,10 @@ def test_projection_exposes_only_current_session_identity_and_own_active_members
             .mappings()
             .all()
         )
-    assert set(identity) == {"user_id", "email", "security_version"}
+    assert set(identity) == {"user_id", "email", "security_version", "force_password_change"}
     assert identity["user_id"] == projections.users[0]
     assert identity["security_version"] == 1
+    assert identity["force_password_change"] is False
     assert {row["membership_id"] for row in memberships} == set(projections.memberships[:2])
     assert {row["tenant_id"] for row in memberships} == set(projections.tenants)
     assert all(
