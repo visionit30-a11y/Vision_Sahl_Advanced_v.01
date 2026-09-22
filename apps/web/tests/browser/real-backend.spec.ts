@@ -927,7 +927,13 @@ test('real Tenant Admin manages tenant access and rotates a changed password', a
     await admin.goto('/settings/users');
     await expect(admin.getByRole('heading', { name: 'إدارة مستخدمي الجمعية' })).toBeVisible();
     await admin.locator('input[name="email"]').fill(account.invite_email);
+    const invitationResponse = admin.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/tenant-admin/users/invitations',
+    );
     await admin.getByRole('button', { name: 'إضافة الدعوة' }).click();
+    expect((await invitationResponse).status()).toBe(201);
     const invited = admin.getByTestId('tenant-user').filter({ hasText: account.invite_email });
     await expect(invited).toContainText('بانتظار التفعيل');
     await invited.getByRole('button', { name: 'تفعيل' }).click();
@@ -938,12 +944,19 @@ test('real Tenant Admin manages tenant access and rotates a changed password', a
     const crossTenant = await admin.evaluate(
       async ({ membership, role }) => {
         const path = '/src/auth/client.ts';
-        const { authClient } = await import(path);
-        return (
-          await authClient.request(`/auth/memberships/${membership}/roles/${role}`, {
-            method: 'PUT',
-          })
-        ).status;
+        const { authClient, HttpRequestError } = await import(path);
+        try {
+          return (
+            await authClient.request(`/auth/memberships/${membership}/roles/${role}`, {
+              method: 'PUT',
+            })
+          ).status;
+        } catch (error) {
+          if (error instanceof HttpRequestError) {
+            return (error as { status: number }).status;
+          }
+          throw error;
+        }
       },
       { membership: account.approver_membership, role: account.role_b },
     );
@@ -964,7 +977,13 @@ test('real Tenant Admin manages tenant access and rotates a changed password', a
     await admin.locator('input[name="currentPassword"]').fill(account.password);
     await admin.locator('input[name="newPassword"]').fill(changedPassword);
     await admin.locator('input[name="confirmPassword"]').fill(changedPassword);
+    const passwordResponse = admin.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/auth/password/change',
+    );
     await admin.getByRole('button', { name: 'تغيير كلمة المرور' }).click();
+    expect((await passwordResponse).status()).toBe(204);
     await expect(admin.getByRole('heading', { name: 'تسجيل الدخول' })).toBeVisible();
     expect(
       (

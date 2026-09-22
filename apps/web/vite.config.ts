@@ -14,6 +14,7 @@ export default defineConfig({
       '/health': { target: API_TARGET, changeOrigin: false },
       '/auth': { target: API_TARGET, changeOrigin: false },
       '/activity-center': { target: API_TARGET, changeOrigin: false },
+      '/tenant-admin': { target: API_TARGET, changeOrigin: false },
       '/workflows': {
         target: API_TARGET,
         changeOrigin: false,

@@ -55,7 +55,6 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             )
             for statement in (
                 "DELETE FROM app.workflow_requests WHERE tenant_id=:tenant",
-                "DELETE FROM app.tenant_access_events WHERE tenant_id=:tenant",
                 "DELETE FROM app.user_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM app.tenant_ui_settings WHERE tenant_id=:tenant",
                 "DELETE FROM auth.membership_roles WHERE tenant_id=:tenant",
@@ -64,6 +63,14 @@ async def _cleanup(state: dict[str, str], migration: Engine, runtime: AsyncEngin
             ):
                 await conn.execute(text(statement), {"tenant": tenant})
     with migration.begin() as conn:
+        for tenant in tenants:
+            conn.execute(
+                text("SELECT set_config('app.tenant_id',:tenant,true)"), {"tenant": tenant}
+            )
+            conn.execute(
+                text("DELETE FROM app.tenant_access_events WHERE tenant_id=:tenant"),
+                {"tenant": tenant},
+            )
         invite_email = state.get("invite_email")
         invited_user = (
             conn.scalar(
@@ -310,6 +317,15 @@ async def main(payload: dict[str, Any]) -> dict[str, Any]:
                         {"id": state["approver_user"], "hash": approver_hash},
                     )
                 return state
+            fixture_hash = await PasswordService().hash_password(secrets.token_urlsafe(32))
+            with migration.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO auth.password_credentials(user_id,password_hash) "
+                        "VALUES (:id,:hash)"
+                    ),
+                    {"id": state["user"], "hash": fixture_hash},
+                )
             async with runtime.begin() as conn:
                 sessions = SessionService(PostgresSessionStore(conn))
                 issued = await sessions.issue(uuid.UUID(state["user"]), 1)
