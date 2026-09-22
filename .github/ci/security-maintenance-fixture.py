@@ -31,7 +31,8 @@ def main() -> int:
         destination = Path(os.environ["GITHUB_ENV"])
         if not destination.is_file():
             raise ValueError
-        password = secrets.token_urlsafe(32)
+        maintenance_password = secrets.token_urlsafe(32)
+        identity_password = secrets.token_urlsafe(32)
         with psycopg.connect(
             host=target.host,
             port=target.port or 5432,
@@ -50,10 +51,16 @@ def main() -> int:
                 raise ValueError
             connection.execute(
                 sql.SQL("ALTER ROLE sahl_maintenance_test PASSWORD {}").format(
-                    sql.Literal(password)
+                    sql.Literal(maintenance_password)
                 )
             )
-        maintenance = target.set(username="sahl_maintenance_test", password=password)
+            connection.execute(
+                sql.SQL("ALTER ROLE sahl_identity_bootstrap_test PASSWORD {}").format(
+                    sql.Literal(identity_password)
+                )
+            )
+        maintenance = target.set(username="sahl_maintenance_test", password=maintenance_password)
+        identity = target.set(username="sahl_identity_bootstrap_test", password=identity_password)
         # GITHUB_ENV is an ephemeral runner file, not a source file or artifact.
         # Do not echo this assignment or send its value through an output/masking command.
         with destination.open("a", encoding="utf-8", newline="\n") as stream:
@@ -62,7 +69,12 @@ def main() -> int:
                 + maintenance.render_as_string(hide_password=False)
                 + "\n"
             )
-        print("Isolated audit retention identity prepared.")
+            stream.write(
+                "IDENTITY_BOOTSTRAP_DATABASE_URL="
+                + identity.render_as_string(hide_password=False)
+                + "\n"
+            )
+        print("Isolated security capability identities prepared.")
         return 0
     except Exception:  # noqa: BLE001 - fixed diagnostic, no DSN/driver/SQL/parameters
         print("Isolated audit retention identity setup failed.", file=sys.stderr)

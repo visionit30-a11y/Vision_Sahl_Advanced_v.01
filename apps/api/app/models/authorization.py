@@ -49,6 +49,11 @@ class RoleStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class RoleKind(StrEnum):
+    CUSTOM = "custom"
+    TENANT_ADMIN = "tenant_admin"
+
+
 def new_role_id() -> RoleId:
     return RoleId(uuid.uuid7())
 
@@ -83,6 +88,16 @@ class Role(Base):
         nullable=False,
         server_default=text("'active'::auth.role_status"),
     )
+    kind: Mapped[RoleKind] = mapped_column(
+        Enum(
+            RoleKind,
+            name="role_kind",
+            schema="auth",
+            values_callable=lambda enum: [member.value for member in enum],
+        ),
+        nullable=False,
+        server_default=text("'custom'::auth.role_kind"),
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -92,7 +107,10 @@ class Role(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Role id={self.id} tenant_id={self.tenant_id} status={self.status.value}>"
+        return (
+            f"<Role id={self.id} tenant_id={self.tenant_id} "
+            f"kind={self.kind.value} status={self.status.value}>"
+        )
 
 
 class RolePermission(Base):

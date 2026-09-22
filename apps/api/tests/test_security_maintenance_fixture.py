@@ -125,13 +125,18 @@ def test_bootstrap_random_credential_only_in_ephemeral_environment(
     monkeypatch.setattr(bootstrap.psycopg, "connect", connect)
     monkeypatch.setattr(bootstrap.secrets, "token_urlsafe", lambda length: marker)
     assert bootstrap.main() == 0
-    assignment = setup_environment.read_text()
-    name, value = assignment.strip().split("=", 1)
-    assert name == "SECURITY_MAINTENANCE_DATABASE_URL"
-    parsed = make_url(value)
-    assert parsed.username == "sahl_maintenance_test" and parsed.password == marker
-    assert parsed.database == "sahl_ci" and parsed.port == 5434
-    assert len(statements) == 2
+    assignments = dict(line.split("=", 1) for line in setup_environment.read_text().splitlines())
+    assert set(assignments) == {
+        "SECURITY_MAINTENANCE_DATABASE_URL",
+        "IDENTITY_BOOTSTRAP_DATABASE_URL",
+    }
+    maintenance = make_url(assignments["SECURITY_MAINTENANCE_DATABASE_URL"])
+    identity = make_url(assignments["IDENTITY_BOOTSTRAP_DATABASE_URL"])
+    assert maintenance.username == "sahl_maintenance_test" and maintenance.password == marker
+    assert identity.username == "sahl_identity_bootstrap_test" and identity.password == marker
+    assert maintenance.database == identity.database == "sahl_ci"
+    assert maintenance.port == identity.port == 5434
+    assert len(statements) == 3
     for setting in (
         "log_statement=none",
         "log_min_error_statement=panic",
@@ -143,5 +148,5 @@ def test_bootstrap_random_credential_only_in_ephemeral_environment(
     ):
         assert setting in captured["options"]
     output = capsys.readouterr()
-    assert output.out == "Isolated audit retention identity prepared.\n" and not output.err
+    assert output.out == "Isolated security capability identities prepared.\n" and not output.err
     assert marker not in output.out + output.err + caplog.text

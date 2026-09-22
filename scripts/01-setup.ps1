@@ -413,6 +413,13 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$dbName')
         ) | Out-Null
         Write-Ok 'Audit maintenance capability verified (NOLOGIN; no runtime membership).'
 
+        Invoke-Native -File $psqlExe -Arguments @(
+            '-v', 'ON_ERROR_STOP=1', '-q',
+            '-h', $dbHost, '-p', $dbPort, '-U', $superUser, '-d', 'postgres',
+            '-f', (Join-Path $PSScriptRoot 'sql\identity-bootstrap-role.sql')
+        ) | Out-Null
+        Write-Ok 'Identity bootstrap capability verified (NOLOGIN; no runtime membership).'
+
         # Ownership and grants live inside the database, so this runs connected
         # to it. REASSIGN OWNED moves anything the application role created
         # before the two roles were split; on a fresh database it does nothing.

@@ -28,7 +28,16 @@ CREATE ROLE sahl_maintenance_test LOGIN
     NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT sahl_security_maintenance TO sahl_maintenance_test;
 
-GRANT CONNECT ON DATABASE sahl_ci TO sahl_migrator, sahl_app, sahl_maintenance_test;
+-- Phase 3D: a separate identity bootstrap capability. The test login receives
+-- an in-memory random password from the fixture; production receives no login.
+CREATE ROLE sahl_identity_bootstrap NOLOGIN NOSUPERUSER NOBYPASSRLS
+    NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE sahl_identity_bootstrap_test LOGIN
+    NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT sahl_identity_bootstrap TO sahl_identity_bootstrap_test;
+
+GRANT CONNECT ON DATABASE sahl_ci TO sahl_migrator, sahl_app, sahl_maintenance_test,
+    sahl_identity_bootstrap_test;
 
 -- CREATE on this database permits schemas, not new databases or role changes.
 -- Runtime never receives this privilege, directly or through PUBLIC.
