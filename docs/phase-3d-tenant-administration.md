@@ -7,6 +7,8 @@ administrator. Every runtime decision still follows the trusted session → memb
 ## Tenant Admin contract
 
 Migration `0020_tenant_administration` defines one protected `tenant_admin` role kind per tenant.
+Migration `0021_tenant_admin_bootstrap_fix` disambiguates the credential upsert used by the
+official bootstrap boundary while preserving its owner and exact capability grant.
 The official display name is `Tenant Admin / مسؤول الجمعية`. Bootstrap grants the complete current
 `tenant.*` catalog and no `platform.*` permission. The role cannot be edited, disabled, or have its
 permission set changed through ordinary role administration. A member cannot change their own role
