@@ -65,6 +65,12 @@ class Role(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_roles_tenant_id"),
         UniqueConstraint("tenant_id", "key", name="uq_roles_tenant_key"),
+        Index(
+            "uq_roles_one_tenant_admin",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("kind = 'tenant_admin'::auth.role_kind"),
+        ),
         CheckConstraint("key ~ '^[a-z][a-z0-9_]{0,62}$'", name="key_format"),
         CheckConstraint("version > 0", name="version_positive"),
         {"schema": "auth"},
