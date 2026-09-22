@@ -10,7 +10,6 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: 'line',
-  expect: { timeout: 15_000 },
   use: {
     baseURL: `http://localhost:${port}`,
     browserName: 'chromium',
