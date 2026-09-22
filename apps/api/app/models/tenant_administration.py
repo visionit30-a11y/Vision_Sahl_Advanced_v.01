@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,7 +22,7 @@ class TenantAccessEvent(Base):
             "'tenant_admin_bootstrapped','password_admin_reset','role_created',"
             "'role_updated','role_disabled','permission_assigned','permission_removed',"
             "'role_assigned','role_removed')",
-            name="event_type",
+            name="type",
         ),
         Index("ix_access_events_tenant_created", "tenant_id", "created_at", "id"),
         {"schema": "app"},
@@ -31,7 +31,11 @@ class TenantAccessEvent(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PostgresUUID(as_uuid=True), primary_key=True, default=uuid.uuid7
     )
-    tenant_id: Mapped[uuid.UUID] = mapped_column(PostgresUUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PostgresUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     actor_membership_id: Mapped[uuid.UUID | None] = mapped_column(PostgresUUID(as_uuid=True))
     target_membership_id: Mapped[uuid.UUID] = mapped_column(
         PostgresUUID(as_uuid=True), nullable=False
@@ -39,5 +43,5 @@ class TenantAccessEvent(Base):
     role_id: Mapped[uuid.UUID | None] = mapped_column(PostgresUUID(as_uuid=True))
     event_type: Mapped[str] = mapped_column(String(40), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, server_default=text("clock_timestamp()")
     )
