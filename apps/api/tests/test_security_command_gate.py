@@ -181,6 +181,16 @@ def test_migration_current_requires_approved_head(
     assert report["reason"] == "incomplete_test_gate"
 
 
+def test_migration_current_accepts_workflow_documents_head(
+    gate: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    child(monkeypatch, gate, b"0024_workflow_documents (head)\n")
+    monkeypatch.setattr(gate, "scan_output", lambda *args: True)
+    code, report = gate.run_gate("migration-head", ["alembic", "current"], tmp_path, 30)
+    assert code == 0
+    assert report["result"] == "PASS"
+
+
 def test_unknown_gate_name_never_becomes_report_field(
     gate: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
