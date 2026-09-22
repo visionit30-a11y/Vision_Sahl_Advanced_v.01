@@ -1000,7 +1000,13 @@ test('real Tenant Admin manages tenant access and rotates a changed password', a
 
     await admin.getByRole('button', { name: 'A', exact: true }).click();
     await admin.getByRole('menuitem', { name: 'B', exact: true }).click();
-    await expect(admin.getByRole('button', { name: 'B', exact: true })).toBeVisible();
+    await expect(admin.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
+    await expect
+      .poll(async () => {
+        const response = await protectedApi(() => admin.request.get('/auth/me'));
+        return (await response.json()).selectedMembershipId;
+      })
+      .toBe(account.membership_b);
     await admin.goto('/settings/users');
     await expect(admin.getByRole('heading', { name: 'غير مصرح' })).toBeVisible();
     expect((await protectedApi(() => admin.request.get('/tenant-admin/users'))).status()).toBe(403);
