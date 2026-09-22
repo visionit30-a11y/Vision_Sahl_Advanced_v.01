@@ -206,9 +206,7 @@ def _signal_owned_group(process: subprocess.Popen[bytes], signum: int) -> None:
         return
 
 
-def execute_command(
-    command: list[str], timeout: int
-) -> subprocess.CompletedProcess[bytes]:
+def execute_command(command: list[str], timeout: int) -> subprocess.CompletedProcess[bytes]:
     """Bound the complete owned process tree, including inherited stdout/stderr pipes."""
     job: _WindowsJob | None = None
     process: subprocess.Popen[bytes] | None = None
@@ -221,9 +219,7 @@ def execute_command(
             stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL,
             start_new_session=os.name != "nt",
-            creationflags=(0x00000004 | 0x00000200 | 0x08000000)
-            if os.name == "nt"
-            else 0,
+            creationflags=(0x00000004 | 0x00000200 | 0x08000000) if os.name == "nt" else 0,
         )  # Windows: CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW.
         if job is not None:
             job.assign_and_resume(process)
@@ -240,22 +236,16 @@ def execute_command(
                 if job is not None:
                     job.terminate()
                 else:
-                    _signal_owned_group(
-                        process, 9
-                    )  # POSIX SIGKILL; Windows uses its owned job.
+                    _signal_owned_group(process, 9)  # POSIX SIGKILL; Windows uses its owned job.
                 process.communicate(timeout=3)
             raise subprocess.TimeoutExpired("withheld", timeout) from None
-        return subprocess.CompletedProcess(
-            ["withheld"], process.returncode, stdout, stderr
-        )
+        return subprocess.CompletedProcess(["withheld"], process.returncode, stdout, stderr)
     finally:
         try:
             if job is not None:
                 job.close()
             elif process is not None:
-                _signal_owned_group(
-                    process, 9
-                )  # POSIX SIGKILL; Windows uses its owned job.
+                _signal_owned_group(process, 9)  # POSIX SIGKILL; Windows uses its owned job.
         finally:
             if process is not None:
                 if process.poll() is None:
@@ -277,9 +267,7 @@ def scan_output(payload: bytes, tool_dir: Path) -> bool:
 
 def counters(payload: bytes) -> tuple[dict[str, int], bool]:
     """Project integers only; untrusted text never becomes a report field."""
-    text = re.sub(
-        r"\x1b\[[0-9;]*[A-Za-z]", "", payload.decode("utf-8", errors="replace")
-    )
+    text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", payload.decode("utf-8", errors="replace"))
     result: dict[str, int] = {}
     incomplete = False
     patterns = {
@@ -340,8 +328,7 @@ def run_gate(
                 # Alembic current writes revisions to stdout; additional heads/revisions,
                 # blank output and a stale version all invalidate this proof.
                 incomplete = (
-                    incomplete
-                    or completed.stdout.strip() != b"0022_password_change_fix (head)"
+                    incomplete or completed.stdout.strip() != b"0022_password_change_fix (head)"
                 )
             if incomplete:
                 report["reason"] = "incomplete_test_gate"
