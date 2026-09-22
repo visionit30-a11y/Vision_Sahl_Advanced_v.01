@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.exc import InterfaceError
 
 from app.db.identity_bootstrap import (
     BootstrapResult,
@@ -117,3 +118,20 @@ def test_command_reports_password_confirmation_without_echoing_secret(
     assert "Password confirmation does not match" in captured.err
     assert "A valid private password" not in captured.out + captured.err
     assert "A different private password" not in captured.out + captured.err
+
+
+def test_command_redacts_database_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    marker = "database-password-marker"
+
+    async def fail(_options: identity_bootstrap.Options) -> int:
+        raise InterfaceError("connection", {"password": marker}, RuntimeError(marker))
+
+    monkeypatch.setattr(identity_bootstrap, "_run", fail)
+
+    assert identity_bootstrap.main(["reset-password"]) == 1
+    captured = capsys.readouterr()
+    assert "database operation failed" in captured.err
+    assert marker not in captured.out + captured.err

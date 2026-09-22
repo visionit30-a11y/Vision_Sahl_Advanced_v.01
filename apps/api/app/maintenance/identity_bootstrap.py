@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import getpass
+import platform
 import sys
 import uuid
 from dataclasses import dataclass
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
 from app.db.identity_bootstrap import BootstrapTenant, IdentityBootstrapDatabase
@@ -101,7 +104,11 @@ async def _run(options: Options) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     try:
-        return asyncio.run(_run(_options(sys.argv[1:] if argv is None else argv)))
+        operation = _run(_options(sys.argv[1:] if argv is None else argv))
+        if platform.system() == "Windows":
+            with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+                return runner.run(operation)
+        return asyncio.run(operation)
     except PasswordPolicyError as error:
         print(str(error), file=sys.stderr)
         return 1
@@ -110,6 +117,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except ValueError, RuntimeError:
         print("Identity administration could not be completed.", file=sys.stderr)
+        return 1
+    except SQLAlchemyError:
+        print("Identity administration database operation failed.", file=sys.stderr)
         return 1
 
 
