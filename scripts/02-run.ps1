@@ -82,11 +82,17 @@ try {
     }
     $env:APP_ENV = 'development'
     $env:AUTH_LOCAL_HTTP_ORIGIN = 'http://localhost:5173'
+    if (-not $env:AUTH_HMAC_KEY -or $env:AUTH_HMAC_KEY.Length -lt 32) {
+        $env:AUTH_HMAC_KEY = (& $venvPython -c 'import secrets; print(secrets.token_hex(32))')
+        if ($LASTEXITCODE -ne 0 -or $env:AUTH_HMAC_KEY.Length -lt 32) {
+            throw 'Ephemeral local authentication key generation failed.'
+        }
+    }
     Write-Section 'Starting the API (uvicorn)'
     $apiOut = Join-Path $logDir ('api-' + $stamp + '.log')
     $apiErr = Join-Path $logDir ('api-' + $stamp + '.err.log')
     $api = Start-Process -FilePath $venvPython `
-        -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', "$API_PORT", '--reload') `
+        -ArgumentList @('-m', 'app.local_server') `
         -WorkingDirectory $apiDir `
         -RedirectStandardOutput $apiOut -RedirectStandardError $apiErr `
         -WindowStyle Hidden -PassThru
