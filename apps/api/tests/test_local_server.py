@@ -11,9 +11,7 @@ from app import local_server
 
 
 def test_local_server_refuses_nondevelopment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        local_server, "get_settings", lambda: SimpleNamespace(app_env="production")
-    )
+    monkeypatch.setattr(local_server, "get_settings", lambda: SimpleNamespace(app_env="production"))
 
     with pytest.raises(RuntimeError, match="APP_ENV=development"):
         local_server.main()
@@ -33,11 +31,12 @@ def test_windows_local_server_uses_selector_loop(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(local_server.uvicorn, "Config", Mock(return_value=object()))
     monkeypatch.setattr(local_server.uvicorn, "Server", Mock(return_value=server))
     monkeypatch.setattr(local_server.platform, "system", lambda: "Windows")
-    monkeypatch.setattr(local_server.asyncio, "Runner", Mock(return_value=runner))
+    runner_factory = Mock(return_value=runner)
+    monkeypatch.setattr(local_server.asyncio, "Runner", runner_factory)
 
     local_server.main()
 
-    factory = local_server.asyncio.Runner.call_args.kwargs["loop_factory"]
+    factory = runner_factory.call_args.kwargs["loop_factory"]
     loop = factory()
     try:
         assert isinstance(loop, local_server.asyncio.SelectorEventLoop)
