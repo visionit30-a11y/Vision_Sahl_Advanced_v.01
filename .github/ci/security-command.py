@@ -310,7 +310,7 @@ def run_gate(
                 # blank output and a stale version all invalidate this proof.
                 incomplete = (
                     incomplete
-                    or completed.stdout.strip() != b"0021_tenant_admin_bootstrap_fix (head)"
+                    or completed.stdout.strip() != b"0022_password_change_fix (head)"
                 )
             if incomplete:
                 report["reason"] = "incomplete_test_gate"
