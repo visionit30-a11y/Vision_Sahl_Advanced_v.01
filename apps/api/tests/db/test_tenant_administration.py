@@ -61,6 +61,22 @@ async def bootstrap_state(settings: Settings) -> AsyncIterator[dict[str, uuid.UU
                 {"tenant": tenant_id},
             )
             connection.execute(
+                text("DELETE FROM auth.membership_roles WHERE tenant_id=:tenant"),
+                {"tenant": tenant_id},
+            )
+            connection.execute(
+                text("DELETE FROM auth.role_permissions WHERE tenant_id=:tenant"),
+                {"tenant": tenant_id},
+            )
+            connection.execute(
+                text("DELETE FROM auth.roles WHERE tenant_id=:tenant"),
+                {"tenant": tenant_id},
+            )
+            connection.execute(
+                text("DELETE FROM auth.tenant_memberships WHERE tenant_id=:tenant"),
+                {"tenant": tenant_id},
+            )
+            connection.execute(
                 text("DELETE FROM public.tenants WHERE id=:tenant"), {"tenant": tenant_id}
             )
             connection.execute(
