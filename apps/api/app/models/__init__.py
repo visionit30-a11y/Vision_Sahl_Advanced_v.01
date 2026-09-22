@@ -7,6 +7,7 @@ is invisible to autogenerate.
 
 from __future__ import annotations
 
+from app.models.activity_center import Notification, NotificationPreference
 from app.models.auth_security import PasswordResetToken, SecurityEvent, ThrottleBucket
 from app.models.authorization import MembershipRole, Role, RolePermission, RoleStatus
 from app.models.identity import (
@@ -26,6 +27,8 @@ __all__ = [
     "AuthSession",
     "MembershipRole",
     "MembershipStatus",
+    "Notification",
+    "NotificationPreference",
     "PasswordCredential",
     "PasswordResetToken",
     "PlatformUiSettings",

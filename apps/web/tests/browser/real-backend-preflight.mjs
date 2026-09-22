@@ -1,7 +1,7 @@
 import { createServer } from 'node:net';
 
 const FRONTEND_PORT = process.env.SAHL_VERIFY_LOCAL_DEV === '1' ? 5173 : 5187;
-const BACKEND_URL = 'http://127.0.0.1:8010';
+const BACKEND_URL = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8010';
 const requiredOperations = [
   ['get', '/auth/preauth'],
   ['post', '/auth/login'],
@@ -22,6 +22,13 @@ const requiredOperations = [
   ['get', '/workflows/requests'],
   ['post', '/workflows/requests'],
   ['get', '/workflows/approvals/inbox'],
+  ['get', '/activity-center/notifications'],
+  ['get', '/activity-center/notifications/summary'],
+  ['post', '/activity-center/notifications/read-all'],
+  ['get', '/activity-center/tasks'],
+  ['get', '/activity-center/preferences'],
+  ['put', '/activity-center/preferences'],
+  ['get', '/activity-center/dashboard'],
 ];
 
 async function assertPortAvailable(host) {

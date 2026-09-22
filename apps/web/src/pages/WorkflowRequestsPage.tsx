@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   Badge,
@@ -31,6 +32,8 @@ const statusTone = {
 
 export function WorkflowRequestsPage() {
   const { t } = useTranslation('workflow');
+  const [searchParams] = useSearchParams();
+  const focusedRequest = searchParams.get('request');
   const [requests, setRequests] = useState<WorkflowRequest[]>([]);
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [history, setHistory] = useState<Record<string, WorkflowEvent[]>>({});
@@ -126,7 +129,13 @@ export function WorkflowRequestsPage() {
         {requests.map((request) => {
           const events = history[request.id];
           return (
-            <li className={styles.request} key={request.id} data-testid="workflow-request">
+            <li
+              className={styles.request}
+              key={request.id}
+              data-testid="workflow-request"
+              data-request-id={request.id}
+              aria-current={focusedRequest === request.id ? 'true' : undefined}
+            >
               <div className={styles.requestHeader}>
                 <strong>{request.title}</strong>
                 <Badge tone={statusTone[request.status]}>{t(`status.${request.status}`)}</Badge>
@@ -155,7 +164,12 @@ export function WorkflowRequestsPage() {
                   {events.map((item) => (
                     <p key={item.id}>
                       <strong>{t(`events.${item.event_type}`)}</strong>
+                      {` · ${t(`actors.${item.actor_kind}`)} · ${t(`status.${item.from_status ?? item.to_status}`)} → ${t(`status.${item.to_status}`)}`}
                       {item.note ? ` — ${item.note}` : ''}
+                      <span className={styles.meta}>
+                        {' '}
+                        · {new Date(item.created_at).toLocaleString()}
+                      </span>
                     </p>
                   ))}
                 </div>

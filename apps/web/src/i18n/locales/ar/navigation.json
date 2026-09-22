@@ -8,10 +8,14 @@
     "workflow": "سير العمل"
   },
   "tenantSelector": "الجهة",
+  "unreadCount": "{{count}} إشعارات غير مقروءة",
   "items": {
     "home": "الرئيسية",
     "designSystem": "نظام التصميم",
     "workflowRequests": "الطلبات",
-    "workflowApprovals": "صندوق الاعتمادات"
+    "workflowApprovals": "صندوق الاعتمادات",
+    "notifications": "الإشعارات",
+    "tasks": "مهامي",
+    "notificationPreferences": "تفضيلات الإشعارات"
   }
 }

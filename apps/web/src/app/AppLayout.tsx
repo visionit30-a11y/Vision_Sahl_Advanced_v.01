@@ -1,20 +1,23 @@
 import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useUiCustomization } from '../ui-customization';
-import { AppShell, Button, InlineAlert, Menu } from '../design-system';
+import { AppShell, Badge, Button, IconButton, InlineAlert, Menu } from '../design-system';
+import { useActivityCenter } from '../activity-center/context';
 import type { Crumb } from '../design-system';
 import styles from './AppLayout.module.css';
 import { useAppAuth } from './auth-state';
 import { LanguageMenu } from './LanguageMenu';
 import { NAV_SECTIONS } from './navigation';
-import { usePermissionSnapshot } from './permission-state';
+import { FRONTEND_PERMISSIONS, usePermissionSnapshot } from './permission-state';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { t } = useTranslation(['navigation', 'designSystem', 'common']);
   const auth = useAppAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const activity = useActivityCenter();
   const { status, reload } = useUiCustomization();
   const permissions = usePermissionSnapshot();
   const visibleSections = NAV_SECTIONS.map((section) => ({
@@ -40,7 +43,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
       ? t('navigation:items.workflowApprovals')
       : location.pathname.startsWith('/workflows/requests')
         ? t('navigation:items.workflowRequests')
-        : null;
+        : location.pathname.startsWith('/notifications')
+          ? t('navigation:items.notifications')
+          : location.pathname.startsWith('/tasks')
+            ? t('navigation:items.tasks')
+            : location.pathname.startsWith('/settings/notifications')
+              ? t('navigation:items.notificationPreferences')
+              : null;
   const breadcrumbs: Crumb[] = currentLabel ? [home, { id: 'current', label: currentLabel }] : [];
 
   return (
@@ -49,6 +58,26 @@ export function AppLayout({ children }: { children: ReactNode }) {
       breadcrumbs={breadcrumbs}
       headerActions={
         <>
+          {permissions.allows(FRONTEND_PERMISSIONS.readWorkflowRequests) ? (
+            <span className={styles.notificationButton}>
+              <IconButton
+                icon="bell"
+                label={t('navigation:items.notifications')}
+                tone="onHeader"
+                onClick={() => navigate('/notifications')}
+              />
+              {activity.unreadCount > 0 ? (
+                <span
+                  className={styles.notificationBadge}
+                  aria-label={t('navigation:unreadCount', { count: activity.unreadCount })}
+                >
+                  <Badge tone="danger">
+                    {activity.unreadCount > 99 ? '99+' : activity.unreadCount}
+                  </Badge>
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           {auth.memberships.length > 0 ? (
             <Menu
               label={auth.selectedMembershipName || t('navigation:tenantSelector')}

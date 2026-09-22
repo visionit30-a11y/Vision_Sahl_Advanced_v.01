@@ -7,6 +7,9 @@ import { LoginPage } from '../pages/LoginPage';
 import { HomePage } from '../pages/HomePage';
 import { WorkflowRequestsPage } from '../pages/WorkflowRequestsPage';
 import { WorkflowApprovalsPage } from '../pages/WorkflowApprovalsPage';
+import { NotificationsPage } from '../pages/NotificationsPage';
+import { TasksPage } from '../pages/TasksPage';
+import { NotificationPreferencesPage } from '../pages/NotificationPreferencesPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { AppLayout } from './AppLayout';
 import { AppProviders } from './AppProviders';
@@ -87,6 +90,30 @@ export function App() {
             element={
               <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.manageOwnUiSettings}>
                 <DesignSystemPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.readWorkflowRequests}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.decideWorkflowApprovals}>
+                <TasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/notifications"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.manageOwnUiSettings}>
+                <NotificationPreferencesPage />
               </ProtectedRoute>
             }
           />

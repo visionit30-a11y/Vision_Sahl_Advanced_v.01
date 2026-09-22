@@ -29,11 +29,13 @@ export interface ApprovalTask {
   status: string;
   version: number;
   created_at: string;
+  due_at: string;
 }
 
 export interface WorkflowEvent {
   id: string;
   actor_membership_id: string;
+  actor_kind: 'requester' | 'approver';
   event_type: string;
   from_status: string | null;
   to_status: string;

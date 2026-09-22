@@ -6,6 +6,7 @@ import uuid
 
 from sqlalchemy import text
 
+from app.activity_center.service import publish_notification
 from app.authorization.contracts import AuthorizationBoundaryRequiredError, AuthorizationGrant
 from app.authorization.permissions import Permission, PermissionId
 from app.core.errors import AppError
@@ -180,6 +181,22 @@ class WorkflowService:
             )
             event = "resubmitted" if previous == "returned" else "submitted"
             await self._event(tx, grant, request_id, event, str(previous), "pending", None)
+            await publish_notification(
+                tx,
+                tenant_id=grant.tenant_context.tenant_id,
+                recipient_membership_id=grant.principal.membership_id,
+                request_id=request_id,
+                kind="request_submitted",
+                title=row.title,
+            )
+            await publish_notification(
+                tx,
+                tenant_id=grant.tenant_context.tenant_id,
+                recipient_membership_id=row.approver_membership_id,
+                request_id=request_id,
+                kind="approval_requested",
+                title=row.title,
+            )
         return WorkflowRecord.model_validate(row._mapping)
 
     async def list_requests(self, grant: AuthorizationGrant) -> list[WorkflowRecord]:
@@ -221,8 +238,14 @@ class WorkflowService:
             rows = (
                 await tx.execute(
                     text("""
-                SELECT id,actor_membership_id,event_type,from_status,to_status,note,created_at
-                FROM app.workflow_events WHERE request_id=:id ORDER BY created_at,id
+                SELECT event.id,event.actor_membership_id,event.event_type,event.from_status,
+                  event.to_status,event.note,event.created_at,
+                  CASE WHEN event.actor_membership_id=request.requester_membership_id
+                       THEN 'requester' ELSE 'approver' END actor_kind
+                FROM app.workflow_events event
+                JOIN app.workflow_requests request
+                  ON request.tenant_id=event.tenant_id AND request.id=event.request_id
+                WHERE event.request_id=:id ORDER BY event.created_at,event.id
             """),
                     {"id": request_id},
                 )
@@ -236,7 +259,8 @@ class WorkflowService:
                 await tx.execute(
                     text("""
                 SELECT task.id,task.request_id,request.title,request.request_type,
-                       request.requester_membership_id,task.status,task.version,task.created_at
+                       request.requester_membership_id,task.status,task.version,
+                       task.created_at,task.due_at
                 FROM app.workflow_approval_tasks task
                 JOIN app.workflow_requests request
                   ON request.tenant_id=task.tenant_id AND request.id=task.request_id
@@ -304,6 +328,14 @@ class WorkflowService:
             if row is None:
                 raise WorkflowConflictError()
             await self._event(tx, grant, row.id, status, "pending", status, note)
+            await publish_notification(
+                tx,
+                tenant_id=grant.tenant_context.tenant_id,
+                recipient_membership_id=row.requester_membership_id,
+                request_id=row.id,
+                kind=f"request_{status}",
+                title=row.title,
+            )
         return WorkflowRecord.model_validate(row._mapping)
 
     @staticmethod

@@ -1,0 +1,68 @@
+{
+  "loading": "Loading the activity center",
+  "notifications": {
+    "title": "Notifications",
+    "description": "Follow events related to your requests and approvals.",
+    "all": "All notifications",
+    "empty": "No notifications"
+  },
+  "tasks": {
+    "title": "My tasks",
+    "description": "Tasks assigned to your membership in the current tenant.",
+    "filters": "Task filters",
+    "list": "Task list",
+    "empty": "No matching tasks",
+    "state": "Status",
+    "type": "Type",
+    "from": "From date",
+    "to": "To date",
+    "all": "All",
+    "open": "Open",
+    "completed": "Completed",
+    "overdue": "Overdue"
+  },
+  "preferences": {
+    "title": "Notification preferences",
+    "description": "Control in-app notifications for the current tenant.",
+    "inApp": "In-app notifications",
+    "mandatory": "Security and mandatory notifications",
+    "mandatoryHint": "These remain enabled to protect the account and transaction integrity.",
+    "fields": {
+      "approval_requested": "New approval request",
+      "request_approved": "Request approved",
+      "request_rejected": "Request rejected",
+      "request_returned": "Request returned for changes",
+      "overdue_tasks": "Overdue tasks"
+    }
+  },
+  "dashboard": {
+    "title": "Work summary",
+    "unread": "Unread notifications",
+    "pending": "Pending tasks",
+    "overdue": "Overdue tasks",
+    "recent": "Recent activity",
+    "empty": "No activity yet"
+  },
+  "kinds": {
+    "request_submitted": "Request submitted",
+    "approval_requested": "New approval request",
+    "request_returned": "Request returned",
+    "request_rejected": "Request rejected",
+    "request_approved": "Request approved",
+    "task_overdue": "Task overdue"
+  },
+  "status": { "read": "Read", "unread": "New" },
+  "actors": { "requester": "Requester", "approver": "Approver" },
+  "actions": {
+    "markRead": "Mark as read",
+    "markAllRead": "Mark all as read",
+    "openRequest": "Open request",
+    "filter": "Apply",
+    "save": "Save preferences",
+    "retry": "Retry"
+  },
+  "errors": {
+    "title": "The activity center could not be loaded",
+    "description": "Refresh the page or try again."
+  }
+}

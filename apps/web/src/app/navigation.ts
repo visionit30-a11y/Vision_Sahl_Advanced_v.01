@@ -38,6 +38,27 @@ export const NAV_SECTIONS: NavSection[] = [
         to: '/workflows/approvals',
         requiredPermission: FRONTEND_PERMISSIONS.decideWorkflowApprovals,
       },
+      {
+        id: 'tasks',
+        labelKey: 'items.tasks',
+        icon: 'check',
+        to: '/tasks',
+        requiredPermission: FRONTEND_PERMISSIONS.decideWorkflowApprovals,
+      },
+      {
+        id: 'notifications',
+        labelKey: 'items.notifications',
+        icon: 'bell',
+        to: '/notifications',
+        requiredPermission: FRONTEND_PERMISSIONS.readWorkflowRequests,
+      },
+      {
+        id: 'notification-preferences',
+        labelKey: 'items.notificationPreferences',
+        icon: 'layers',
+        to: '/settings/notifications',
+        requiredPermission: FRONTEND_PERMISSIONS.manageOwnUiSettings,
+      },
     ],
   },
 ];

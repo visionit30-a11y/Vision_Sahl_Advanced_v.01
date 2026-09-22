@@ -1,0 +1,65 @@
+{
+  "loading": "جارٍ تحميل مركز النشاط",
+  "notifications": {
+    "title": "الإشعارات",
+    "description": "متابعة الأحداث المرتبطة بطلباتك واعتماداتك.",
+    "all": "جميع الإشعارات",
+    "empty": "لا توجد إشعارات"
+  },
+  "tasks": {
+    "title": "مهامي",
+    "description": "المهام المسندة إلى عضويتك في الجهة الحالية.",
+    "filters": "تصفية المهام",
+    "list": "قائمة المهام",
+    "empty": "لا توجد مهام مطابقة",
+    "state": "الحالة",
+    "type": "النوع",
+    "from": "من تاريخ",
+    "to": "إلى تاريخ",
+    "all": "الكل",
+    "open": "مفتوحة",
+    "completed": "مكتملة",
+    "overdue": "متأخرة"
+  },
+  "preferences": {
+    "title": "تفضيلات الإشعارات",
+    "description": "تحكم في إشعارات المنصة داخل الجهة الحالية.",
+    "inApp": "إشعارات داخل المنصة",
+    "mandatory": "إشعارات الأمان والإشعارات الإلزامية",
+    "mandatoryHint": "تبقى فعالة لحماية الحساب وسلامة العمليات.",
+    "fields": {
+      "approval_requested": "طلب جديد للاعتماد",
+      "request_approved": "اعتماد الطلب",
+      "request_rejected": "رفض الطلب",
+      "request_returned": "إعادة الطلب للتعديل",
+      "overdue_tasks": "المهام المتأخرة"
+    }
+  },
+  "dashboard": {
+    "title": "ملخص العمل",
+    "unread": "إشعارات غير مقروءة",
+    "pending": "مهام معلقة",
+    "overdue": "مهام متأخرة",
+    "recent": "آخر الأنشطة",
+    "empty": "لا توجد أنشطة بعد"
+  },
+  "kinds": {
+    "request_submitted": "تم إرسال الطلب",
+    "approval_requested": "طلب جديد للاعتماد",
+    "request_returned": "أعيد الطلب للتعديل",
+    "request_rejected": "رُفض الطلب",
+    "request_approved": "اعتُمد الطلب",
+    "task_overdue": "مهمة متأخرة"
+  },
+  "status": { "read": "مقروء", "unread": "جديد" },
+  "actors": { "requester": "مقدم الطلب", "approver": "المعتمد" },
+  "actions": {
+    "markRead": "تحديد كمقروء",
+    "markAllRead": "تحديد الكل كمقروء",
+    "openRequest": "فتح الطلب",
+    "filter": "تطبيق",
+    "save": "حفظ التفضيلات",
+    "retry": "إعادة المحاولة"
+  },
+  "errors": { "title": "تعذر تحميل مركز النشاط", "description": "حدّث الصفحة أو أعد المحاولة." }
+}

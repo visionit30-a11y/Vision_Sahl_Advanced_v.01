@@ -13,6 +13,7 @@ export default defineConfig({
       '/ui-settings': { target: API_TARGET, changeOrigin: false },
       '/health': { target: API_TARGET, changeOrigin: false },
       '/auth': { target: API_TARGET, changeOrigin: false },
+      '/activity-center': { target: API_TARGET, changeOrigin: false },
       '/workflows': {
         target: API_TARGET,
         changeOrigin: false,

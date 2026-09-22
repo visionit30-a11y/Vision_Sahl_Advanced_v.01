@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test as base } from '@playwright/test';
-import type { APIResponse, Page } from '@playwright/test';
+import type { APIResponse, BrowserContext, Page } from '@playwright/test';
 
 type Account = Record<
   | 'user'
@@ -67,6 +67,15 @@ async function reserveRealCsrfBudget(): Promise<void> {
     await waitForFreshCsrfWindow(current);
   }
   initialCsrfWindowAligned = true;
+}
+
+function trackRealCsrfBudget(context: BrowserContext): void {
+  context.on('request', (request) => {
+    if (request.method() === 'GET' && new URL(request.url()).pathname === '/auth/csrf') {
+      currentCsrfWindow();
+      csrfWindowRequests += 1;
+    }
+  });
 }
 
 function rememberSecret(value: string | undefined): void {
@@ -727,9 +736,12 @@ test('real backend wins over legacy storage and network failure stays visible', 
 test('real workflow request returns, resubmits, approves, and preserves history', async ({
   browser,
 }) => {
+  test.setTimeout(240_000);
   const account = await database('seed_login');
   const requesterContext = await browser.newContext({ baseURL: origin });
   const approverContext = await browser.newContext({ baseURL: origin });
+  trackRealCsrfBudget(requesterContext);
+  trackRealCsrfBudget(approverContext);
   const requester = await requesterContext.newPage();
   const approver = await approverContext.newPage();
   try {
@@ -743,16 +755,35 @@ test('real workflow request returns, resubmits, approves, and preserves history'
     await expect(requester.getByTestId('workflow-request')).toContainText('مسودة');
     await requester.getByRole('button', { name: 'إرسال' }).click();
     await expect(requester.getByTestId('workflow-request')).toContainText('قيد الاعتماد');
+    await requester.reload();
+    await expect(requester.getByRole('button', { name: 'الإشعارات' })).toBeVisible();
 
     await loginAndSelectTenant(approver, account.approver_email, account.approver_password);
+    await expect(approver.getByLabel(/إشعارات غير مقروءة/)).toBeVisible();
+    await approver.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(approver.getByTestId('notification-item')).toContainText('طلب جديد للاعتماد');
+    await approver.getByRole('button', { name: 'فتح الطلب' }).click();
+    await expect(approver).toHaveURL(/\/workflows\/requests\?request=/);
+    await approver.goto('/tasks');
+    await expect(approver.getByTestId('activity-task')).toContainText('طلب اعتماد تجريبي');
+    await expect(approver.getByTestId('activity-task')).toContainText('مفتوحة');
     await approver.goto('/workflows/approvals');
     await expect(approver.getByTestId('approval-task')).toContainText('طلب اعتماد تجريبي');
     await approver.getByLabel('ملاحظة القرار').fill('أكمل وصف الطلب');
     await approver.getByRole('button', { name: 'إعادة' }).click();
     await expect(approver.getByText('لا توجد اعتمادات بانتظارك')).toBeVisible();
 
+    // The proof intentionally drives two authenticated shells. Respect the
+    // PostgreSQL-backed CSRF limit before the resubmission half instead of
+    // resetting counters or retrying a rejected request.
+    await reserveRealCsrfBudget();
     await requester.reload();
     await expect(requester.getByTestId('workflow-request')).toContainText('معاد');
+    await requester.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(requester.getByTestId('notification-item').first()).toContainText(
+      'أعيد الطلب للتعديل',
+    );
+    await requester.getByRole('link', { name: 'الطلبات' }).click();
     await requester.getByRole('button', { name: 'تعديل' }).click();
     await requester.getByLabel('الوصف').fill('دورة اعتماد مكتملة وقابلة للتتبع');
     await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
@@ -761,11 +792,20 @@ test('real workflow request returns, resubmits, approves, and preserves history'
     await approver.reload();
     await expect(approver.getByTestId('approval-task')).toBeVisible();
     await approver.getByRole('button', { name: 'اعتماد' }).click();
+    await approver.goto('/tasks');
+    await approver.getByLabel('الحالة').selectOption('completed');
+    await approver.getByRole('button', { name: 'تطبيق' }).click();
+    await expect(approver.getByTestId('activity-task').first()).toContainText('مكتملة');
     await requester.reload();
     await expect(requester.getByTestId('workflow-request')).toContainText('معتمد');
     await requester.getByRole('button', { name: 'سجل الحركات' }).click();
     await expect(requester.getByTestId('workflow-history')).toContainText('تمت الإعادة');
     await expect(requester.getByTestId('workflow-history')).toContainText('تم الاعتماد');
+    await expect(requester.getByTestId('workflow-history')).toContainText('مقدم الطلب');
+    await requester.getByRole('button', { name: 'الإشعارات' }).click();
+    await expect(requester.getByTestId('notification-item').first()).toContainText('اعتُمد الطلب');
+    await requester.getByRole('button', { name: 'تحديد الكل كمقروء' }).click();
+    await expect(requester.getByText('جديد')).toHaveCount(0);
   } finally {
     for (const value of await requesterContext.cookies()) rememberSecret(value.value);
     for (const value of await approverContext.cookies()) rememberSecret(value.value);
@@ -779,10 +819,6 @@ test('real login form establishes a fresh PostgreSQL session and selected tenant
   page,
   context,
 }) => {
-  // The preceding workflow proof uses two additional browser contexts. Start
-  // this independent login proof in a new server throttle window rather than
-  // resetting PostgreSQL counters or retrying a rejected request.
-  await waitForFreshCsrfWindow();
   const account = await database('seed_login');
   rememberSecret(account.password);
   try {

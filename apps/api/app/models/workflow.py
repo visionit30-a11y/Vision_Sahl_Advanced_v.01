@@ -103,6 +103,7 @@ class WorkflowApprovalTask(Base):
         Index(
             "ix_workflow_tasks_inbox", "tenant_id", "assignee_membership_id", "status", "created_at"
         ),
+        Index("ix_workflow_tasks_due", "tenant_id", "assignee_membership_id", "status", "due_at"),
         {"schema": "app"},
     )
     id: Mapped[uuid.UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
@@ -120,6 +121,7 @@ class WorkflowApprovalTask(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class WorkflowEvent(Base):
