@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.models.activity_center import Notification, NotificationPreference
 from app.models.auth_security import PasswordResetToken, SecurityEvent, ThrottleBucket
 from app.models.authorization import MembershipRole, Role, RoleKind, RolePermission, RoleStatus
+from app.models.documents import WorkflowDocument
 from app.models.identity import (
     AuthSession,
     MembershipStatus,
@@ -48,6 +49,7 @@ __all__ = [
     "UserStatus",
     "UserUiSettings",
     "WorkflowApprovalTask",
+    "WorkflowDocument",
     "WorkflowEvent",
     "WorkflowRequest",
 ]

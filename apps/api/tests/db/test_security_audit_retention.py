@@ -451,7 +451,7 @@ def test_privilege_catalog_owner_fixed_path_and_exact_grants(retention: Retentio
         assert "(created_at, id)" in definition
         assert (
             db.scalar(text("SELECT version_num FROM public.alembic_version"))
-            == "0023_tenant_admin_guard"
+            == "0024_workflow_documents"
         )
     with retention.maintenance.connect() as db:
         assert (

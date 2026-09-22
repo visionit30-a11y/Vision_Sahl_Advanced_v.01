@@ -65,6 +65,7 @@ def test_discovered_production_tenant_tables_obey_the_contract(
         "app.tenant_ui_settings",
         "app.user_ui_settings",
         "app.workflow_approval_tasks",
+        "app.workflow_documents",
         "app.workflow_events",
         "app.workflow_requests",
         "auth.membership_roles",
