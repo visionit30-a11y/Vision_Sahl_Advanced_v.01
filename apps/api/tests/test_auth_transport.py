@@ -93,6 +93,7 @@ def test_auth_session_routes_are_registered_on_real_application(app: FastAPI) ->
         ("/auth/logout", "post"),
         ("/auth/login", "post"),
         ("/auth/preauth", "get"),
+        ("/auth/password/change", "post"),
     ):
         assert method in paths[path]
     assert not any("/auth/test/" in path for path in paths)
@@ -111,7 +112,7 @@ async def test_auth_routes_reject_missing_session_and_are_not_cacheable(
 async def test_me_serializes_only_identity_projection(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    identity = SessionIdentity(uuid.uuid7(), "member@example.test", uuid.uuid7())
+    identity = SessionIdentity(uuid.uuid7(), "member@example.test", uuid.uuid7(), False)
     identity_response = AsyncMock(return_value=identity)
     monkeypatch.setattr(
         type(auth_http_service), "me", lambda self, bearer: identity_response(bearer)
@@ -122,6 +123,7 @@ async def test_me_serializes_only_identity_projection(
         "id": str(identity.id),
         "email": identity.email,
         "selectedMembershipId": str(identity.selected_membership_id),
+        "forcePasswordChange": False,
     }
     assert BEARER not in response.text
     assert response.headers["Cache-Control"] == "no-store"
@@ -305,6 +307,48 @@ async def test_logout_clears_secure_cookie(
     cookie = response.headers["set-cookie"]
     assert all(item in cookie for item in ("Max-Age=0", "HttpOnly", "Secure", "SameSite=lax"))
     assert "Domain=" not in cookie
+
+
+async def test_password_change_uses_existing_auth_boundary_and_clears_cookie(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    changed = AsyncMock(return_value=True)
+    monkeypatch.setattr(
+        type(auth_http_service), "change_password", lambda self, *args: changed(*args)
+    )
+    response = await client.post(
+        "/auth/password/change",
+        headers={"Cookie": f"__Host-sahl_session={BEARER}"},
+        json={
+            "current_password": "Current password value",
+            "new_password": "A stronger password value",
+            "confirm_password": "A stronger password value",
+        },
+    )
+    assert response.status_code == 204
+    changed.assert_awaited_once()
+    assert "Max-Age=0" in response.headers["set-cookie"]
+
+
+async def test_password_change_rejects_mismatched_confirmation_without_execution(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    changed = AsyncMock()
+    monkeypatch.setattr(
+        type(auth_http_service), "change_password", lambda self, *args: changed(*args)
+    )
+    response = await client.post(
+        "/auth/password/change",
+        headers={"Cookie": f"__Host-sahl_session={BEARER}"},
+        json={
+            "current_password": "Current password value",
+            "new_password": "A stronger password value",
+            "confirm_password": "A different password value",
+        },
+    )
+    assert response.status_code == 422
+    changed.assert_not_called()
+    assert "password" not in response.text.lower()
 
 
 def test_session_dataclass_repr_does_not_expose_secrets() -> None:

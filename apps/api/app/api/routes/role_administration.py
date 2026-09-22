@@ -43,6 +43,7 @@ class RoleResponse(BaseModel):
     key: str
     display_name: str
     status: str
+    kind: str
     version: int
 
     @classmethod

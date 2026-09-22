@@ -43,6 +43,7 @@ class RoleRecord:
     key: str
     display_name: str
     status: str
+    kind: str
     version: int
 
 
@@ -77,7 +78,7 @@ class RoleAdministrationService:
                         text(
                             "INSERT INTO auth.roles(id,tenant_id,key,display_name) "
                             "VALUES (:id,:tenant_id,:key,:display_name) "
-                            "RETURNING id,tenant_id,key,display_name,status,version"
+                            "RETURNING id,tenant_id,key,display_name,status,kind,version"
                         ),
                         {
                             "id": role_id,
@@ -88,6 +89,9 @@ class RoleAdministrationService:
                     )
                 ).one()
                 await writer.write(event)
+                await self._write_access_event(
+                    transaction, grant, grant.principal.membership_id, role_id, "role_created"
+                )
         except IntegrityError:
             raise RoleConflictError() from None
         return RoleRecord(*row._tuple())
@@ -102,6 +106,7 @@ class RoleAdministrationService:
     ) -> RoleRecord:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            await self._require_custom_role(transaction, role_id)
             event = self._event(grant, SecurityEventType.ROLE_UPDATED, role_id)
             writer = SecurityEventWriter(transaction)
             await writer.prepare_role(event, grant.principal.membership_version)
@@ -111,7 +116,7 @@ class RoleAdministrationService:
                         "UPDATE auth.roles SET display_name=:display_name,"
                         "version=version+1,updated_at=clock_timestamp() "
                         "WHERE id=:role_id AND version=:expected_version "
-                        "RETURNING id,tenant_id,key,display_name,status,version"
+                        "RETURNING id,tenant_id,key,display_name,status,kind,version"
                     ),
                     {
                         "role_id": role_id,
@@ -123,6 +128,9 @@ class RoleAdministrationService:
             if row is None:
                 await self._raise_missing_or_stale(transaction, role_id)
             await writer.write(event)
+            await self._write_access_event(
+                transaction, grant, grant.principal.membership_id, role_id, "role_updated"
+            )
         return RoleRecord(*row._tuple())
 
     async def disable_role(
@@ -130,6 +138,7 @@ class RoleAdministrationService:
     ) -> RoleRecord:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            await self._require_custom_role(transaction, role_id)
             event = self._event(grant, SecurityEventType.ROLE_DISABLED, role_id)
             writer = SecurityEventWriter(transaction)
             await writer.prepare_role(event, grant.principal.membership_version)
@@ -139,7 +148,7 @@ class RoleAdministrationService:
                         "UPDATE auth.roles SET status='inactive',version=version+1,"
                         "updated_at=clock_timestamp() "
                         "WHERE id=:role_id AND version=:expected_version AND status='active' "
-                        "RETURNING id,tenant_id,key,display_name,status,version"
+                        "RETURNING id,tenant_id,key,display_name,status,kind,version"
                     ),
                     {"role_id": role_id, "expected_version": expected_version},
                 )
@@ -147,6 +156,9 @@ class RoleAdministrationService:
             if row is None:
                 await self._raise_missing_or_stale(transaction, role_id)
             await writer.write(event)
+            await self._write_access_event(
+                transaction, grant, grant.principal.membership_id, role_id, "role_disabled"
+            )
         return RoleRecord(*row._tuple())
 
     async def assign_permission(
@@ -155,6 +167,8 @@ class RoleAdministrationService:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         permission_id = self._tenant_permission(permission)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            await self._require_custom_role(transaction, role_id)
+            await self._require_actor_permission(transaction, grant, permission_id)
             await self._require_active_role(transaction, role_id)
             event = self._event(
                 grant,
@@ -179,6 +193,13 @@ class RoleAdministrationService:
             changed = result.scalar_one_or_none() == 1
             if changed:
                 await writer.write(event)
+                await self._write_access_event(
+                    transaction,
+                    grant,
+                    grant.principal.membership_id,
+                    role_id,
+                    "permission_assigned",
+                )
             else:
                 await writer.cancel_role(event)
         return changed
@@ -189,6 +210,7 @@ class RoleAdministrationService:
         grant = _require_grant(grant, Permission.TENANT_ROLES_MANAGE)
         permission_id = self._tenant_permission(permission)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            await self._require_custom_role(transaction, role_id)
             await self._require_role(transaction, role_id)
             event = self._event(
                 grant,
@@ -208,6 +230,13 @@ class RoleAdministrationService:
             changed = result.scalar_one_or_none() == 1
             if changed:
                 await writer.write(event)
+                await self._write_access_event(
+                    transaction,
+                    grant,
+                    grant.principal.membership_id,
+                    role_id,
+                    "permission_removed",
+                )
             else:
                 await writer.cancel_role(event)
         return changed
@@ -217,6 +246,11 @@ class RoleAdministrationService:
     ) -> bool:
         grant = _require_grant(grant, Permission.TENANT_MEMBERSHIPS_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            _, kind = await self._role_state(transaction, role_id)
+            if membership_id == grant.principal.membership_id:
+                raise RoleConflictError()
+            if kind == "tenant_admin":
+                await self._require_actor_tenant_admin(transaction, grant)
             await self._require_active_role(transaction, role_id)
             active = await transaction.scalar(
                 text("SELECT auth.is_active_membership_in_tenant(:membership,:tenant)"),
@@ -250,6 +284,9 @@ class RoleAdministrationService:
             changed = result.scalar_one_or_none() == 1
             if changed:
                 await writer.write(event)
+                await self._write_access_event(
+                    transaction, grant, membership_id, role_id, "role_assigned"
+                )
             else:
                 await writer.cancel_role(event)
         return changed
@@ -259,6 +296,23 @@ class RoleAdministrationService:
     ) -> bool:
         grant = _require_grant(grant, Permission.TENANT_MEMBERSHIPS_MANAGE)
         async with tenant_transaction(grant.tenant_context) as transaction:
+            _, kind = await self._role_state(transaction, role_id)
+            if membership_id == grant.principal.membership_id:
+                raise RoleConflictError()
+            if kind == "tenant_admin":
+                if membership_id == grant.principal.membership_id:
+                    raise RoleConflictError()
+                other_admins = await transaction.scalar(
+                    text(
+                        "SELECT count(*) FROM auth.membership_roles mr "
+                        "JOIN auth.tenant_memberships m ON m.tenant_id=mr.tenant_id "
+                        "AND m.id=mr.membership_id WHERE mr.role_id=:role_id "
+                        "AND mr.membership_id<>:membership AND m.status='active'"
+                    ),
+                    {"role_id": role_id, "membership": membership_id},
+                )
+                if not isinstance(other_admins, int) or other_admins < 1:
+                    raise RoleConflictError()
             await self._require_role(transaction, role_id)
             active = await transaction.scalar(
                 text("SELECT auth.is_active_membership_in_tenant(:membership,:tenant)"),
@@ -287,9 +341,36 @@ class RoleAdministrationService:
             changed = result.scalar_one_or_none() == 1
             if changed:
                 await writer.write(event)
+                await self._write_access_event(
+                    transaction, grant, membership_id, role_id, "role_removed"
+                )
             else:
                 await writer.cancel_role(event)
         return changed
+
+    @staticmethod
+    async def _write_access_event(
+        transaction: TenantTransaction,
+        grant: AuthorizationGrant,
+        target_membership_id: uuid.UUID,
+        role_id: uuid.UUID,
+        event_type: str,
+    ) -> None:
+        await transaction.execute(
+            text(
+                "INSERT INTO app.tenant_access_events("
+                "id,tenant_id,actor_membership_id,target_membership_id,role_id,event_type) "
+                "VALUES (:id,:tenant,:actor,:target,:role,:event_type)"
+            ),
+            {
+                "id": uuid.uuid7(),
+                "tenant": grant.tenant_context.tenant_id,
+                "actor": grant.principal.membership_id,
+                "target": target_membership_id,
+                "role": role_id,
+                "event_type": event_type,
+            },
+        )
 
     @staticmethod
     def _event(
@@ -333,7 +414,62 @@ class RoleAdministrationService:
     async def _require_active_role(
         self, transaction: TenantTransaction, role_id: uuid.UUID
     ) -> None:
-        if await self._require_role(transaction, role_id) != "active":
+        status, _ = await self._role_state(transaction, role_id)
+        if status != "active":
+            raise RoleConflictError()
+
+    @staticmethod
+    async def _role_state(transaction: TenantTransaction, role_id: uuid.UUID) -> tuple[str, str]:
+        row = (
+            await transaction.execute(
+                text("SELECT status::text,kind::text FROM auth.roles WHERE id=:role_id"),
+                {"role_id": role_id},
+            )
+        ).one_or_none()
+        if row is None:
+            raise RoleNotFoundError()
+        return row.status, row.kind
+
+    async def _require_custom_role(
+        self, transaction: TenantTransaction, role_id: uuid.UUID
+    ) -> None:
+        _, kind = await self._role_state(transaction, role_id)
+        if kind != "custom":
+            raise RoleConflictError()
+
+    @staticmethod
+    async def _require_actor_permission(
+        transaction: TenantTransaction,
+        grant: AuthorizationGrant,
+        permission_id: PermissionId,
+    ) -> None:
+        allowed = await transaction.scalar(
+            text(
+                "SELECT EXISTS(SELECT 1 FROM auth.membership_roles mr "
+                "JOIN auth.roles r ON r.tenant_id=mr.tenant_id AND r.id=mr.role_id "
+                "JOIN auth.role_permissions rp ON rp.tenant_id=r.tenant_id AND rp.role_id=r.id "
+                "WHERE mr.membership_id=:membership AND r.status='active' "
+                "AND rp.permission_id=:permission)"
+            ),
+            {"membership": grant.principal.membership_id, "permission": permission_id},
+        )
+        if allowed is not True:
+            raise RoleConflictError()
+
+    @staticmethod
+    async def _require_actor_tenant_admin(
+        transaction: TenantTransaction, grant: AuthorizationGrant
+    ) -> None:
+        allowed = await transaction.scalar(
+            text(
+                "SELECT EXISTS(SELECT 1 FROM auth.membership_roles mr "
+                "JOIN auth.roles r ON r.tenant_id=mr.tenant_id AND r.id=mr.role_id "
+                "WHERE mr.membership_id=:membership AND r.kind='tenant_admin' "
+                "AND r.status='active')"
+            ),
+            {"membership": grant.principal.membership_id},
+        )
+        if allowed is not True:
             raise RoleConflictError()
 
     @staticmethod

@@ -18,9 +18,7 @@ from app.ui_settings.contracts import (
 
 
 def test_valid_partial_patch_is_normalized() -> None:
-    patch = UiSettingsPatch.model_validate(
-        {"theme": "sand-warm", "buttonPreset": "compact-sharp"}
-    )
+    patch = UiSettingsPatch.model_validate({"theme": "sand-warm", "buttonPreset": "compact-sharp"})
     assert patch.as_json() == {"theme": "sand-warm", "buttonPreset": "compact-sharp"}
     assert set(patch.root) == {UiSettingKey.THEME, UiSettingKey.BUTTON_PRESET}
     assert UI_SETTINGS_SCHEMA_VERSION == 1
