@@ -26,11 +26,15 @@ $secure = Read-Host 'PostgreSQL local administrator password' -AsSecureString
 $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 $adminPassword = $null
 $operatorPassword = $null
+$operatorPasswordBytes = New-Object byte[] 36
 $operator = 'sahl_identity_bootstrap_' + ([guid]::NewGuid().ToString('N').Substring(0, 12))
 $operatorCreated = $false
 try {
     $adminPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
-    $operatorPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(36)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $random.GetBytes($operatorPasswordBytes) }
+    finally { $random.Dispose() }
+    $operatorPassword = [Convert]::ToBase64String($operatorPasswordBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
     $env:PGPASSWORD = $adminPassword
     $create = @"
 CREATE ROLE $operator LOGIN PASSWORD '$operatorPassword'
@@ -69,4 +73,5 @@ DROP ROLE IF EXISTS $operator;
     }
     $adminPassword = $null
     $operatorPassword = $null
+    [Array]::Clear($operatorPasswordBytes, 0, $operatorPasswordBytes.Length)
 }
