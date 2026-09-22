@@ -98,13 +98,25 @@ class _WindowsJob:
                 [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD],
                 wintypes.BOOL,
             ),
-            "AssignProcessToJobObject": ([wintypes.HANDLE, wintypes.HANDLE], wintypes.BOOL),
+            "AssignProcessToJobObject": (
+                [wintypes.HANDLE, wintypes.HANDLE],
+                wintypes.BOOL,
+            ),
             "TerminateJobObject": ([wintypes.HANDLE, wintypes.UINT], wintypes.BOOL),
             "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
-            "OpenProcess": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
-            "OpenThread": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
+            "OpenProcess": (
+                [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
+            "OpenThread": (
+                [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
             "ResumeThread": ([wintypes.HANDLE], wintypes.DWORD),
-            "CreateToolhelp32Snapshot": ([wintypes.DWORD, wintypes.DWORD], wintypes.HANDLE),
+            "CreateToolhelp32Snapshot": (
+                [wintypes.DWORD, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
             "Thread32First": ([wintypes.HANDLE, ctypes.c_void_p], wintypes.BOOL),
             "Thread32Next": ([wintypes.HANDLE, ctypes.c_void_p], wintypes.BOOL),
         }
@@ -194,7 +206,9 @@ def _signal_owned_group(process: subprocess.Popen[bytes], signum: int) -> None:
         return
 
 
-def execute_command(command: list[str], timeout: int) -> subprocess.CompletedProcess[bytes]:
+def execute_command(
+    command: list[str], timeout: int
+) -> subprocess.CompletedProcess[bytes]:
     """Bound the complete owned process tree, including inherited stdout/stderr pipes."""
     job: _WindowsJob | None = None
     process: subprocess.Popen[bytes] | None = None
@@ -207,7 +221,9 @@ def execute_command(command: list[str], timeout: int) -> subprocess.CompletedPro
             stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL,
             start_new_session=os.name != "nt",
-            creationflags=(0x00000004 | 0x00000200 | 0x08000000) if os.name == "nt" else 0,
+            creationflags=(0x00000004 | 0x00000200 | 0x08000000)
+            if os.name == "nt"
+            else 0,
         )  # Windows: CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW.
         if job is not None:
             job.assign_and_resume(process)
@@ -224,16 +240,22 @@ def execute_command(command: list[str], timeout: int) -> subprocess.CompletedPro
                 if job is not None:
                     job.terminate()
                 else:
-                    _signal_owned_group(process, 9)  # POSIX SIGKILL; Windows uses its owned job.
+                    _signal_owned_group(
+                        process, 9
+                    )  # POSIX SIGKILL; Windows uses its owned job.
                 process.communicate(timeout=3)
             raise subprocess.TimeoutExpired("withheld", timeout) from None
-        return subprocess.CompletedProcess(["withheld"], process.returncode, stdout, stderr)
+        return subprocess.CompletedProcess(
+            ["withheld"], process.returncode, stdout, stderr
+        )
     finally:
         try:
             if job is not None:
                 job.close()
             elif process is not None:
-                _signal_owned_group(process, 9)  # POSIX SIGKILL; Windows uses its owned job.
+                _signal_owned_group(
+                    process, 9
+                )  # POSIX SIGKILL; Windows uses its owned job.
         finally:
             if process is not None:
                 if process.poll() is None:
@@ -255,7 +277,9 @@ def scan_output(payload: bytes, tool_dir: Path) -> bool:
 
 def counters(payload: bytes) -> tuple[dict[str, int], bool]:
     """Project integers only; untrusted text never becomes a report field."""
-    text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", payload.decode("utf-8", errors="replace"))
+    text = re.sub(
+        r"\x1b\[[0-9;]*[A-Za-z]", "", payload.decode("utf-8", errors="replace")
+    )
     result: dict[str, int] = {}
     incomplete = False
     patterns = {
@@ -268,7 +292,10 @@ def counters(payload: bytes) -> tuple[dict[str, int], bool]:
         if values:
             result[key] = int(values[-1])
     for line in text.splitlines():
-        if re.search(r"\b[1-9]\d* (?:skipped|xfailed|xpassed|todo|pending|failed|errors?)\b", line):
+        if re.search(
+            r"\b[1-9]\d* (?:skipped|xfailed|xpassed|todo|pending|failed|errors?)\b",
+            line,
+        ):
             incomplete = True
     return result, incomplete
 
@@ -278,7 +305,11 @@ def run_gate(
 ) -> tuple[int, dict[str, Any]]:
     if name not in GATE_NAMES:
         return 1, {"result": "FAIL", "reason": "invalid_configuration"}
-    report: dict[str, Any] = {"gate": name, "result": "FAIL", "reason": "command_failed"}
+    report: dict[str, Any] = {
+        "gate": name,
+        "result": "FAIL",
+        "reason": "command_failed",
+    }
     try:
         if name not in GATE_NAMES or not command or not 1 <= timeout <= 1200:
             raise ValueError
