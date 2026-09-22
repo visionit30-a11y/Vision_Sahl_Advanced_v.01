@@ -48,6 +48,18 @@ export interface Approver {
   display_name: string;
 }
 
+export interface WorkflowDocument {
+  id: string;
+  tenant_id: string;
+  request_id: string;
+  uploaded_by_membership_id: string;
+  filename: string;
+  content_type: string;
+  byte_size: number;
+  sha256: string;
+  created_at: string;
+}
+
 async function json<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await (await authClient.request(path, init)).json()) as T;
 }
@@ -82,6 +94,18 @@ export const workflowClient = {
       body: JSON.stringify({ expected_version: expectedVersion }),
     }),
   history: (id: string) => json<WorkflowEvent[]>(`/workflows/requests/${id}/history`),
+  documents: (requestId: string) =>
+    json<WorkflowDocument[]>(`/workflows/requests/${requestId}/documents`),
+  uploadDocument: (requestId: string, file: File) => {
+    const body = new FormData();
+    body.set('upload', file);
+    return json<WorkflowDocument>(`/workflows/requests/${requestId}/documents`, {
+      method: 'POST',
+      body,
+    });
+  },
+  downloadDocument: (requestId: string, documentId: string) =>
+    authClient.request(`/workflows/requests/${requestId}/documents/${documentId}/download`),
   inbox: () => json<ApprovalTask[]>('/workflows/approvals/inbox'),
   decide: (id: string, decision: WorkflowDecision, expectedVersion: number, note: string) =>
     json<WorkflowRequest>(`/workflows/approvals/${id}/decision`, {

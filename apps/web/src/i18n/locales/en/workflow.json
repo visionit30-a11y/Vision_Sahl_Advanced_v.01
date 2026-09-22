@@ -50,6 +50,18 @@
     "returned": "Returned"
   },
   "actors": { "requester": "Requester", "approver": "Approver" },
+  "documents": {
+    "title": "Attachments",
+    "empty": "This request has no attachments.",
+    "choose": "Choose a file",
+    "upload": "Upload attachment",
+    "uploading": "Uploading...",
+    "download": "Download",
+    "size": "{{size}} KB",
+    "limit": "PDF, PNG or JPEG, up to 10 MB.",
+    "error": "The attachment action could not be completed.",
+    "retry": "Retry"
+  },
   "errors": {
     "title": "Workflow action failed",
     "description": "Reload the current tenant state and try again."
