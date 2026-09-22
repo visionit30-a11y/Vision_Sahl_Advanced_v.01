@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.api.auth_dependencies import session_bearer_from_cookie
@@ -19,6 +19,7 @@ from app.auth.http import (
     set_session_cookie,
     validate_csrf_bootstrap_origin,
 )
+from app.auth.tenants import SessionRejectedError
 from app.core.config import get_settings
 from app.db.auth_http import SessionIdentity, SessionMembership, auth_http_service
 
@@ -30,6 +31,7 @@ class SessionIdentityResponse(BaseModel):
     id: uuid.UUID
     email: str
     selectedMembershipId: uuid.UUID | None
+    forcePasswordChange: bool
 
     @classmethod
     def from_identity(cls, identity: SessionIdentity) -> SessionIdentityResponse:
@@ -37,6 +39,7 @@ class SessionIdentityResponse(BaseModel):
             id=identity.id,
             email=identity.email,
             selectedMembershipId=identity.selected_membership_id,
+            forcePasswordChange=identity.force_password_change,
         )
 
 
@@ -109,6 +112,13 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(max_length=1024, repr=False)
 
 
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    current_password: SecretStr = Field(max_length=1024, repr=False)
+    new_password: SecretStr = Field(max_length=1024, repr=False)
+    confirm_password: SecretStr = Field(max_length=1024, repr=False)
+
+
 @router.get("/preauth", status_code=204)
 async def preauth(request: Request, response: Response) -> None:
     settings = get_settings()
@@ -130,3 +140,24 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
     clear_preauth_cookie(response)
     set_session_cookie(response, issued.secrets.bearer)
     expose_csrf_token(response, issued.secrets.csrf_token)
+
+
+@router.post("/password/change", status_code=204)
+async def change_password(
+    payload: PasswordChangeRequest,
+    request: Request,
+    response: Response,
+    bearer: SessionBearer,
+) -> None:
+    new_password = payload.new_password.get_secret_value()
+    if new_password != payload.confirm_password.get_secret_value():
+        raise HTTPException(status_code=422)
+    changed = await auth_http_service.change_password(
+        bearer,
+        payload.current_password.get_secret_value(),
+        new_password,
+        request,
+    )
+    if not changed:
+        raise SessionRejectedError()
+    clear_session_cookie(response)

@@ -64,6 +64,27 @@ describe('AuthClient', () => {
     await expect(changed.me()).rejects.toBeInstanceOf(TenantContextChangedError);
   });
 
+  it('changes a password with session CSRF and invalidates local session state', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'session-csrf' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new AuthClient({ fetcher });
+    const listener = vi.fn();
+    client.subscribe(listener);
+    await client.bootstrapCsrf();
+    await client.changePassword(
+      'Current password value',
+      'New password value',
+      'New password value',
+    );
+    const [url, init] = fetcher.mock.calls[1] ?? [];
+    expect(url).toBe('/auth/password/change');
+    expect(new Headers(init?.headers).get('X-CSRF-Token')).toBe('session-csrf');
+    expect(init?.credentials).toBe('include');
+    expect(listener).toHaveBeenLastCalledWith('invalid');
+  });
+
   it('treats membership id as a selector and refreshes state after rotation', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

@@ -29,6 +29,11 @@ const requiredOperations = [
   ['get', '/activity-center/preferences'],
   ['put', '/activity-center/preferences'],
   ['get', '/activity-center/dashboard'],
+  ['get', '/tenant-admin/users'],
+  ['post', '/tenant-admin/users/invitations'],
+  ['patch', '/tenant-admin/memberships/{membership_id}/status'],
+  ['get', '/tenant-admin/roles'],
+  ['get', '/tenant-admin/access-events'],
 ];
 
 async function assertPortAvailable(host) {

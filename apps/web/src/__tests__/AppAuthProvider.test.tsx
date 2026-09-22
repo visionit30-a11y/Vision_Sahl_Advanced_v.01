@@ -22,6 +22,7 @@ function fixture(
     id: '00000000-0000-0000-0000-000000000001',
     email: 'person@example.test',
     selectedMembershipId: selected,
+    forcePasswordChange: false,
   });
 
   const client: AppAuthTransport = {

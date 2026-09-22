@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.models.activity_center import Notification, NotificationPreference
 from app.models.auth_security import PasswordResetToken, SecurityEvent, ThrottleBucket
-from app.models.authorization import MembershipRole, Role, RolePermission, RoleStatus
+from app.models.authorization import MembershipRole, Role, RoleKind, RolePermission, RoleStatus
 from app.models.identity import (
     AuthSession,
     MembershipStatus,
@@ -20,6 +20,7 @@ from app.models.identity import (
     UserStatus,
 )
 from app.models.tenant import Tenant
+from app.models.tenant_administration import TenantAccessEvent
 from app.models.ui_settings import PlatformUiSettings, TenantUiSettings, UserUiSettings
 from app.models.workflow import WorkflowApprovalTask, WorkflowEvent, WorkflowRequest
 
@@ -34,10 +35,12 @@ __all__ = [
     "PlatformUiSettings",
     "PreAuthCsrfState",
     "Role",
+    "RoleKind",
     "RolePermission",
     "RoleStatus",
     "SecurityEvent",
     "Tenant",
+    "TenantAccessEvent",
     "TenantMembership",
     "TenantUiSettings",
     "ThrottleBucket",

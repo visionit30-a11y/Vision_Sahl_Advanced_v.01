@@ -60,10 +60,8 @@ async def permissions(
     authorizer: Annotated[AuthorizationService, Depends(get_authorization_service)],
 ) -> list[Permission]:
     _no_store(response)
-    candidates = (
-        Permission.TENANT_WORKFLOW_REQUESTS_CREATE,
-        Permission.TENANT_WORKFLOW_REQUESTS_READ,
-        Permission.TENANT_WORKFLOW_APPROVALS_DECIDE,
+    candidates = tuple(
+        permission for permission in Permission if permission.value.startswith("tenant.")
     )
     allowed = await authorizer.allowed_permissions(
         access.principal,

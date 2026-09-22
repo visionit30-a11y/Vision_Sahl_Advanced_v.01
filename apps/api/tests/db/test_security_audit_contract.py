@@ -568,26 +568,30 @@ def test_frozen_migration_catalogue_matches_the_runtime_contract() -> None:
         key: value for key, value in AUDIT_CHECKS.items() if key != "permission_catalog"
     }
 
-    workflow_migration = (
-        Path(__file__).resolve().parents[4] / "migrations/versions/0018_workflow_approvals.py"
-    )
-    workflow_module = ast.parse(workflow_migration.read_text(encoding="utf-8"))
-    assignments = {
-        target.id: node.value
-        for node in workflow_module.body
-        if isinstance(node, ast.Assign)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
-    old_permissions = ast.literal_eval(assignments["OLD_AUDIT_PERMISSIONS"])
-    new_expression = assignments["NEW_AUDIT_PERMISSIONS"]
-    assert isinstance(new_expression, ast.BinOp) and isinstance(new_expression.op, ast.Add)
-    new_permissions = old_permissions + ast.literal_eval(new_expression.right)
+    def permission_transition(filename: str) -> tuple[str, str]:
+        migration = Path(__file__).resolve().parents[4] / f"migrations/versions/{filename}"
+        module = ast.parse(migration.read_text(encoding="utf-8"))
+        assignments = {
+            target.id: node.value
+            for node in module.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+        old = ast.literal_eval(assignments["OLD_AUDIT_PERMISSIONS"])
+        expression = assignments["NEW_AUDIT_PERMISSIONS"]
+        assert isinstance(expression, ast.BinOp) and isinstance(expression.op, ast.Add)
+        return old, old + ast.literal_eval(expression.right)
+
+    workflow_old, workflow_new = permission_transition("0018_workflow_approvals.py")
+    tenant_old, tenant_new = permission_transition("0020_tenant_administration.py")
     assert snapshot["permission_catalog"] == (
-        f"permission_id IS NULL OR permission_id IN ({old_permissions})"
+        f"permission_id IS NULL OR permission_id IN ({workflow_old})"
     )
-    assert AUDIT_CHECKS["permission_catalog"] == (
-        f"permission_id IS NULL OR permission_id IN ({new_permissions})"
+    assert tenant_old == workflow_new
+    assert set(re.findall(r"'([^']+)'", tenant_new)) == set(PERMISSION_CATALOG)
+    assert set(re.findall(r"'([^']+)'", AUDIT_CHECKS["permission_catalog"])) == set(
+        PERMISSION_CATALOG
     )
 
 

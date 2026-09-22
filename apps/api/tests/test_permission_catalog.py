@@ -22,6 +22,7 @@ CATALOG_FILE = APP_ROOT / "authorization" / "permissions.py"
 SERVICE_FILE = APP_ROOT / "authorization" / "service.py"
 RBAC_MODEL_FILE = APP_ROOT / "models" / "authorization.py"
 ROLE_ADMINISTRATION_FILE = APP_ROOT / "services" / "role_administration.py"
+TENANT_ADMINISTRATION_MODEL_FILE = APP_ROOT / "models" / "tenant_administration.py"
 
 
 def test_catalog_is_complete_typed_and_unique() -> None:
@@ -94,13 +95,25 @@ def test_authorization_service_is_the_only_decision_path() -> None:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if (
-                path not in {SERVICE_FILE, RBAC_MODEL_FILE, ROLE_ADMINISTRATION_FILE}
+                path
+                not in {
+                    SERVICE_FILE,
+                    RBAC_MODEL_FILE,
+                    ROLE_ADMINISTRATION_FILE,
+                    TENANT_ADMINISTRATION_MODEL_FILE,
+                }
                 and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                 and node.name == "authorize"
             ):
                 violations.append(f"decision:{path.relative_to(APP_ROOT)}:{node.lineno}")
             if (
-                path not in {SERVICE_FILE, RBAC_MODEL_FILE, ROLE_ADMINISTRATION_FILE}
+                path
+                not in {
+                    SERVICE_FILE,
+                    RBAC_MODEL_FILE,
+                    ROLE_ADMINISTRATION_FILE,
+                    TENANT_ADMINISTRATION_MODEL_FILE,
+                }
                 and isinstance(node, ast.Constant)
                 and isinstance(node.value, str)
                 and any(table in node.value for table in protected_tables)

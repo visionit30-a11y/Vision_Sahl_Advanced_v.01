@@ -10,6 +10,8 @@ import { WorkflowApprovalsPage } from '../pages/WorkflowApprovalsPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
 import { TasksPage } from '../pages/TasksPage';
 import { NotificationPreferencesPage } from '../pages/NotificationPreferencesPage';
+import { TenantUsersPage } from '../pages/TenantUsersPage';
+import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { AppLayout } from './AppLayout';
 import { AppProviders } from './AppProviders';
@@ -43,6 +45,9 @@ function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
   if (auth.status === 'no-membership') return <NoMembershipShellState />;
   if (auth.status === 'tenant-not-selected') return <TenantSelectionShellState />;
   if (auth.status === 'error') return <ErrorShellState />;
+  if (auth.user?.forcePasswordChange && location.pathname !== '/settings/password') {
+    return <Navigate to="/settings/password" replace />;
+  }
   if (requiredPermission && permissions.loading) return <LoadingShellState />;
   if (requiredPermission && permissions.status === 'unavailable') {
     // Keep the authenticated route mounted so its server-backed provider can
@@ -106,6 +111,22 @@ export function App() {
             element={
               <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.decideWorkflowApprovals}>
                 <TasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/users"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.readTenantUsers}>
+                <TenantUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/password"
+            element={
+              <ProtectedRoute>
+                <ChangePasswordPage />
               </ProtectedRoute>
             }
           />

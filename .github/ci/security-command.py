@@ -98,13 +98,25 @@ class _WindowsJob:
                 [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD],
                 wintypes.BOOL,
             ),
-            "AssignProcessToJobObject": ([wintypes.HANDLE, wintypes.HANDLE], wintypes.BOOL),
+            "AssignProcessToJobObject": (
+                [wintypes.HANDLE, wintypes.HANDLE],
+                wintypes.BOOL,
+            ),
             "TerminateJobObject": ([wintypes.HANDLE, wintypes.UINT], wintypes.BOOL),
             "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
-            "OpenProcess": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
-            "OpenThread": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
+            "OpenProcess": (
+                [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
+            "OpenThread": (
+                [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
             "ResumeThread": ([wintypes.HANDLE], wintypes.DWORD),
-            "CreateToolhelp32Snapshot": ([wintypes.DWORD, wintypes.DWORD], wintypes.HANDLE),
+            "CreateToolhelp32Snapshot": (
+                [wintypes.DWORD, wintypes.DWORD],
+                wintypes.HANDLE,
+            ),
             "Thread32First": ([wintypes.HANDLE, ctypes.c_void_p], wintypes.BOOL),
             "Thread32Next": ([wintypes.HANDLE, ctypes.c_void_p], wintypes.BOOL),
         }
@@ -268,7 +280,10 @@ def counters(payload: bytes) -> tuple[dict[str, int], bool]:
         if values:
             result[key] = int(values[-1])
     for line in text.splitlines():
-        if re.search(r"\b[1-9]\d* (?:skipped|xfailed|xpassed|todo|pending|failed|errors?)\b", line):
+        if re.search(
+            r"\b[1-9]\d* (?:skipped|xfailed|xpassed|todo|pending|failed|errors?)\b",
+            line,
+        ):
             incomplete = True
     return result, incomplete
 
@@ -278,7 +293,11 @@ def run_gate(
 ) -> tuple[int, dict[str, Any]]:
     if name not in GATE_NAMES:
         return 1, {"result": "FAIL", "reason": "invalid_configuration"}
-    report: dict[str, Any] = {"gate": name, "result": "FAIL", "reason": "command_failed"}
+    report: dict[str, Any] = {
+        "gate": name,
+        "result": "FAIL",
+        "reason": "command_failed",
+    }
     try:
         if name not in GATE_NAMES or not command or not 1 <= timeout <= 1200:
             raise ValueError
@@ -309,7 +328,7 @@ def run_gate(
                 # Alembic current writes revisions to stdout; additional heads/revisions,
                 # blank output and a stale version all invalidate this proof.
                 incomplete = (
-                    incomplete or completed.stdout.strip() != b"0019_activity_center (head)"
+                    incomplete or completed.stdout.strip() != b"0023_tenant_admin_guard (head)"
                 )
             if incomplete:
                 report["reason"] = "incomplete_test_gate"

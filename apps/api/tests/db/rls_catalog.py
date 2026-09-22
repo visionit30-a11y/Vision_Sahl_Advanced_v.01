@@ -112,8 +112,20 @@ def assert_tenant_catalog(
         policy = policies[0]
         if policy.polcmd != "*" or not policy.polpermissive:
             failures.append(f"{name}: the isolation policy must cover ALL commands")
-        if list(policy.polroles) != [application_oid]:
-            failures.append(f"{name}: the policy must target only the application role")
+        expected_roles = [application_oid]
+        if name in {
+            "app.tenant_access_events",
+            "auth.roles",
+            "auth.role_permissions",
+            "auth.membership_roles",
+        }:
+            migration_oid = connection.execute(
+                text("SELECT oid FROM pg_roles WHERE rolname = :role"),
+                {"role": migration_role},
+            ).scalar_one()
+            expected_roles = sorted((application_oid, migration_oid))
+        if sorted(policy.polroles) != expected_roles:
+            failures.append(f"{name}: the policy roles do not match the approved boundary")
         if normalized_predicate(policy.using_expression) != expected:
             failures.append(f"{name}: USING must be the tenant identity equality")
         if normalized_predicate(policy.check_expression) != expected:

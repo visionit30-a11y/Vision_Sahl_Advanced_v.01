@@ -49,6 +49,11 @@ class RoleStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class RoleKind(StrEnum):
+    CUSTOM = "custom"
+    TENANT_ADMIN = "tenant_admin"
+
+
 def new_role_id() -> RoleId:
     return RoleId(uuid.uuid7())
 
@@ -60,6 +65,12 @@ class Role(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_roles_tenant_id"),
         UniqueConstraint("tenant_id", "key", name="uq_roles_tenant_key"),
+        Index(
+            "uq_roles_one_tenant_admin",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("kind = 'tenant_admin'::auth.role_kind"),
+        ),
         CheckConstraint("key ~ '^[a-z][a-z0-9_]{0,62}$'", name="key_format"),
         CheckConstraint("version > 0", name="version_positive"),
         {"schema": "auth"},
@@ -83,6 +94,16 @@ class Role(Base):
         nullable=False,
         server_default=text("'active'::auth.role_status"),
     )
+    kind: Mapped[RoleKind] = mapped_column(
+        Enum(
+            RoleKind,
+            name="role_kind",
+            schema="auth",
+            values_callable=lambda enum: [member.value for member in enum],
+        ),
+        nullable=False,
+        server_default=text("'custom'::auth.role_kind"),
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -92,7 +113,10 @@ class Role(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Role id={self.id} tenant_id={self.tenant_id} status={self.status.value}>"
+        return (
+            f"<Role id={self.id} tenant_id={self.tenant_id} "
+            f"kind={self.kind.value} status={self.status.value}>"
+        )
 
 
 class RolePermission(Base):

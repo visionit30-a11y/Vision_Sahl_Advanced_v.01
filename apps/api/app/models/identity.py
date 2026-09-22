@@ -231,6 +231,9 @@ class PasswordCredential(Base):
     credential_version: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("1")
     )
+    force_password_change: Mapped[bool] = mapped_column(
+        nullable=False, server_default=text("false")
+    )
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -238,7 +241,8 @@ class PasswordCredential(Base):
     def __repr__(self) -> str:
         return (
             f"<PasswordCredential user_id={self.user_id} "
-            f"credential_version={self.credential_version}>"
+            f"credential_version={self.credential_version} "
+            f"force_password_change={self.force_password_change}>"
         )
 
 

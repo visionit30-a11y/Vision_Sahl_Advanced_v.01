@@ -34,6 +34,12 @@ class Permission(StrEnum):
 
     TENANT_MEMBERSHIPS_READ = "tenant.memberships.read"
     TENANT_MEMBERSHIPS_MANAGE = "tenant.memberships.manage"
+    TENANT_PROFILE_READ = "tenant.profile.read"
+    TENANT_USERS_READ = "tenant.users.read"
+    TENANT_USERS_MANAGE = "tenant.users.manage"
+    TENANT_USERS_INVITE = "tenant.users.invite"
+    TENANT_ACCESS_AUDIT_READ = "tenant.access_audit.read"
+    TENANT_DASHBOARD_READ = "tenant.dashboard.read"
     TENANT_ROLES_READ = "tenant.roles.read"
     TENANT_ROLES_MANAGE = "tenant.roles.manage"
     TENANT_USER_UI_SETTINGS_MANAGE_SELF = "tenant.user_ui_settings.manage_self"

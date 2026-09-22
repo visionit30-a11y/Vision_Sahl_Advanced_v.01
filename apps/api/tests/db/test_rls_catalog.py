@@ -61,6 +61,7 @@ def test_discovered_production_tenant_tables_obey_the_contract(
     assert discovered == [
         "app.notification_preferences",
         "app.notifications",
+        "app.tenant_access_events",
         "app.tenant_ui_settings",
         "app.user_ui_settings",
         "app.workflow_approval_tasks",

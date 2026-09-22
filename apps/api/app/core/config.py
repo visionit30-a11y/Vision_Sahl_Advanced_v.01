@@ -27,6 +27,10 @@ class AuthHmacKeyMissingError(RuntimeError):
     """Raised when authentication key digests cannot be generated safely."""
 
 
+class IdentityBootstrapDatabaseUrlMissingError(RuntimeError):
+    """Raised when a trusted identity command has no dedicated principal."""
+
+
 class Settings(BaseSettings):
     """Runtime settings for the API."""
 
@@ -65,6 +69,7 @@ class Settings(BaseSettings):
     # value is an error at the point migrations are run, not a quiet downgrade
     # to the runtime role.
     migration_database_url: str | None = Field(default=None, repr=False)
+    identity_bootstrap_database_url: str | None = Field(default=None, repr=False)
 
     redis_enabled: bool = False
     redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
@@ -148,6 +153,15 @@ class Settings(BaseSettings):
                 "AUTH_HMAC_KEY must contain at least 32 bytes; there is no insecure fallback."
             )
         return self.auth_hmac_key.encode()
+
+    @property
+    def required_identity_bootstrap_database_url(self) -> str:
+        if not self.identity_bootstrap_database_url:
+            raise IdentityBootstrapDatabaseUrlMissingError(
+                "IDENTITY_BOOTSTRAP_DATABASE_URL is required; runtime and migration "
+                "URLs are not accepted."
+            )
+        return self.identity_bootstrap_database_url
 
 
 @lru_cache

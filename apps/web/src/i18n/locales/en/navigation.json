@@ -4,12 +4,15 @@
   "openNav": "Open navigation",
   "closeNav": "Close navigation",
   "sections": {
+    "tenantAdministration": "Tenant administration",
     "workspace": "Workspace",
     "workflow": "Workflow"
   },
   "tenantSelector": "Tenant",
   "unreadCount": "{{count}} unread notifications",
   "items": {
+    "tenantUsers": "Users and roles",
+    "changePassword": "Change password",
     "home": "Home",
     "designSystem": "Design system",
     "workflowRequests": "Requests",

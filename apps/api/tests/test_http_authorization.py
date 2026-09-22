@@ -31,6 +31,7 @@ from app.services.membership_access_service import (
     membership_access_service,
 )
 from app.services.role_administration import RoleRecord, role_administration_service
+from app.services.tenant_administration import tenant_administration_service
 from app.tenancy.context import TenantContext
 
 
@@ -154,7 +155,13 @@ async def test_role_administration_requires_the_typed_permission_before_executio
         assert grant.permission_id == PermissionId(Permission.TENANT_ROLES_MANAGE.value)
         assert str(key) == "auditor" and display_name == "Auditor"
         return RoleRecord(
-            uuid.uuid7(), access.context.tenant_id, "auditor", display_name, "active", 1
+            uuid.uuid7(),
+            access.context.tenant_id,
+            "auditor",
+            display_name,
+            "active",
+            "custom",
+            1,
         )
 
     monkeypatch.setattr(type(role_administration_service), "create_role", create)
@@ -177,6 +184,40 @@ async def test_role_administration_denial_never_calls_the_service(
     response = await client.post("/auth/roles", json={"key": "admin", "display_name": "Admin"})
     assert response.status_code == 403
     assert response.json()["error"]["message"] == "The requested resource is not available."
+
+
+@pytest.mark.asyncio
+async def test_tenant_user_directory_requires_typed_permission(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    access = _access()
+    authorizer = _authorize(app, access, AuthorizationDecision.ALLOW)
+    listing = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        type(tenant_administration_service),
+        "list_users",
+        lambda self, grant: listing(grant),
+    )
+    response = await client.get("/tenant-admin/users")
+    assert response.status_code == 200
+    listing.assert_awaited_once()
+    assert authorizer.calls[0][2] == PermissionId(Permission.TENANT_USERS_READ.value)
+
+
+@pytest.mark.asyncio
+async def test_tenant_user_directory_denial_never_calls_service(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _authorize(app, _access(), AuthorizationDecision.DENY)
+    listing = AsyncMock()
+    monkeypatch.setattr(
+        type(tenant_administration_service),
+        "list_users",
+        lambda self, grant: listing(grant),
+    )
+    response = await client.get("/tenant-admin/users")
+    assert response.status_code == 403
+    listing.assert_not_called()
 
 
 @pytest.mark.asyncio

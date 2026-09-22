@@ -211,10 +211,13 @@ def test_rbac_tables_have_exact_rls_owner_and_grants(
         app_oid = app_connection.scalar(
             text("SELECT oid FROM pg_roles WHERE rolname=:role"), {"role": application_role}
         )
-        assert (policy.polcmd, policy.polpermissive, list(policy.polroles)) == (
+        migrator_oid = app_connection.scalar(
+            text("SELECT oid FROM pg_roles WHERE rolname=:role"), {"role": migration_role}
+        )
+        assert (policy.polcmd, policy.polpermissive, sorted(policy.polroles)) == (
             "*",
             True,
-            [app_oid],
+            sorted((app_oid, migrator_oid)),
         )
         assert "app.current_tenant_id()" in policy.using_expr
         assert "app.current_tenant_id()" in policy.check_expr

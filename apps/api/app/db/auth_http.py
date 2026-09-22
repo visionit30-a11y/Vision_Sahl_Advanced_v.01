@@ -59,6 +59,7 @@ class SessionIdentity:
     id: uuid.UUID
     email: str
     selected_membership_id: uuid.UUID | None
+    force_password_change: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +97,12 @@ async def _active_session(
     return (
         SessionService(store),
         record,
-        SessionIdentity(identity.user_id, identity.email, record.selected_membership_id),
+        SessionIdentity(
+            identity.user_id,
+            identity.email,
+            record.selected_membership_id,
+            bool(identity.force_password_change),
+        ),
     )
 
 
@@ -264,6 +270,17 @@ class AuthHttpService:
             _validate_unsafe(request, record)
             if not await sessions.logout(bearer, now=await sessions.store.current_time()):
                 raise SessionRejectedError()
+
+    async def change_password(
+        self, bearer: str, current_password: str, new_password: str, request: Request
+    ) -> bool:
+        async with audited_auth_transaction(_engine, request) as (connection, audit):
+            _, record, _ = await _active_session(connection, bearer)
+            audit.session = record
+            _validate_unsafe(request, record)
+        return await _password_authentication().change_password(
+            bearer, current_password, new_password
+        )
 
 
 auth_http_service = AuthHttpService()

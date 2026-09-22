@@ -168,6 +168,8 @@ def test_auth_enums_match_the_domain_contract(app_connection: Connection) -> Non
         ("membership_status", "active"),
         ("membership_status", "suspended"),
         ("membership_status", "left"),
+        ("role_kind", "custom"),
+        ("role_kind", "tenant_admin"),
         ("role_status", "active"),
         ("role_status", "inactive"),
         ("user_status", "pending"),

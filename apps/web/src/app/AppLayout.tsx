@@ -49,7 +49,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
             ? t('navigation:items.tasks')
             : location.pathname.startsWith('/settings/notifications')
               ? t('navigation:items.notificationPreferences')
-              : null;
+              : location.pathname.startsWith('/settings/users')
+                ? t('navigation:items.tenantUsers')
+                : location.pathname.startsWith('/settings/password')
+                  ? t('navigation:items.changePassword')
+                  : null;
   const breadcrumbs: Crumb[] = currentLabel ? [home, { id: 'current', label: currentLabel }] : [];
 
   return (
