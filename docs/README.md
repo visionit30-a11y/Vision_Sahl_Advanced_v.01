@@ -32,6 +32,7 @@ BRD يحدد **لماذا** و**ماذا**، وSRS يحدد **كيف** وبأي 
 | `phase-2e.md` | خطة Security Audit والتنقيح والبوابات الأمنية ومجموعات التنفيذ |
 | `phase-2e-exit-criteria.md` | معايير قبول Phase 2E وخطة الإثبات دون ادعاء تنفيذ في G1 |
 | `phase-3a.md` | القشرة التطبيقية الفعلية وحالات الجلسة واختيار الجهة والتنقل الواعي بالصلاحيات |
+| `phase-3e-documents.md` | خدمة المرفقات المشتركة وحدود Object Storage وRLS وواجهة الطلبات |
 | `adr/ADR-0015-tenant-context-and-transactions.md` | سياق الجهة وحدّ المعاملة؛ المجموعة الثالثة المقبولة |
 | `adr/ADR-0016-tenant-rls-enforcement.md` | إنفاذ RLS وبرهان probe وعقد اكتشاف الجداول |
 | `adr/ADR-0017-database-role-separation.md` | فصل الأدوار وحدود المنح ومهاجرة 0004 |

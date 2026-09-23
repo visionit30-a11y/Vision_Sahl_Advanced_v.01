@@ -150,7 +150,8 @@ export class AuthClient {
     const method = (init.method ?? 'GET').toUpperCase();
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
-    if (init.body !== undefined) headers.set('Content-Type', 'application/json');
+    if (init.body !== undefined && !(init.body instanceof FormData))
+      headers.set('Content-Type', 'application/json');
     if (UNSAFE_METHODS.has(method)) {
       if (!this.#csrfToken) throw new CsrfUnavailableError('CSRF bootstrap is required.');
       headers.set('X-CSRF-Token', this.#csrfToken);

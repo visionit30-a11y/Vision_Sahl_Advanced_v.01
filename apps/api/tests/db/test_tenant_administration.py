@@ -202,7 +202,7 @@ async def test_admin_password_reset_revokes_sessions_and_sets_force_change(
     owner.dispose()
 
 
-def test_tenant_directory_and_append_only_history_are_rls_scoped(
+async def test_tenant_directory_and_append_only_history_are_rls_scoped(
     bootstrap_state: dict[str, uuid.UUID | str], app_connection: Connection
 ) -> None:
     app_connection.execute(

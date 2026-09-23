@@ -39,21 +39,23 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const home: Crumb = { id: 'home', label: t('navigation:items.home'), to: '/' };
   const currentLabel = location.pathname.startsWith('/design-system')
     ? t('navigation:items.designSystem')
-    : location.pathname.startsWith('/workflows/approvals')
-      ? t('navigation:items.workflowApprovals')
-      : location.pathname.startsWith('/workflows/requests')
-        ? t('navigation:items.workflowRequests')
-        : location.pathname.startsWith('/notifications')
-          ? t('navigation:items.notifications')
-          : location.pathname.startsWith('/tasks')
-            ? t('navigation:items.tasks')
-            : location.pathname.startsWith('/settings/notifications')
-              ? t('navigation:items.notificationPreferences')
-              : location.pathname.startsWith('/settings/users')
-                ? t('navigation:items.tenantUsers')
-                : location.pathname.startsWith('/settings/password')
-                  ? t('navigation:items.changePassword')
-                  : null;
+    : location.pathname.startsWith('/documents')
+      ? t('navigation:items.documents')
+      : location.pathname.startsWith('/workflows/approvals')
+        ? t('navigation:items.workflowApprovals')
+        : location.pathname.startsWith('/workflows/requests')
+          ? t('navigation:items.workflowRequests')
+          : location.pathname.startsWith('/notifications')
+            ? t('navigation:items.notifications')
+            : location.pathname.startsWith('/tasks')
+              ? t('navigation:items.tasks')
+              : location.pathname.startsWith('/settings/notifications')
+                ? t('navigation:items.notificationPreferences')
+                : location.pathname.startsWith('/settings/users')
+                  ? t('navigation:items.tenantUsers')
+                  : location.pathname.startsWith('/settings/password')
+                    ? t('navigation:items.changePassword')
+                    : null;
   const breadcrumbs: Crumb[] = currentLabel ? [home, { id: 'current', label: currentLabel }] : [];
 
   return (

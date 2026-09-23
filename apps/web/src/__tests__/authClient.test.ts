@@ -40,6 +40,25 @@ describe('AuthClient', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
+  it('lets the browser set the multipart boundary while retaining session CSRF', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(reply({}, { headers: { 'X-CSRF-Token': 'memory-token' } }))
+      .mockResolvedValueOnce(reply());
+    const client = new AuthClient({ fetcher });
+    await client.bootstrapCsrf();
+    const body = new FormData();
+    body.set('upload', new File(['%PDF-1.7'], 'review.pdf', { type: 'application/pdf' }));
+    await client.request('/workflows/requests/request/documents', { method: 'POST', body });
+    const init = fetcher.mock.calls[1]?.[1];
+    const headers = new Headers(init?.headers);
+    expect(init?.body).toBe(body);
+    expect(headers.has('Content-Type')).toBe(false);
+    expect(headers.get('X-CSRF-Token')).toBe('memory-token');
+    expect(init?.credentials).toBe('include');
+    client.close();
+  });
+
   it('rejects unsafe requests before CSRF bootstrap', async () => {
     const client = new AuthClient({ fetcher: vi.fn() });
     await expect(client.request('/unsafe', { method: 'POST' })).rejects.toBeInstanceOf(

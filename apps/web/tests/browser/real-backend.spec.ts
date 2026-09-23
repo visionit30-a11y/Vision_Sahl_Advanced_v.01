@@ -816,6 +816,78 @@ test('real workflow request returns, resubmits, approves, and preserves history'
   }
 });
 
+test('real workflow documents use S3, respect participants, and survive submission', async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const account = await database('seed_login');
+  const requesterContext = await browser.newContext({ baseURL: origin });
+  const approverContext = await browser.newContext({ baseURL: origin });
+  trackRealCsrfBudget(requesterContext);
+  trackRealCsrfBudget(approverContext);
+  const requester = await requesterContext.newPage();
+  const approver = await approverContext.newPage();
+  try {
+    await loginAndSelectTenant(requester, account.email, account.password);
+    await requester.goto('/workflows/requests');
+    await requester.getByLabel('العنوان').fill('طلب مع مرفق');
+    await requester.getByLabel('الوصف').fill('ملف PDF مخزن في خدمة كائنات');
+    await requester.getByLabel('المعتمد').selectOption({ label: account.approver_email });
+    await requester.getByRole('button', { name: 'حفظ المسودة' }).click();
+    const request = requester.getByTestId('workflow-request');
+    await expect(request).toContainText('طلب مع مرفق');
+    const requestId = await request.getAttribute('data-request-id');
+    expect(requestId).toBeTruthy();
+    await request.getByRole('button', { name: 'المرفقات' }).click();
+    await request.getByLabel('اختر ملفًا').setInputFiles({
+      name: 'review.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF'),
+    });
+    await request.getByRole('button', { name: 'رفع المرفق' }).click();
+    await expect(request.getByText('review.pdf')).toBeVisible();
+    const download = requester.waitForEvent('download');
+    await request.getByRole('button', { name: 'تنزيل' }).click();
+    expect((await download).suggestedFilename()).toBe('review.pdf');
+    await requester.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(requester.getByTestId('document-center-item')).toContainText('review.pdf');
+    await expect(requester.getByTestId('document-center-item')).toContainText('طلب مع مرفق');
+    await requester.getByRole('button', { name: 'فتح الطلب' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('طلب مع مرفق');
+    await request.getByRole('button', { name: 'إرسال' }).click();
+    await expect(request).toContainText('قيد الاعتماد');
+
+    await loginAndSelectTenant(approver, account.approver_email, account.approver_password);
+    await approver.goto('/workflows/approvals');
+    const task = approver.getByTestId('approval-task');
+    await expect(task).toContainText('طلب مع مرفق');
+    await task.getByRole('button', { name: 'المرفقات' }).click();
+    await expect(task.getByText('review.pdf')).toBeVisible();
+    const approverDownload = approver.waitForEvent('download');
+    await task.getByRole('button', { name: 'تنزيل' }).click();
+    expect((await approverDownload).suggestedFilename()).toBe('review.pdf');
+    await approver.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(approver.getByTestId('document-center-item')).toContainText('review.pdf');
+    await expect(approver.getByRole('button', { name: 'فتح الاعتماد' })).toBeVisible();
+
+    await requester.getByRole('button', { name: 'A', exact: true }).click();
+    await requester.getByRole('menuitem', { name: 'B', exact: true }).click();
+    await expect(requester.getByRole('button', { name: 'B', exact: true })).toBeVisible();
+    const foreign = await protectedApi(() =>
+      requester.request.get(`/workflows/requests/${requestId}/documents`),
+    );
+    expect(foreign.status()).toBe(404);
+    await requester.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(requester.getByText('لا توجد وثائق متاحة لعضويتك في هذه الجهة.')).toBeVisible();
+  } finally {
+    for (const value of await requesterContext.cookies()) rememberSecret(value.value);
+    for (const value of await approverContext.cookies()) rememberSecret(value.value);
+    await requesterContext.close();
+    await approverContext.close();
+    await database('cleanup', account);
+  }
+});
+
 test('real login form establishes a fresh PostgreSQL session and selected tenant', async ({
   page,
   context,

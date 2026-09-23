@@ -259,8 +259,10 @@ def test_runtime_environment_drops_credentials_and_registry_overrides(
 def test_universal_uv_inventory_includes_non_host_marker_packages(gate: Any) -> None:
     inventory = gate.uv_inventory(gate.ROOT)
     assert any(name == "uvloop" for name, _ in inventory)
+    assert ("boto3", "1.43.100") in inventory
+    assert ("moto", "5.2.3") in inventory
     assert ("sahl-api", "0.1.0") not in inventory
-    assert len(inventory) == 50
+    assert len(inventory) == 71
 
 
 def test_build_and_scanner_locks_are_exact_and_hash_pinned(gate: Any) -> None:

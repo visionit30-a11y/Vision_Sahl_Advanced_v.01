@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     redis_enabled: bool = False
     redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
 
+    # Object bytes never live in PostgreSQL or the API host filesystem.
+    # These four values must be configured together before document operations.
+    object_storage_endpoint_url: str | None = None
+    object_storage_bucket: str | None = None
+    object_storage_region: str = "us-east-1"
+    object_storage_access_key: str | None = Field(default=None, repr=False)
+    object_storage_secret_key: str | None = Field(default=None, repr=False)
+
     password_hash_concurrency: int = 2
     session_idle_timeout_minutes: int = 30
     session_absolute_timeout_hours: int = 8

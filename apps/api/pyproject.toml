@@ -5,12 +5,14 @@ description = "Sahl Developer Platform - API (Modular Monolith, FastAPI)"
 requires-python = ">=3.14,<3.15"
 dependencies = [
     "argon2-cffi==25.1.0",
+    "boto3==1.43.100",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic-settings>=2.6",
     "SQLAlchemy>=2.0.36",
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
+    "python-multipart==0.0.32",
     "redis>=5.2",
     "structlog>=24.4",
 ]
@@ -19,6 +21,9 @@ dependencies = [
 # product, and uv installs this group by default when syncing the project.
 [dependency-groups]
 dev = [
+    "flask==3.1.3",
+    "flask-cors==6.0.5",
+    "moto[s3]==5.2.3",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "httpx>=0.28",

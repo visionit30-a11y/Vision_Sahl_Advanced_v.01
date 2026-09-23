@@ -328,7 +328,7 @@ def run_gate(
                 # Alembic current writes revisions to stdout; additional heads/revisions,
                 # blank output and a stale version all invalidate this proof.
                 incomplete = (
-                    incomplete or completed.stdout.strip() != b"0023_tenant_admin_guard (head)"
+                    incomplete or completed.stdout.strip() != b"0024_workflow_documents (head)"
                 )
             if incomplete:
                 report["reason"] = "incomplete_test_gate"

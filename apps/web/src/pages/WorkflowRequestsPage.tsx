@@ -21,6 +21,8 @@ import {
   type WorkflowRequest,
 } from '../workflow/client';
 import styles from './WorkflowPage.module.css';
+import { WorkflowDocuments } from '../workflow/WorkflowDocuments';
+import { useAppAuth } from '../app/auth-state';
 
 const statusTone = {
   draft: 'neutral',
@@ -32,6 +34,7 @@ const statusTone = {
 
 export function WorkflowRequestsPage() {
   const { t } = useTranslation('workflow');
+  const auth = useAppAuth();
   const [searchParams] = useSearchParams();
   const focusedRequest = searchParams.get('request');
   const [requests, setRequests] = useState<WorkflowRequest[]>([]);
@@ -41,6 +44,7 @@ export function WorkflowRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [documentRequestId, setDocumentRequestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,7 +162,25 @@ export function WorkflowRequestsPage() {
                 <Button size="sm" variant="ghost" onClick={() => void toggleHistory(request.id)}>
                   {t('actions.history')}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setDocumentRequestId(documentRequestId === request.id ? null : request.id)
+                  }
+                >
+                  {t('documents.title')}
+                </Button>
               </div>
+              {documentRequestId === request.id ? (
+                <WorkflowDocuments
+                  requestId={request.id}
+                  mayUpload={
+                    request.requester_membership_id === auth.selectedMembershipId &&
+                    ['draft', 'returned'].includes(request.status)
+                  }
+                />
+              ) : null}
               {events ? (
                 <div className={styles.history} data-testid="workflow-history">
                   {events.map((item) => (

@@ -11,6 +11,7 @@ import {
   TextArea,
 } from '../design-system';
 import { workflowClient, type ApprovalTask, type WorkflowDecision } from '../workflow/client';
+import { WorkflowDocuments } from '../workflow/WorkflowDocuments';
 import styles from './WorkflowPage.module.css';
 
 export function WorkflowApprovalsPage() {
@@ -19,6 +20,7 @@ export function WorkflowApprovalsPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [documentTaskId, setDocumentTaskId] = useState<string | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -74,7 +76,17 @@ export function WorkflowApprovalsPage() {
               <Button size="sm" variant="danger" onClick={() => void decide(task, 'reject')}>
                 {t('actions.reject')}
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setDocumentTaskId(documentTaskId === task.id ? null : task.id)}
+              >
+                {t('documents.title')}
+              </Button>
             </div>
+            {documentTaskId === task.id ? (
+              <WorkflowDocuments requestId={task.request_id} mayUpload={false} />
+            ) : null}
           </li>
         ))}
       </ul>
