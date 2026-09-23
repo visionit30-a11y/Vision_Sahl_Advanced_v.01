@@ -849,6 +849,11 @@ test('real workflow documents use S3, respect participants, and survive submissi
     const download = requester.waitForEvent('download');
     await request.getByRole('button', { name: 'تنزيل' }).click();
     expect((await download).suggestedFilename()).toBe('review.pdf');
+    await requester.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(requester.getByTestId('document-center-item')).toContainText('review.pdf');
+    await expect(requester.getByTestId('document-center-item')).toContainText('طلب مع مرفق');
+    await requester.getByRole('button', { name: 'فتح الطلب' }).click();
+    await expect(requester.getByTestId('workflow-request')).toContainText('طلب مع مرفق');
     await request.getByRole('button', { name: 'إرسال' }).click();
     await expect(request).toContainText('قيد الاعتماد');
 
@@ -861,6 +866,9 @@ test('real workflow documents use S3, respect participants, and survive submissi
     const approverDownload = approver.waitForEvent('download');
     await task.getByRole('button', { name: 'تنزيل' }).click();
     expect((await approverDownload).suggestedFilename()).toBe('review.pdf');
+    await approver.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(approver.getByTestId('document-center-item')).toContainText('review.pdf');
+    await expect(approver.getByRole('button', { name: 'فتح الاعتماد' })).toBeVisible();
 
     await requester.getByRole('button', { name: 'A', exact: true }).click();
     await requester.getByRole('menuitem', { name: 'B', exact: true }).click();
@@ -869,6 +877,8 @@ test('real workflow documents use S3, respect participants, and survive submissi
       requester.request.get(`/workflows/requests/${requestId}/documents`),
     );
     expect(foreign.status()).toBe(404);
+    await requester.getByRole('link', { name: 'مركز الوثائق' }).click();
+    await expect(requester.getByText('لا توجد وثائق متاحة لعضويتك في هذه الجهة.')).toBeVisible();
   } finally {
     for (const value of await requesterContext.cookies()) rememberSecret(value.value);
     for (const value of await approverContext.cookies()) rememberSecret(value.value);

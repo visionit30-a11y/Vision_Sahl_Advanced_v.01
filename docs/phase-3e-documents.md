@@ -34,6 +34,7 @@ separate prerequisite; this branch is stacked on it and must not be merged to
 | POST multipart field `upload` | `/workflows/requests/{request_id}/documents` | `201` metadata |
 | GET | `/workflows/requests/{request_id}/documents` | metadata list |
 | GET | `/workflows/requests/{request_id}/documents/{document_id}/download` | file attachment |
+| GET | `/documents` | current member's accessible document metadata across workflow requests |
 
 Upload accepts only PDF, PNG, or JPEG, with matching extension and initial file
 signature, a safe filename of at most 180 characters, and 1–10 MiB of content.
@@ -51,7 +52,15 @@ or database. A dedicated least-privilege bucket identity needs only object
 put/get/delete for the configured private bucket; bucket provisioning remains an
 operator responsibility. The browser receives no object-store credentials.
 
-The UI adds a compact attachment panel to requests and approval tasks. It uses
+The UI exposes a visible Documents center in the authenticated navigation. It
+lists only attachments for requests where the current tenant membership is the
+requester or assigned approver; the backend filters under the current tenant's
+RLS and typed read permission. The center shows the associated request and
+supports authorized downloads. Requesters can open their request; approvers
+can open pending approvals. Upload remains on the request panel. The center
+clears and refetches after a tenant switch, with no browser persistence.
+
+The UI also adds a compact attachment panel to requests and approval tasks. It uses
 the existing design system, translations, authenticated HTTP client, CSRF, and
 tenant-rotation behavior. Upload is available to the requester while editable;
 the approver can read/download. Failure stays visible; browser storage is not a

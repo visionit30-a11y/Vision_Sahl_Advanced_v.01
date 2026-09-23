@@ -52,6 +52,12 @@
   "actors": { "requester": "مقدم الطلب", "approver": "المعتمد" },
   "documents": {
     "title": "المرفقات",
+    "centerTitle": "مركز الوثائق",
+    "centerDescription": "مرفقات طلباتك والطلبات المسندة إليك داخل الجهة الحالية.",
+    "centerEmpty": "لا توجد وثائق متاحة لعضويتك في هذه الجهة.",
+    "request": "الطلب: {{title}}",
+    "openRequest": "فتح الطلب",
+    "openApproval": "فتح الاعتماد",
     "empty": "لا توجد مرفقات لهذا الطلب.",
     "choose": "اختر ملفًا",
     "upload": "رفع المرفق",

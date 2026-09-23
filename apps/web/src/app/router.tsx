@@ -6,6 +6,7 @@ import { DesignSystemPage } from '../pages/DesignSystemPage';
 import { LoginPage } from '../pages/LoginPage';
 import { HomePage } from '../pages/HomePage';
 import { WorkflowRequestsPage } from '../pages/WorkflowRequestsPage';
+import { DocumentCenterPage } from '../pages/DocumentCenterPage';
 import { WorkflowApprovalsPage } from '../pages/WorkflowApprovalsPage';
 import { NotificationsPage } from '../pages/NotificationsPage';
 import { TasksPage } from '../pages/TasksPage';
@@ -79,6 +80,14 @@ export function App() {
             element={
               <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.readWorkflowRequests}>
                 <WorkflowRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/documents"
+            element={
+              <ProtectedRoute requiredPermission={FRONTEND_PERMISSIONS.readWorkflowRequests}>
+                <DocumentCenterPage />
               </ProtectedRoute>
             }
           />

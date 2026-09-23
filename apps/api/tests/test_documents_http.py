@@ -60,6 +60,31 @@ async def test_missing_session_and_denial_never_touch_document_service(
 
 
 @pytest.mark.asyncio
+async def test_document_center_requires_read_permission_and_no_store(
+    app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    called = False
+
+    async def center(grant: AuthorizationGrant) -> list[object]:
+        nonlocal called
+        called = True
+        assert grant.permission_id == PermissionId(Permission.TENANT_WORKFLOW_REQUESTS_READ.value)
+        return []
+
+    monkeypatch.setattr(workflow_document_service, "center", center)
+    assert (await client.get("/documents")).status_code == 401
+    _trusted(app, AuthorizationDecision.DENY)
+    assert (await client.get("/documents")).status_code == 403
+    assert not called
+    _trusted(app, AuthorizationDecision.ALLOW)
+    response = await client.get("/documents")
+    assert response.status_code == 200
+    assert response.json() == []
+    assert response.headers["Cache-Control"] == "no-store"
+    assert called
+
+
+@pytest.mark.asyncio
 async def test_upload_binds_create_grant_and_returns_no_store(
     app: FastAPI, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

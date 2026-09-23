@@ -6,6 +6,7 @@ import hashlib
 import uuid
 from contextlib import suppress
 from datetime import datetime
+from typing import Literal
 
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -55,6 +56,12 @@ class DocumentRecord(BaseModel):
     created_at: datetime
 
 
+class DocumentCenterRecord(DocumentRecord):
+    request_title: str
+    request_status: str
+    relation: Literal["requester", "approver"]
+
+
 def _require(grant: AuthorizationGrant, permission: Permission) -> AuthorizationGrant:
     if not isinstance(grant, AuthorizationGrant) or grant.permission_id != PermissionId(
         permission.value
@@ -88,6 +95,29 @@ def _validated_filename(name: str | None, content_type: str | None, content: byt
 
 
 class WorkflowDocumentService:
+    async def center(self, grant: AuthorizationGrant) -> list[DocumentCenterRecord]:
+        grant = _require(grant, Permission.TENANT_WORKFLOW_REQUESTS_READ)
+        async with tenant_transaction(grant.tenant_context) as tx:
+            rows = (
+                await tx.execute(
+                    text("""
+                        SELECT d.id,d.tenant_id,d.request_id,d.uploaded_by_membership_id,
+                               d.filename,d.content_type,d.byte_size,d.sha256,d.created_at,
+                               r.title AS request_title,r.status AS request_status,
+                               CASE WHEN r.requester_membership_id=:member
+                                    THEN 'requester' ELSE 'approver' END AS relation
+                        FROM app.workflow_documents d
+                        JOIN app.workflow_requests r
+                          ON r.tenant_id=d.tenant_id AND r.id=d.request_id
+                        WHERE r.requester_membership_id=:member
+                           OR r.approver_membership_id=:member
+                        ORDER BY d.created_at DESC,d.id DESC
+                    """),
+                    {"member": grant.principal.membership_id},
+                )
+            ).all()
+        return [DocumentCenterRecord.model_validate(row._mapping) for row in rows]
+
     async def upload(
         self,
         grant: AuthorizationGrant,

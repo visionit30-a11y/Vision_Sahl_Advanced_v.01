@@ -86,6 +86,12 @@ async def test_requester_uploads_and_both_participants_read(
     assert len(store.objects) == 1
     assert [record.id for record in await service.list(requester_read, request_id)] == [created.id]
     assert [record.id for record in await service.list(approver_read, request_id)] == [created.id]
+    requester_center = await service.center(requester_read)
+    approver_center = await service.center(approver_read)
+    assert [(item.id, item.request_title, item.relation) for item in requester_center] == [
+        (created.id, "Documented request", "requester")
+    ]
+    assert [(item.id, item.relation) for item in approver_center] == [(created.id, "approver")]
     metadata, body = await service.download(
         approver_read,
         request_id,
@@ -132,6 +138,15 @@ async def test_foreign_resource_and_wrong_grant_fail_closed(
     )
     with pytest.raises(DocumentNotFound):
         await service.list(foreign_grant, request_id)
+    assert await service.center(foreign_grant) == []
+    with pytest.raises(AuthorizationBoundaryRequiredError):
+        await service.center(
+            grant(
+                workflow_fixture,
+                workflow_fixture.requester,
+                Permission.TENANT_WORKFLOW_REQUESTS_CREATE,
+            )
+        )
     with pytest.raises(DocumentNotFound):
         await service.download(foreign_grant, request_id, uuid.uuid7(), store)  # type: ignore[arg-type]
     with pytest.raises(AuthorizationBoundaryRequiredError):

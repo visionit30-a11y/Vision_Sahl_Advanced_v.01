@@ -20,6 +20,7 @@ const requiredOperations = [
   ['get', '/workflows/permissions'],
   ['get', '/workflows/approvers'],
   ['get', '/workflows/requests'],
+  ['get', '/documents'],
   ['post', '/workflows/requests'],
   ['get', '/workflows/approvals/inbox'],
   ['get', '/activity-center/notifications'],

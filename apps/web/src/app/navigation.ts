@@ -32,6 +32,13 @@ export const NAV_SECTIONS: NavSection[] = [
         requiredPermission: FRONTEND_PERMISSIONS.readWorkflowRequests,
       },
       {
+        id: 'documents',
+        labelKey: 'items.documents',
+        icon: 'layers',
+        to: '/documents',
+        requiredPermission: FRONTEND_PERMISSIONS.readWorkflowRequests,
+      },
+      {
         id: 'workflow-approvals',
         labelKey: 'items.workflowApprovals',
         icon: 'check',

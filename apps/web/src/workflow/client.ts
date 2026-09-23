@@ -60,6 +60,12 @@ export interface WorkflowDocument {
   created_at: string;
 }
 
+export interface DocumentCenterItem extends WorkflowDocument {
+  request_title: string;
+  request_status: WorkflowStatus;
+  relation: 'requester' | 'approver';
+}
+
 async function json<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await (await authClient.request(path, init)).json()) as T;
 }
@@ -96,6 +102,7 @@ export const workflowClient = {
   history: (id: string) => json<WorkflowEvent[]>(`/workflows/requests/${id}/history`),
   documents: (requestId: string) =>
     json<WorkflowDocument[]>(`/workflows/requests/${requestId}/documents`),
+  documentCenter: () => json<DocumentCenterItem[]>('/documents'),
   uploadDocument: (requestId: string, file: File) => {
     const body = new FormData();
     body.set('upload', file);

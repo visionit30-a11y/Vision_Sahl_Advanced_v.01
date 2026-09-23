@@ -11,12 +11,22 @@ from fastapi import APIRouter, Depends, File, Response, UploadFile
 from app.api.authorization_dependencies import require_permission
 from app.authorization.contracts import AuthorizationGrant
 from app.authorization.permissions import Permission
-from app.documents.service import DocumentRecord, workflow_document_service
+from app.documents.service import DocumentCenterRecord, DocumentRecord, workflow_document_service
 from app.documents.storage import ObjectStorage, get_object_storage
 
 router = APIRouter(prefix="/workflows/requests/{request_id}/documents", tags=["documents"])
+center_router = APIRouter(prefix="/documents", tags=["documents"])
 create_grant = require_permission(Permission.TENANT_WORKFLOW_REQUESTS_CREATE)
 read_grant = require_permission(Permission.TENANT_WORKFLOW_REQUESTS_READ)
+
+
+@center_router.get("", response_model=list[DocumentCenterRecord])
+async def document_center(
+    response: Response,
+    grant: Annotated[AuthorizationGrant, Depends(read_grant)],
+) -> list[DocumentCenterRecord]:
+    response.headers["Cache-Control"] = "no-store"
+    return await workflow_document_service.center(grant)
 
 
 @router.post("", response_model=DocumentRecord, status_code=201)

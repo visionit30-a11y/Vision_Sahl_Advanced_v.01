@@ -52,6 +52,12 @@
   "actors": { "requester": "Requester", "approver": "Approver" },
   "documents": {
     "title": "Attachments",
+    "centerTitle": "Documents",
+    "centerDescription": "Attachments on your requests and requests assigned to you in this tenant.",
+    "centerEmpty": "No documents are available to your membership in this tenant.",
+    "request": "Request: {{title}}",
+    "openRequest": "Open request",
+    "openApproval": "Open approval",
     "empty": "This request has no attachments.",
     "choose": "Choose a file",
     "upload": "Upload attachment",

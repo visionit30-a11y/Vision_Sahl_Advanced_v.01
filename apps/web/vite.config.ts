@@ -15,6 +15,12 @@ export default defineConfig({
       '/auth': { target: API_TARGET, changeOrigin: false },
       '/activity-center': { target: API_TARGET, changeOrigin: false },
       '/tenant-admin': { target: API_TARGET, changeOrigin: false },
+      '/documents': {
+        target: API_TARGET,
+        changeOrigin: false,
+        bypass: (request) =>
+          request.headers.accept?.includes('text/html') ? request.url : undefined,
+      },
       '/workflows': {
         target: API_TARGET,
         changeOrigin: false,
